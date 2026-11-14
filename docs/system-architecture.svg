@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1290 760" width="1290" height="760" role="img" aria-labelledby="t d">
+<title id="t">CampusNova system architecture</title>
+<desc id="d">Browser talks to the Next.js server, which queries Supabase Postgres as the signed-in user under Row-Level Security. Realtime pushes changes back to the browser. Sign-up creates the users row through a trigger. Files go straight to Supabase Storage, checked by storage RLS. See the README implementation notes for differences. Inngest runs Gemini (Google Gen AI) jobs on database events and writes results back to Postgres.</desc>
+<style>
+  /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */
+  svg {
+    --gray-50: #f9fafb; --gray-200: #e1e5ea; --gray-500: #606369; --gray-950: #0d1117; --white: #ffffff;
+    --indigo-50: #e8f2ff; --indigo-500: #3665e4; --indigo-800: #1e3f97; --navy-700: #264186;
+    --teal-50: #dcf9f8;   --teal-500: #00bbbd;   --teal-800: #006566;
+    --green-50: #e1f8eb;  --green-500: #00aa6f;  --green-800: #005d39;
+    --violet-50: #f8edff; --violet-500: #a15acf; --violet-800: #633481;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    /* Semantic: purpose aliases */
+    --surface: var(--white); --surface-sunken: var(--gray-50); --border: var(--gray-200);
+    --text: var(--gray-950); --text-muted: var(--gray-500); --edge: var(--gray-500);
+    --layer-client: var(--indigo-500); --layer-client-tint: var(--indigo-50); --layer-client-ink: var(--indigo-800);
+    --layer-server: var(--teal-500);   --layer-server-tint: var(--teal-50);   --layer-server-ink: var(--teal-800);
+    --layer-data: var(--green-500);    --layer-data-tint: var(--green-50);    --layer-data-ink: var(--green-800);
+    --layer-ai: var(--violet-500);     --layer-ai-tint: var(--violet-50);     --layer-ai-ink: var(--violet-800);
+    --accent: var(--navy-700);
+  }
+
+  /* Component: diagram parts */
+  .bg { fill: var(--surface); }
+  .panel { fill: var(--surface-sunken); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .node { stroke-width: 1.5; }
+  .client .panel, .client .node { stroke: var(--layer-client); } .client .node { fill: var(--layer-client-tint); } .client text { fill: var(--layer-client-ink); }
+  .server .panel, .server .node { stroke: var(--layer-server); } .server .node { fill: var(--layer-server-tint); } .server text { fill: var(--layer-server-ink); }
+  .data .panel, .data .node { stroke: var(--layer-data); } .data .node { fill: var(--layer-data-tint); } .data text { fill: var(--layer-data-ink); }
+  .ai .panel, .ai .node, .ai .group { stroke: var(--layer-ai); } .ai .node { fill: var(--layer-ai-tint); } .ai text { fill: var(--layer-ai-ink); }
+  .group { fill: none; stroke-width: 1; stroke-dasharray: 3 3; }
+  text { font-family: var(--font-sans); text-anchor: middle; }
+  .h { font-size: 13px; font-weight: 700; letter-spacing: .08em; }
+  .hs { font-size: 11px; opacity: .8; }
+  .t { font-size: 13.5px; font-weight: 600; }
+  .s { font-size: 11px; opacity: .85; }
+  .edge { stroke: var(--edge); stroke-width: 1.5; fill: none; }
+  .arrow { fill: var(--edge); }
+  .lbl { font-size: 10.5px; fill: var(--text-muted); }
+  .legend { font-size: 11.5px; fill: var(--text-muted); text-anchor: start; }
+  .title { font-size: 12px; font-weight: 700; fill: var(--accent); text-anchor: start; letter-spacing: .08em; }
+</style>
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path class="arrow" d="M0 0L10 5L0 10z"/>
+  </marker>
+</defs>
+
+<rect class="bg" width="1290" height="760" rx="12"/>
+<text class="title" x="40" y="44">SYSTEM ARCHITECTURE</text><text class="legend" x="210" y="44">Implemented. See Implementation notes in the README for small differences.</text>
+<g transform="translate(0,30)">
+
+<!-- Browser -->
+<g class="client">
+  <rect class="panel" x="40" y="40" width="250" height="580" rx="12"/>
+  <text class="h" x="165" y="72">BROWSER</text>
+  <text class="hs" x="165" y="90">student &amp; instructor UI</text>
+  <rect class="node" x="58" y="120" width="214" height="64" rx="8"/><text class="t" x="165" y="148">Route pages</text><text class="s" x="165" y="166">/student/* · /instructor/*</text>
+  <rect class="node" x="58" y="220" width="214" height="64" rx="8"/><text class="t" x="165" y="248">TanStack Query</text><text class="s" x="165" y="266">server data cache</text>
+  <rect class="node" x="58" y="320" width="214" height="64" rx="8"/><text class="t" x="165" y="348">Realtime subscription</text><text class="s" x="165" y="366">chat · tasks · notifications</text>
+  <rect class="node" x="58" y="520" width="214" height="64" rx="8"/><text class="t" x="165" y="548">File uploads</text><text class="s" x="165" y="566">upload &amp; download</text>
+</g>
+
+<!-- Next.js server -->
+<g class="server">
+  <rect class="panel" x="360" y="40" width="250" height="580" rx="12"/>
+  <text class="h" x="485" y="72">NEXT.JS SERVER</text>
+  <text class="hs" x="485" y="90">Vercel</text>
+  <rect class="node" x="378" y="120" width="214" height="64" rx="8"/><text class="t" x="485" y="148">Server Components</text><text class="s" x="485" y="166">load page data</text>
+  <rect class="node" x="378" y="220" width="214" height="64" rx="8"/><text class="t" x="485" y="248">Server Actions</text><text class="s" x="485" y="266">validate &amp; write</text>
+  <rect class="node" x="378" y="420" width="214" height="64" rx="8"/><text class="t" x="485" y="448">Middleware</text><text class="s" x="485" y="466">session refresh · auth redirect</text>
+</g>
+
+<!-- Supabase -->
+<g class="data">
+  <rect class="panel" x="680" y="40" width="250" height="580" rx="12"/>
+  <text class="h" x="805" y="72">SUPABASE</text>
+  <text class="hs" x="805" y="90">managed backend</text>
+  <rect class="node" x="698" y="120" width="214" height="164" rx="8"/>
+  <text class="t" x="805" y="190">Postgres</text><text class="s" x="805" y="208">Row-Level Security</text><text class="s" x="805" y="224">checks every read &amp; write</text>
+  <rect class="node" x="698" y="320" width="214" height="64" rx="8"/><text class="t" x="805" y="348">Realtime</text><text class="s" x="805" y="366">broadcasts row changes</text>
+  <rect class="node" x="698" y="420" width="214" height="64" rx="8"/><text class="t" x="805" y="448">Auth</text><text class="s" x="805" y="466">email + password</text>
+  <rect class="node" x="698" y="520" width="214" height="64" rx="8"/><text class="t" x="805" y="548">Storage</text><text class="s" x="805" y="566">private team-files bucket</text>
+</g>
+
+<!-- AI jobs -->
+<g class="ai">
+  <rect class="panel" x="1000" y="40" width="250" height="580" rx="12"/>
+  <text class="h" x="1125" y="72">AI JOBS</text>
+  <text class="hs" x="1125" y="90">background, never blocking</text>
+  <rect class="node" x="1018" y="120" width="214" height="64" rx="8"/><text class="t" x="1125" y="148">Inngest</text><text class="s" x="1125" y="166">job runner</text>
+  <rect class="group" x="1010" y="208" width="230" height="288" rx="10"/>
+  <rect class="node" x="1018" y="220" width="214" height="64" rx="8"/><text class="t" x="1125" y="248">Task extraction</text><text class="s" x="1125" y="266">from chat → suggestions</text>
+  <rect class="node" x="1018" y="320" width="214" height="64" rx="8"/><text class="t" x="1125" y="348">Sentiment &amp; health</text><text class="s" x="1125" y="366">conflict alerts · score</text>
+  <rect class="node" x="1018" y="420" width="214" height="64" rx="8"/><text class="t" x="1125" y="448">Team matching</text><text class="s" x="1125" y="466">by skills</text>
+  <rect class="node" x="1018" y="520" width="214" height="64" rx="8"/><text class="t" x="1125" y="548">Google Gen AI</text><text class="s" x="1125" y="566">Gemini model calls</text>
+</g>
+
+<!-- Edges -->
+<path class="edge" d="M272 152H376" marker-end="url(#a)"/><text class="lbl" x="325" y="144">request</text>
+<path class="edge" d="M592 152H696" marker-end="url(#a)"/><text class="lbl" x="645" y="144">as user *</text>
+<path class="edge" d="M272 252H376" marker-end="url(#a)"/><text class="lbl" x="325" y="244">mutations</text>
+<path class="edge" d="M592 252H696" marker-end="url(#a)"/><text class="lbl" x="645" y="244">Drizzle *</text>
+<path class="edge" d="M805 284V318" marker-end="url(#a)"/>
+<path class="edge" d="M698 352H274" marker-end="url(#a)"/><text class="lbl" x="485" y="344">push: messages · tasks · notifications</text>
+<path class="edge" d="M592 452H696" marker-end="url(#a)"/><text class="lbl" x="645" y="444">session</text>
+<path class="edge" d="M272 552H696" marker-end="url(#a)"/><text class="lbl" x="485" y="544">upload (storage RLS) · download (signed URL)</text>
+<path class="edge" d="M912 152H1016" marker-end="url(#a)"/><text class="lbl" x="965" y="144">events</text>
+<path class="edge" d="M1125 184V206" marker-end="url(#a)"/>
+<path class="edge" d="M1010 230H914" marker-end="url(#a)"/><text class="lbl" x="961" y="222">writes</text>
+<path class="edge" d="M912 452H956V270H914" marker-end="url(#a)"/><text class="lbl" transform="rotate(-90 972 361)" x="972" y="361">sign-up → users row</text>
+<path class="edge" d="M1125 496V518" marker-end="url(#a)"/>
+
+</g>
+<g transform="translate(0,30)">
+<!-- Legend -->
+<text class="title" x="40" y="664">LAYERS</text>
+<g class="client"><rect class="node" x="112" y="653" width="14" height="14" rx="3"/></g><text class="legend" x="134" y="664">Browser</text>
+<g class="server"><rect class="node" x="210" y="653" width="14" height="14" rx="3"/></g><text class="legend" x="232" y="664">Next.js server</text>
+<g class="data"><rect class="node" x="340" y="653" width="14" height="14" rx="3"/></g><text class="legend" x="362" y="664">Supabase</text>
+<g class="ai"><rect class="node" x="446" y="653" width="14" height="14" rx="3"/></g><text class="legend" x="468" y="664">AI jobs</text>
+<text class="legend" x="560" y="664">Arrows show data flow. Dashed boxes are deployment boundaries. Colors are tokens from globals.css.</text>
+<text class="legend" x="40" y="690">* Drizzle connects as a database role that bypasses RLS. Each transaction must run set local role authenticated and set request.jwt.claims from the user's session.</text>
+</g>
+</svg>

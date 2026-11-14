@@ -1,0 +1,426 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1060" width="1680" height="1060" role="img" aria-labelledby="t d">
+<title id="t">CampusNova database architecture</title>
+<desc id="d">Entity-relationship diagram of the 12 Postgres tables, 2 views and 6 enums in supabase/migrations/0001_init.sql. Every row belongs to a course or a team: courses own teams and enrollments, teams own members, tasks, messages, files, peer reviews, conflict alerts and task suggestions. Users teach courses, enroll, join teams and receive notifications.</desc>
+<style>
+  /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */
+  svg {
+    --gray-50: #f9fafb; --gray-200: #e1e5ea; --gray-500: #606369; --gray-950: #0d1117; --white: #ffffff;
+    --indigo-50: #e8f2ff; --indigo-500: #3665e4; --indigo-800: #1e3f97; --navy-700: #264186;
+    --teal-50: #dcf9f8;   --teal-500: #00bbbd;   --teal-800: #006566;
+    --green-50: #e1f8eb;  --green-500: #00aa6f;  --green-800: #005d39;
+    --violet-50: #f8edff; --violet-500: #a15acf; --violet-800: #633481;
+    --orange-500: #f68f5f; --orange-800: #8b492a;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    /* Semantic: purpose aliases */
+    --surface: var(--white); --surface-sunken: var(--gray-50); --border: var(--gray-200);
+    --text: var(--gray-950); --text-muted: var(--gray-500); --edge: var(--gray-500); --accent: var(--navy-700);
+    --key-primary: var(--orange-800); --key-foreign: var(--gray-500); --fk-users: var(--indigo-500);
+    --domain-people: var(--indigo-500); --domain-people-tint: var(--indigo-50); --domain-people-ink: var(--indigo-800);
+    --domain-teams: var(--teal-500);    --domain-teams-tint: var(--teal-50);    --domain-teams-ink: var(--teal-800);
+    --domain-work: var(--green-500);    --domain-work-tint: var(--green-50);    --domain-work-ink: var(--green-800);
+    --domain-ai: var(--violet-500);     --domain-ai-tint: var(--violet-50);     --domain-ai-ink: var(--violet-800);
+    --domain-view: var(--gray-500);     --domain-view-tint: var(--gray-50);     --domain-view-ink: var(--gray-950);
+  }
+
+  /* Component: table cards, keys, relationship lines */
+  .bg { fill: var(--surface); }
+  .card { fill: var(--surface); stroke-width: 1.5; }
+  .zebra { fill: var(--surface-sunken); }
+  .people .card, .people .head { stroke: var(--domain-people); } .people .head { fill: var(--domain-people-tint); } .people .tn { fill: var(--domain-people-ink); }
+  .teams .card, .teams .head { stroke: var(--domain-teams); } .teams .head { fill: var(--domain-teams-tint); } .teams .tn { fill: var(--domain-teams-ink); }
+  .work .card, .work .head { stroke: var(--domain-work); } .work .head { fill: var(--domain-work-tint); } .work .tn { fill: var(--domain-work-ink); }
+  .ai .card, .ai .head { stroke: var(--domain-ai); } .ai .head { fill: var(--domain-ai-tint); } .ai .tn { fill: var(--domain-ai-ink); }
+  .view .card, .view .head, .enum .card, .enum .head { stroke: var(--domain-view); stroke-dasharray: 5 4; }
+  .view .head, .enum .head { fill: var(--domain-view-tint); } .view .tn, .enum .tn { fill: var(--domain-view-ink); }
+  .head { stroke-width: 1.5; }
+  text { font-family: var(--font-sans); }
+  .tn { font-family: var(--font-mono); font-size: 13.5px; font-weight: 700; }
+  .vtag { font-size: 10px; font-weight: 700; letter-spacing: .08em; fill: var(--text-muted); text-anchor: end; }
+  .cn { font-family: var(--font-mono); font-size: 11.5px; fill: var(--text); }
+  .ty { font-family: var(--font-mono); font-size: 10.5px; fill: var(--text-muted); text-anchor: end; }
+  .ty.ref { fill: var(--fk-users); font-weight: 600; }
+  .key { font-size: 9.5px; font-weight: 700; fill: var(--key-foreign); }
+  .key.pk { fill: var(--key-primary); }
+  .note { font-size: 10.5px; font-style: italic; fill: var(--text-muted); }
+  .ev { font-family: var(--font-mono); font-size: 10.5px; fill: var(--text-muted); }
+  .rel { stroke: var(--edge); stroke-width: 1.4; fill: none; }
+  .rel.opt { stroke-dasharray: 5 4; }
+  .end { stroke: var(--edge); stroke-width: 1.4; fill: none; }
+  .title { font-size: 12px; font-weight: 700; fill: var(--accent); letter-spacing: .08em; }
+  .legend { font-size: 11.5px; fill: var(--text-muted); }
+</style>
+<defs>
+  <marker id="one" viewBox="0 0 12 12" refX="1" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="end" d="M4 1V11M8 1V11"/></marker>
+  <marker id="many" viewBox="0 0 12 12" refX="12" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path class="end" d="M0 6H12M3 6L12 0M3 6L12 12M2 1V11"/></marker>
+</defs>
+<rect class="bg" width="1680" height="1060" rx="12"/>
+<text class="title" x="40" y="44">DATABASE ARCHITECTURE</text>
+<text class="legend" x="240" y="44">Postgres schema in supabase/migrations/0001_init.sql · 12 tables, 2 views, 6 enums · every table has Row-Level Security</text>
+<path class="rel" d="M310 157H335V245H360" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M310 157H335V403H360" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M310 157H335V549H680" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M40 157H20V469H40" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M630 157H655V179H680" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M630 157H655V381H630" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V527H950" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V179H1000" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V525H1000" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V827H1000" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V86H1295V179H1320" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V86H1295V393H1320" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel" d="M950 157H975V86H1295V651H1320" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel opt" d="M1590 371H1615V223H1590" marker-start="url(#one)" marker-end="url(#many)"/>
+<path class="rel opt" d="M1590 157H1645V673H1590" marker-start="url(#one)" marker-end="url(#many)"/>
+<g class="people">
+<rect class="card" x="40" y="110" width="270" height="240" rx="8"/>
+<path class="head" d="M40 146V118a8 8 0 0 1 8 -8H302a8 8 0 0 1 8 8V146z"/>
+<text class="tn" x="54" y="133">users</text>
+<text class="key pk" x="52" y="161">PK</text>
+<text class="cn" x="92" y="161">id</text>
+<text class="ty" x="298" y="161">uuid = auth.users.id</text>
+<rect class="zebra" x="41" y="168" width="268" height="22"/>
+<text class="cn" x="92" y="183">name</text>
+<text class="ty" x="298" y="183">text</text>
+<text class="cn" x="92" y="205">email</text>
+<text class="ty" x="298" y="205">text unique</text>
+<rect class="zebra" x="41" y="212" width="268" height="22"/>
+<text class="cn" x="92" y="227">role</text>
+<text class="ty" x="298" y="227">user_role</text>
+<text class="cn" x="92" y="249">bio</text>
+<text class="ty" x="298" y="249">text</text>
+<rect class="zebra" x="41" y="256" width="268" height="22"/>
+<text class="cn" x="92" y="271">skills</text>
+<text class="ty" x="298" y="271">text[]</text>
+<text class="cn" x="92" y="293">availability</text>
+<text class="ty" x="298" y="293">text</text>
+<rect class="zebra" x="41" y="300" width="268" height="22"/>
+<text class="cn" x="92" y="315">created_at</text>
+<text class="ty" x="298" y="315">timestamptz</text>
+<text class="cn" x="92" y="337">updated_at</text>
+<text class="ty" x="298" y="337">timestamptz</text>
+</g>
+<g class="people">
+<rect class="card" x="40" y="400" width="270" height="218" rx="8"/>
+<path class="head" d="M40 436V408a8 8 0 0 1 8 -8H302a8 8 0 0 1 8 8V436z"/>
+<text class="tn" x="54" y="423">notifications</text>
+<text class="key pk" x="52" y="451">PK</text>
+<text class="cn" x="92" y="451">id</text>
+<text class="ty" x="298" y="451">uuid</text>
+<rect class="zebra" x="41" y="458" width="268" height="22"/>
+<text class="key" x="52" y="473">FK</text>
+<text class="cn" x="92" y="473">user_id</text>
+<text class="ty" x="298" y="473">uuid</text>
+<text class="cn" x="92" y="495">type</text>
+<text class="ty" x="298" y="495">notification_type</text>
+<rect class="zebra" x="41" y="502" width="268" height="22"/>
+<text class="cn" x="92" y="517">title</text>
+<text class="ty" x="298" y="517">text</text>
+<text class="cn" x="92" y="539">body</text>
+<text class="ty" x="298" y="539">text</text>
+<rect class="zebra" x="41" y="546" width="268" height="22"/>
+<text class="cn" x="92" y="561">link</text>
+<text class="ty" x="298" y="561">text?</text>
+<text class="cn" x="92" y="583">read_at</text>
+<text class="ty" x="298" y="583">timestamptz?</text>
+<rect class="zebra" x="41" y="590" width="268" height="22"/>
+<text class="cn" x="92" y="605">created_at</text>
+<text class="ty" x="298" y="605">timestamptz</text>
+</g>
+<g class="people">
+<rect class="card" x="360" y="110" width="270" height="174" rx="8"/>
+<path class="head" d="M360 146V118a8 8 0 0 1 8 -8H622a8 8 0 0 1 8 8V146z"/>
+<text class="tn" x="374" y="133">courses</text>
+<text class="key pk" x="372" y="161">PK</text>
+<text class="cn" x="412" y="161">id</text>
+<text class="ty" x="618" y="161">uuid</text>
+<rect class="zebra" x="361" y="168" width="268" height="22"/>
+<text class="cn" x="412" y="183">code</text>
+<text class="ty" x="618" y="183">text</text>
+<text class="cn" x="412" y="205">title</text>
+<text class="ty" x="618" y="205">text</text>
+<rect class="zebra" x="361" y="212" width="268" height="22"/>
+<text class="cn" x="412" y="227">term</text>
+<text class="ty" x="618" y="227">text</text>
+<text class="key" x="372" y="249">FK</text>
+<text class="cn" x="412" y="249">instructor_id</text>
+<text class="ty" x="618" y="249">uuid</text>
+<rect class="zebra" x="361" y="256" width="268" height="22"/>
+<text class="cn" x="412" y="271">created_at</text>
+<text class="ty" x="618" y="271">timestamptz</text>
+</g>
+<g class="people">
+<rect class="card" x="360" y="334" width="270" height="108" rx="8"/>
+<path class="head" d="M360 370V342a8 8 0 0 1 8 -8H622a8 8 0 0 1 8 8V370z"/>
+<text class="tn" x="374" y="357">course_enrollments</text>
+<text class="key pk" x="372" y="385">PK·FK</text>
+<text class="cn" x="412" y="385">course_id</text>
+<text class="ty" x="618" y="385">uuid</text>
+<rect class="zebra" x="361" y="392" width="268" height="22"/>
+<text class="key pk" x="372" y="407">PK·FK</text>
+<text class="cn" x="412" y="407">user_id</text>
+<text class="ty" x="618" y="407">uuid</text>
+<text class="cn" x="412" y="429">enrolled_at</text>
+<text class="ty" x="618" y="429">timestamptz</text>
+</g>
+<g class="teams">
+<rect class="card" x="680" y="110" width="270" height="174" rx="8"/>
+<path class="head" d="M680 146V118a8 8 0 0 1 8 -8H942a8 8 0 0 1 8 8V146z"/>
+<text class="tn" x="694" y="133">teams</text>
+<text class="key pk" x="692" y="161">PK</text>
+<text class="cn" x="732" y="161">id</text>
+<text class="ty" x="938" y="161">uuid</text>
+<rect class="zebra" x="681" y="168" width="268" height="22"/>
+<text class="key" x="692" y="183">FK</text>
+<text class="cn" x="732" y="183">course_id</text>
+<text class="ty" x="938" y="183">uuid</text>
+<text class="cn" x="732" y="205">name</text>
+<text class="ty" x="938" y="205">text</text>
+<rect class="zebra" x="681" y="212" width="268" height="22"/>
+<text class="cn" x="732" y="227">description</text>
+<text class="ty" x="938" y="227">text</text>
+<text class="cn" x="732" y="249">health_score</text>
+<text class="ty" x="938" y="249">smallint? 0–100</text>
+<rect class="zebra" x="681" y="256" width="268" height="22"/>
+<text class="cn" x="732" y="271">created_at</text>
+<text class="ty" x="938" y="271">timestamptz</text>
+</g>
+<g class="teams">
+<rect class="card" x="680" y="480" width="270" height="108" rx="8"/>
+<path class="head" d="M680 516V488a8 8 0 0 1 8 -8H942a8 8 0 0 1 8 8V516z"/>
+<text class="tn" x="694" y="503">team_members</text>
+<text class="key pk" x="692" y="531">PK·FK</text>
+<text class="cn" x="732" y="531">team_id</text>
+<text class="ty" x="938" y="531">uuid</text>
+<rect class="zebra" x="681" y="538" width="268" height="22"/>
+<text class="key pk" x="692" y="553">PK·FK</text>
+<text class="cn" x="732" y="553">user_id</text>
+<text class="ty" x="938" y="553">uuid</text>
+<text class="cn" x="732" y="575">joined_at</text>
+<text class="ty" x="938" y="575">timestamptz</text>
+</g>
+<g class="work">
+<rect class="card" x="1000" y="110" width="270" height="306" rx="8"/>
+<path class="head" d="M1000 146V118a8 8 0 0 1 8 -8H1262a8 8 0 0 1 8 8V146z"/>
+<text class="tn" x="1014" y="133">tasks</text>
+<text class="key pk" x="1012" y="161">PK</text>
+<text class="cn" x="1052" y="161">id</text>
+<text class="ty" x="1258" y="161">uuid</text>
+<rect class="zebra" x="1001" y="168" width="268" height="22"/>
+<text class="key" x="1012" y="183">FK</text>
+<text class="cn" x="1052" y="183">team_id</text>
+<text class="ty" x="1258" y="183">uuid</text>
+<text class="cn" x="1052" y="205">title</text>
+<text class="ty" x="1258" y="205">text</text>
+<rect class="zebra" x="1001" y="212" width="268" height="22"/>
+<text class="cn" x="1052" y="227">description</text>
+<text class="ty" x="1258" y="227">text</text>
+<text class="cn" x="1052" y="249">status</text>
+<text class="ty" x="1258" y="249">task_status</text>
+<rect class="zebra" x="1001" y="256" width="268" height="22"/>
+<text class="cn" x="1052" y="271">priority</text>
+<text class="ty" x="1258" y="271">task_priority</text>
+<text class="cn" x="1052" y="293">position</text>
+<text class="ty" x="1258" y="293">float8 (kanban)</text>
+<rect class="zebra" x="1001" y="300" width="268" height="22"/>
+<text class="key" x="1012" y="315">FK</text>
+<text class="cn" x="1052" y="315">assignee_id</text>
+<text class="ty ref" x="1258" y="315">uuid → users?</text>
+<text class="key" x="1012" y="337">FK</text>
+<text class="cn" x="1052" y="337">created_by</text>
+<text class="ty ref" x="1258" y="337">uuid → users?</text>
+<rect class="zebra" x="1001" y="344" width="268" height="22"/>
+<text class="cn" x="1052" y="359">due_date</text>
+<text class="ty" x="1258" y="359">date?</text>
+<text class="cn" x="1052" y="381">created_at</text>
+<text class="ty" x="1258" y="381">timestamptz</text>
+<rect class="zebra" x="1001" y="388" width="268" height="22"/>
+<text class="cn" x="1052" y="403">updated_at</text>
+<text class="ty" x="1258" y="403">timestamptz</text>
+</g>
+<g class="work">
+<rect class="card" x="1000" y="456" width="270" height="262" rx="8"/>
+<path class="head" d="M1000 492V464a8 8 0 0 1 8 -8H1262a8 8 0 0 1 8 8V492z"/>
+<text class="tn" x="1014" y="479">peer_reviews</text>
+<text class="key pk" x="1012" y="507">PK</text>
+<text class="cn" x="1052" y="507">id</text>
+<text class="ty" x="1258" y="507">uuid</text>
+<rect class="zebra" x="1001" y="514" width="268" height="22"/>
+<text class="key" x="1012" y="529">FK</text>
+<text class="cn" x="1052" y="529">team_id</text>
+<text class="ty" x="1258" y="529">uuid</text>
+<text class="key" x="1012" y="551">FK</text>
+<text class="cn" x="1052" y="551">reviewer_id</text>
+<text class="ty ref" x="1258" y="551">uuid → users</text>
+<rect class="zebra" x="1001" y="558" width="268" height="22"/>
+<text class="key" x="1012" y="573">FK</text>
+<text class="cn" x="1052" y="573">reviewee_id</text>
+<text class="ty ref" x="1258" y="573">uuid → users</text>
+<text class="cn" x="1052" y="595">rating</text>
+<text class="ty" x="1258" y="595">smallint 1–5</text>
+<rect class="zebra" x="1001" y="602" width="268" height="22"/>
+<text class="cn" x="1052" y="617">category_ratings</text>
+<text class="ty" x="1258" y="617">jsonb</text>
+<text class="cn" x="1052" y="639">feedback</text>
+<text class="ty" x="1258" y="639">text</text>
+<rect class="zebra" x="1001" y="646" width="268" height="22"/>
+<text class="cn" x="1052" y="661">created_at</text>
+<text class="ty" x="1258" y="661">timestamptz</text>
+<text class="note" x="1052" y="683">unique (team, reviewer, reviewee)</text>
+<rect class="zebra" x="1001" y="690" width="268" height="22"/>
+<text class="note" x="1052" y="705">check reviewer ≠ reviewee</text>
+</g>
+<g class="ai">
+<rect class="card" x="1000" y="758" width="270" height="218" rx="8"/>
+<path class="head" d="M1000 794V766a8 8 0 0 1 8 -8H1262a8 8 0 0 1 8 8V794z"/>
+<text class="tn" x="1014" y="781">conflict_alerts</text>
+<text class="key pk" x="1012" y="809">PK</text>
+<text class="cn" x="1052" y="809">id</text>
+<text class="ty" x="1258" y="809">uuid</text>
+<rect class="zebra" x="1001" y="816" width="268" height="22"/>
+<text class="key" x="1012" y="831">FK</text>
+<text class="cn" x="1052" y="831">team_id</text>
+<text class="ty" x="1258" y="831">uuid</text>
+<text class="cn" x="1052" y="853">severity</text>
+<text class="ty" x="1258" y="853">alert_severity</text>
+<rect class="zebra" x="1001" y="860" width="268" height="22"/>
+<text class="cn" x="1052" y="875">summary</text>
+<text class="ty" x="1258" y="875">text</text>
+<text class="cn" x="1052" y="897">sentiment</text>
+<text class="ty" x="1258" y="897">numeric −1…1</text>
+<rect class="zebra" x="1001" y="904" width="268" height="22"/>
+<text class="cn" x="1052" y="919">resolved_at</text>
+<text class="ty" x="1258" y="919">timestamptz?</text>
+<text class="key" x="1012" y="941">FK</text>
+<text class="cn" x="1052" y="941">resolved_by</text>
+<text class="ty ref" x="1258" y="941">uuid → users?</text>
+<rect class="zebra" x="1001" y="948" width="268" height="22"/>
+<text class="cn" x="1052" y="963">created_at</text>
+<text class="ty" x="1258" y="963">timestamptz</text>
+</g>
+<g class="work">
+<rect class="card" x="1320" y="110" width="270" height="174" rx="8"/>
+<path class="head" d="M1320 146V118a8 8 0 0 1 8 -8H1582a8 8 0 0 1 8 8V146z"/>
+<text class="tn" x="1334" y="133">messages</text>
+<text class="key pk" x="1332" y="161">PK</text>
+<text class="cn" x="1372" y="161">id</text>
+<text class="ty" x="1578" y="161">uuid</text>
+<rect class="zebra" x="1321" y="168" width="268" height="22"/>
+<text class="key" x="1332" y="183">FK</text>
+<text class="cn" x="1372" y="183">team_id</text>
+<text class="ty" x="1578" y="183">uuid</text>
+<text class="key" x="1332" y="205">FK</text>
+<text class="cn" x="1372" y="205">sender_id</text>
+<text class="ty ref" x="1578" y="205">uuid → users?</text>
+<rect class="zebra" x="1321" y="212" width="268" height="22"/>
+<text class="key" x="1332" y="227">FK</text>
+<text class="cn" x="1372" y="227">file_id</text>
+<text class="ty" x="1578" y="227">uuid?</text>
+<text class="cn" x="1372" y="249">content</text>
+<text class="ty" x="1578" y="249">text</text>
+<rect class="zebra" x="1321" y="256" width="268" height="22"/>
+<text class="cn" x="1372" y="271">created_at</text>
+<text class="ty" x="1578" y="271">timestamptz</text>
+</g>
+<g class="work">
+<rect class="card" x="1320" y="324" width="270" height="218" rx="8"/>
+<path class="head" d="M1320 360V332a8 8 0 0 1 8 -8H1582a8 8 0 0 1 8 8V360z"/>
+<text class="tn" x="1334" y="347">files</text>
+<text class="key pk" x="1332" y="375">PK</text>
+<text class="cn" x="1372" y="375">id</text>
+<text class="ty" x="1578" y="375">uuid</text>
+<rect class="zebra" x="1321" y="382" width="268" height="22"/>
+<text class="key" x="1332" y="397">FK</text>
+<text class="cn" x="1372" y="397">team_id</text>
+<text class="ty" x="1578" y="397">uuid</text>
+<text class="key" x="1332" y="419">FK</text>
+<text class="cn" x="1372" y="419">uploader_id</text>
+<text class="ty ref" x="1578" y="419">uuid → users?</text>
+<rect class="zebra" x="1321" y="426" width="268" height="22"/>
+<text class="cn" x="1372" y="441">name</text>
+<text class="ty" x="1578" y="441">text</text>
+<text class="cn" x="1372" y="463">storage_path</text>
+<text class="ty" x="1578" y="463">text unique</text>
+<rect class="zebra" x="1321" y="470" width="268" height="22"/>
+<text class="cn" x="1372" y="485">size_bytes</text>
+<text class="ty" x="1578" y="485">bigint</text>
+<text class="cn" x="1372" y="507">mime_type</text>
+<text class="ty" x="1578" y="507">text</text>
+<rect class="zebra" x="1321" y="514" width="268" height="22"/>
+<text class="cn" x="1372" y="529">created_at</text>
+<text class="ty" x="1578" y="529">timestamptz</text>
+</g>
+<g class="ai">
+<rect class="card" x="1320" y="582" width="270" height="196" rx="8"/>
+<path class="head" d="M1320 618V590a8 8 0 0 1 8 -8H1582a8 8 0 0 1 8 8V618z"/>
+<text class="tn" x="1334" y="605">task_suggestions</text>
+<text class="key pk" x="1332" y="633">PK</text>
+<text class="cn" x="1372" y="633">id</text>
+<text class="ty" x="1578" y="633">uuid</text>
+<rect class="zebra" x="1321" y="640" width="268" height="22"/>
+<text class="key" x="1332" y="655">FK</text>
+<text class="cn" x="1372" y="655">team_id</text>
+<text class="ty" x="1578" y="655">uuid</text>
+<text class="key" x="1332" y="677">FK</text>
+<text class="cn" x="1372" y="677">source_message_id</text>
+<text class="ty" x="1578" y="677">uuid?</text>
+<rect class="zebra" x="1321" y="684" width="268" height="22"/>
+<text class="cn" x="1372" y="699">title</text>
+<text class="ty" x="1578" y="699">text</text>
+<text class="cn" x="1372" y="721">description</text>
+<text class="ty" x="1578" y="721">text</text>
+<rect class="zebra" x="1321" y="728" width="268" height="22"/>
+<text class="cn" x="1372" y="743">status</text>
+<text class="ty" x="1578" y="743">suggestion_status</text>
+<text class="cn" x="1372" y="765">created_at</text>
+<text class="ty" x="1578" y="765">timestamptz</text>
+</g>
+<g class="view">
+<rect class="card" x="40" y="690" width="270" height="130" rx="8"/>
+<path class="head" d="M40 726V698a8 8 0 0 1 8 -8H302a8 8 0 0 1 8 8V726z"/>
+<text class="tn" x="54" y="713">team_progress</text>
+<text class="vtag" x="296" y="713">VIEW</text>
+<text class="cn" x="92" y="741">team_id</text>
+<text class="ty" x="298" y="741">uuid</text>
+<rect class="zebra" x="41" y="748" width="268" height="22"/>
+<text class="cn" x="92" y="763">total_tasks</text>
+<text class="ty" x="298" y="763">bigint</text>
+<text class="cn" x="92" y="785">done_tasks</text>
+<text class="ty" x="298" y="785">bigint</text>
+<rect class="zebra" x="41" y="792" width="268" height="22"/>
+<text class="cn" x="92" y="807">progress_pct</text>
+<text class="ty" x="298" y="807">int</text>
+</g>
+<g class="view">
+<rect class="card" x="360" y="690" width="270" height="130" rx="8"/>
+<path class="head" d="M360 726V698a8 8 0 0 1 8 -8H622a8 8 0 0 1 8 8V726z"/>
+<text class="tn" x="374" y="713">member_contribution</text>
+<text class="vtag" x="616" y="713">VIEW</text>
+<text class="cn" x="412" y="741">team_id</text>
+<text class="ty" x="618" y="741">uuid</text>
+<rect class="zebra" x="361" y="748" width="268" height="22"/>
+<text class="cn" x="412" y="763">user_id</text>
+<text class="ty" x="618" y="763">uuid</text>
+<text class="cn" x="412" y="785">tasks_done</text>
+<text class="ty" x="618" y="785">bigint</text>
+<rect class="zebra" x="361" y="792" width="268" height="22"/>
+<text class="cn" x="412" y="807">tasks_assigned</text>
+<text class="ty" x="618" y="807">bigint</text>
+</g>
+<g class="enum">
+<rect class="card" x="680" y="640" width="270" height="246" rx="8"/>
+<path class="head" d="M680 676V648a8 8 0 0 1 8 -8H942a8 8 0 0 1 8 8V676z"/>
+<text class="tn" x="694" y="663">enums</text>
+<text class="cn" x="694" y="691">user_role</text><text class="ev" x="694" y="705">student·instructor</text>
+<text class="cn" x="694" y="725">task_status</text><text class="ev" x="694" y="739">todo·in_progress·done</text>
+<text class="cn" x="694" y="759">task_priority</text><text class="ev" x="694" y="773">low·medium·high</text>
+<text class="cn" x="694" y="793">alert_severity</text><text class="ev" x="694" y="807">low·medium·high</text>
+<text class="cn" x="694" y="827">notification_type</text><text class="ev" x="694" y="841">task·message·review·conflict·system</text>
+<text class="cn" x="694" y="861">suggestion_status</text><text class="ev" x="694" y="875">pending·accepted·dismissed</text>
+</g>
+<g transform="translate(0,1012)"><g class="people"><rect class="head" x="40" y="-11" width="14" height="14" rx="3"/></g><text class="legend" x="62" y="0">People &amp; courses</text><g class="teams"><rect class="head" x="200" y="-11" width="14" height="14" rx="3"/></g><text class="legend" x="222" y="0">Teams</text><g class="work"><rect class="head" x="283" y="-11" width="14" height="14" rx="3"/></g><text class="legend" x="305" y="0">Team work</text><g class="ai"><rect class="head" x="394" y="-11" width="14" height="14" rx="3"/></g><text class="legend" x="416" y="0">AI output</text><g class="view"><rect class="head" x="505" y="-11" width="14" height="14" rx="3"/></g><text class="legend" x="527" y="0">Views &amp; enums</text><path class="rel" d="M654 -4H714" marker-start="url(#one)" marker-end="url(#many)"/><text class="legend" x="724" y="0">one → many (required)</text>
+<path class="rel opt" d="M884 -4H944" marker-start="url(#one)" marker-end="url(#many)"/><text class="legend" x="954" y="0">optional (nullable FK)</text>
+<text class="legend" x="40" y="26"><tspan class="key pk">PK</tspan> primary key · <tspan class="key">FK</tspan> foreign key · <tspan class="ty ref" style="text-anchor:start">uuid → users</tspan> foreign key to users.id, line left out for readability · <tspan font-family="monospace">?</tspan> nullable · colors are tokens from globals.css</text>
+</g>
+</svg>
