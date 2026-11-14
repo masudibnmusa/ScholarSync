@@ -12,9 +12,10 @@ import {
   Sparkles,
   Heart,
   Activity,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, getInitials } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
+import { EmptyState } from "@/components/empty-state";
 
 export function TeamsPanel() {
   const { teams, setView } = useAppStore();
@@ -23,13 +24,13 @@ export function TeamsPanel() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto h-full overflow-y-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold">Team Management</h2>
+          <h2 className="heading-6">Team Management</h2>
           <p className="text-sm text-muted-foreground">
             Review and manage team assignments
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" className="gap-1.5" onClick={() => setView("instructor-matching")}>
+          <Button size="sm" className="gap-2" onClick={() => setView("instructor-matching")}>
             <Sparkles className="w-3.5 h-3.5" />
             Run AI Matching
           </Button>
@@ -37,10 +38,12 @@ export function TeamsPanel() {
       </div>
 
       {teams.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-          <p>No teams yet. Run AI Matching to create teams.</p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No teams in your course yet"
+          body="Team matching groups enrolled students by skills and availability. You review the proposal before anything is created."
+          action={{ label: "Open team matching", onClick: () => useAppStore.getState().setView("instructor-matching") }}
+        />
       ) : (
         <div className="space-y-4">
           {teams.map((team) => (
@@ -54,13 +57,13 @@ export function TeamsPanel() {
                     <div>
                       <h3 className="font-semibold">{team.name}</h3>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-xs">
                           {team.members.length} members
                         </Badge>
                         <Badge
                           variant="outline"
                           className={cn(
-                            "text-[10px] border",
+                            "text-xs border",
                             team.healthScore >= 80
                               ? "border-green-200 text-green-600 bg-green-50"
                               : team.healthScore >= 60
@@ -75,11 +78,11 @@ export function TeamsPanel() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5">
+                    <Button variant="outline" size="sm" className="gap-2">
                       <ArrowLeftRight className="w-3.5 h-3.5" />
                       Reassign
                     </Button>
-                    <Button size="sm" className="gap-1.5">
+                    <Button size="sm" className="gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Approve
                     </Button>
@@ -112,7 +115,7 @@ export function TeamsPanel() {
                             <p className="text-sm font-medium truncate">
                               {member.name}
                             </p>
-                            <p className="text-[11px] text-muted-foreground truncate">
+                            <p className="text-xs text-muted-foreground truncate">
                               {member.skills.slice(0, 2).join(", ") || "Member"}
                             </p>
                           </div>
@@ -129,19 +132,19 @@ export function TeamsPanel() {
                             <Badge
                               key={skill}
                               variant="secondary"
-                              className="text-[10px] px-1.5"
+                              className="text-xs px-2"
                             >
                               {skill}
                             </Badge>
                           ))}
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <Activity className="w-3 h-3 text-muted-foreground" />
                           <Progress
                             value={member.contribution}
                             className="h-1.5 flex-1"
                           />
-                          <span className="text-[10px] font-medium">
+                          <span className="text-xs font-medium">
                             {member.contribution}%
                           </span>
                         </div>

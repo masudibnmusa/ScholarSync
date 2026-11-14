@@ -29,7 +29,7 @@ import {
   MoreHorizontal,
   AlertCircle,
   Trash2,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
 import type { KanbanTask } from "@/lib/store";
 
@@ -128,19 +128,19 @@ export function KanbanBoard() {
       {/* Board Header */}
       <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-card/50">
         <div>
-          <h2 className="text-lg font-bold">Kanban Board</h2>
+          <h2 className="title-2">Kanban Board</h2>
           <p className="text-sm text-muted-foreground">
             Track and manage project tasks
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-2">
             <Filter className="w-3.5 h-3.5" />
             Filter
           </Button>
           <Button
             size="sm"
-            className="gap-1.5"
+            className="gap-2"
             onClick={() => setShowCreateDialog(true)}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -169,21 +169,21 @@ export function KanbanBoard() {
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <col.icon className={cn("w-4 h-4", col.color)} />
                   <h3 className="font-semibold text-sm">{col.title}</h3>
-                  <Badge variant="secondary" className="text-[10px] ml-1">
+                  <Badge variant="secondary" className="text-xs ml-1">
                     {tasks.length}
                   </Badge>
                 </div>
 
                 {/* Task Cards */}
                 <ScrollArea className="h-[calc(100vh-260px)]">
-                  <div className="space-y-2.5 px-0.5 pb-4">
+                  <div className="space-y-3 px-0.5 pb-4">
                     {tasks.map((task) => (
                       <Card
                         key={task.id}
                         draggable
                         onDragStart={() => handleDragStart(task.id)}
                         className={cn(
-                          "p-3.5 cursor-grab active:cursor-grabbing border border-border hover:shadow-md transition-all duration-200 group",
+                          "p-4 cursor-grab active:cursor-grabbing border border-border hover:shadow-md transition-all duration-200 group",
                           draggedTask === task.id &&
                             "opacity-50 scale-95 rotate-1"
                         )}
@@ -216,36 +216,36 @@ export function KanbanBoard() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 mb-2.5">
+                        <div className="flex items-center gap-2 mb-3">
                           <Badge
                             variant="outline"
                             className={cn(
-                              "text-[10px] px-1.5 py-0 border",
+                              "text-xs px-2 py-0 border",
                               priorityConfig[task.priority].color
                             )}
                           >
                             {priorityConfig[task.priority].label}
                           </Badge>
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground ml-auto">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
                             <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-50" />
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             <Avatar className="w-6 h-6">
-                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary font-bold">
                                 {getInitials(task.assigneeName)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-[11px] text-muted-foreground truncate max-w-[100px]">
+                            <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                               {task.assigneeName === "You"
                                 ? "You"
                                 : task.assigneeName.split(" ").pop()}
                             </span>
                           </div>
                           {task.dueDate && (
-                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Calendar className="w-3 h-3" />
                               {new Date(task.dueDate).toLocaleDateString([], {
                                 month: "short",
@@ -259,7 +259,7 @@ export function KanbanBoard() {
 
                     {/* Add Task Button */}
                     <button
-                      className="w-full py-2.5 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full py-3 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors flex items-center justify-center gap-2"
                       onClick={() => setShowCreateDialog(true)}
                     >
                       <Plus className="w-3.5 h-3.5" />

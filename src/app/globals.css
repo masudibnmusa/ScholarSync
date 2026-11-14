@@ -33,6 +33,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -44,72 +46,77 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.002 247);
-  --foreground: oklch(0.175 0.015 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.175 0.015 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.175 0.015 260);
-  --primary: oklch(0.395 0.12 265);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0.01 265);
-  --secondary-foreground: oklch(0.25 0.02 265);
-  --muted: oklch(0.96 0.008 260);
-  --muted-foreground: oklch(0.50 0.01 260);
-  --accent: oklch(0.94 0.02 265);
-  --accent-foreground: oklch(0.25 0.02 265);
+  /* tasteskill deal: palette white-mint-tiles, type geist, radius soft */
+  --radius: 0.75rem;
+  --background: #ffffff;
+  --foreground: #232323;
+  --card: #ffffff;
+  --card-foreground: #232323;
+  --popover: #ffffff;
+  --popover-foreground: #232323;
+  --primary: #232323;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #232323;
+  --muted: #f3f3f3;
+  --muted-foreground: #686868;
+  --accent: #f3f3f3;
+  --accent-foreground: #232323;
+  --brand: #a1ffcb;
+  --brand-foreground: #232323;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.008 260);
-  --input: oklch(0.92 0.008 260);
-  --ring: oklch(0.50 0.08 265);
-  --chart-1: oklch(0.55 0.20 265);
-  --chart-2: oklch(0.65 0.15 160);
-  --chart-3: oklch(0.60 0.18 310);
-  --chart-4: oklch(0.75 0.14 45);
-  --chart-5: oklch(0.70 0.16 195);
-  --sidebar: oklch(0.17 0.03 265);
-  --sidebar-foreground: oklch(0.92 0.01 260);
-  --sidebar-primary: oklch(0.65 0.20 265);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.25 0.04 265);
-  --sidebar-accent-foreground: oklch(0.92 0.01 260);
-  --sidebar-border: oklch(0.30 0.04 265);
-  --sidebar-ring: oklch(0.55 0.15 265);
+  --border: #e6e6e6;
+  --input: #dedede;
+  --ring: #232323;
+  --chart-1: #232323;
+  --chart-2: #1f9d63;
+  --chart-3: #0d7480;
+  --chart-4: #d99a2b;
+  --chart-5: #d4644f;
+  --sidebar: #232323;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #a1ffcb;
+  --sidebar-primary-foreground: #232323;
+  --sidebar-accent: #303030;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3a3a3a;
+  --sidebar-ring: #a1ffcb;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #181818;
+  --foreground: #f3f3f3;
+  --card: #1F1F1F;
+  --card-foreground: #f3f3f3;
+  --popover: #1F1F1F;
+  --popover-foreground: #f3f3f3;
+  --primary: #a1ffcb;
+  --primary-foreground: #232323;
+  --secondary: #272727;
+  --secondary-foreground: #f3f3f3;
+  --muted: #272727;
+  --muted-foreground: #a4a4a4;
+  --accent: #272727;
+  --accent-foreground: #f3f3f3;
+  --brand: #a1ffcb;
+  --brand-foreground: #232323;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #a1ffcb;
+  --chart-1: #a1ffcb;
+  --chart-2: #3cc98a;
+  --chart-3: #3fb3c0;
+  --chart-4: #e8b04a;
+  --chart-5: #e5806c;
+  --sidebar: #000000;
+  --sidebar-foreground: #f3f3f3;
+  --sidebar-primary: #a1ffcb;
+  --sidebar-primary-foreground: #232323;
+  --sidebar-accent: #1F1F1F;
+  --sidebar-accent-foreground: #f3f3f3;
+  --sidebar-border: rgb(255 255 255 / 8%);
+  --sidebar-ring: #a1ffcb;
 }
 
 @layer base {
@@ -118,5 +125,156 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+
+/* Named text styles (landing-page-design B1). Use these instead of loose size + weight. */
+@utility heading-1 {
+  font-size: var(--text-6xl);
+  line-height: var(--text-6xl--line-height);
+  font-weight: 600;
+}
+@utility heading-2 {
+  font-size: var(--text-5xl);
+  line-height: var(--text-5xl--line-height);
+  font-weight: 600;
+}
+@utility heading-3 {
+  font-size: var(--text-4xl);
+  line-height: var(--text-4xl--line-height);
+  font-weight: 600;
+}
+@utility heading-4 {
+  font-size: var(--text-3xl);
+  line-height: var(--text-3xl--line-height);
+  font-weight: 600;
+}
+@utility heading-5 {
+  font-size: var(--text-2xl);
+  line-height: var(--text-2xl--line-height);
+  font-weight: 600;
+}
+@utility heading-6 {
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  font-weight: 600;
+}
+@utility title-1 {
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  font-weight: 500;
+}
+@utility title-2 {
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  font-weight: 500;
+}
+@utility title-3 {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  font-weight: 500;
+}
+@utility title-4 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+}
+@utility title-5 {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+}
+@utility body-1 {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  font-weight: 600;
+}
+@utility body-2 {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  font-weight: 500;
+}
+@utility body-3 {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  font-weight: 400;
+}
+@utility body-4 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 600;
+}
+@utility body-5 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+}
+@utility body-6 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 400;
+}
+@utility button-lg {
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  font-weight: 600;
+}
+@utility button-md {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  font-weight: 600;
+}
+@utility button-sm {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 600;
+}
+@utility button-xsm {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 600;
+}
+@utility caption-1 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+}
+@utility caption-2 {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 400;
+}
+@utility caption-3 {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 600;
+}
+@utility caption-4 {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+}
+@utility caption-5 {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 400;
+}
+
+/* Hero heading: the only gradient allowed, on text (B5). */
+@utility text-hero {
+  background-image: linear-gradient(90deg, #000000, #666666);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  .dark & {
+    background-image: linear-gradient(90deg, #ffffff, #9b9b9b);
   }
 }

@@ -12,7 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Download,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, getLastName } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 
@@ -25,7 +25,7 @@ function SimpleBar({ value, max, label, color }: { value: number; max: number; l
           className={cn("h-full rounded-md transition-all duration-500", color)}
           style={{ width: `${(value / max) * 100}%` }}
         />
-        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold">
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
           {value}%
         </span>
       </div>
@@ -63,12 +63,12 @@ export function AnalyticsPanel() {
     <div className="p-6 space-y-6 max-w-6xl mx-auto h-full overflow-y-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold">Analytics Dashboard</h2>
+          <h2 className="heading-6">Analytics Dashboard</h2>
           <p className="text-sm text-muted-foreground">
             Class-wide performance metrics and team insights
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button variant="outline" size="sm" className="gap-2">
           <Download className="w-3.5 h-3.5" />
           Export Report
         </Button>
@@ -76,15 +76,15 @@ export function AnalyticsPanel() {
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
-          <TabsTrigger value="overview" className="gap-1.5">
+          <TabsTrigger value="overview" className="gap-2">
             <BarChart3 className="w-3.5 h-3.5" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="participation" className="gap-1.5">
+          <TabsTrigger value="participation" className="gap-2">
             <Users className="w-3.5 h-3.5" />
             Participation
           </TabsTrigger>
-          <TabsTrigger value="sentiment" className="gap-1.5">
+          <TabsTrigger value="sentiment" className="gap-2">
             <TrendingUp className="w-3.5 h-3.5" />
             Sentiment
           </TabsTrigger>
@@ -96,7 +96,7 @@ export function AnalyticsPanel() {
             <Card className="border-border/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Avg. Progress</p>
-                <p className="text-2xl font-bold">{avgProgress}%</p>
+                <p className="heading-5">{avgProgress}%</p>
                 <div className="flex items-center gap-1 text-xs text-emerald-500 mt-1">
                   <ArrowUpRight className="w-3 h-3" /> Computed from {teams.length} teams
                 </div>
@@ -105,7 +105,7 @@ export function AnalyticsPanel() {
             <Card className="border-border/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Avg. Participation</p>
-                <p className="text-2xl font-bold">{avgParticipation}%</p>
+                <p className="heading-5">{avgParticipation}%</p>
                 <div className="flex items-center gap-1 text-xs text-emerald-500 mt-1">
                   <ArrowUpRight className="w-3 h-3" /> {totalStudents} students
                 </div>
@@ -114,7 +114,7 @@ export function AnalyticsPanel() {
             <Card className="border-border/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Avg. Health</p>
-                <p className="text-2xl font-bold">{avgHealth}/100</p>
+                <p className="heading-5">{avgHealth}/100</p>
                 <div className="flex items-center gap-1 text-xs text-emerald-500 mt-1">
                   <ArrowUpRight className="w-3 h-3" /> Team health score
                 </div>
@@ -123,7 +123,7 @@ export function AnalyticsPanel() {
             <Card className="border-border/50">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground mb-1">Tasks Completed</p>
-                <p className="text-2xl font-bold">{doneTasks}</p>
+                <p className="heading-5">{doneTasks}</p>
                 <div className="flex items-center gap-1 text-xs text-emerald-500 mt-1">
                   <ArrowUpRight className="w-3 h-3" /> of {kanbanTasks.length} total
                 </div>
@@ -142,10 +142,10 @@ export function AnalyticsPanel() {
               ) : (
                 teamData.map((t) => (
                   <div key={t.name}>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{t.name}</span>
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-xs">
                           {t.members.length} members
                         </Badge>
                       </div>
@@ -257,7 +257,7 @@ export function AnalyticsPanel() {
                     <h4 className="font-medium text-sm mb-3">{team.name}</h4>
                     <div className="flex items-center gap-1 h-8 rounded-lg overflow-hidden bg-muted/50">
                       {team.members.map((m, i) => {
-                        const colors = ["bg-primary", "bg-emerald-500", "bg-violet-500", "bg-amber-500"];
+                        const colors = ["bg-primary", "bg-emerald-500", "bg-teal-500", "bg-amber-500"];
                         return (
                           <div
                             key={m.id}
@@ -270,11 +270,11 @@ export function AnalyticsPanel() {
                     </div>
                     <div className="flex items-center gap-4 mt-2 flex-wrap">
                       {team.members.map((m, i) => {
-                        const colors = ["bg-primary", "bg-emerald-500", "bg-violet-500", "bg-amber-500"];
+                        const colors = ["bg-primary", "bg-emerald-500", "bg-teal-500", "bg-amber-500"];
                         return (
-                          <div key={m.id} className="flex items-center gap-1.5">
+                          <div key={m.id} className="flex items-center gap-2">
                             <div className={cn("w-2.5 h-2.5 rounded-full", colors[i % colors.length])} />
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               {getLastName(m.name)} ({m.contribution}%)
                             </span>
                           </div>
@@ -310,7 +310,7 @@ export function AnalyticsPanel() {
                             <Progress value={team.health} className="h-3 flex-1" />
                             <span className="text-sm font-bold">{team.health}%</span>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {team.health >= 80
                               ? "Healthy - Good collaboration patterns"
                               : team.health >= 60

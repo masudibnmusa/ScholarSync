@@ -11,8 +11,9 @@ import {
   Clock,
   MessageSquare,
   Eye,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 const formatTime = (dateStr: string) => {
   try {
@@ -44,7 +45,7 @@ export function ConflictsPanel() {
     <div className="p-6 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold">Conflict Alerts</h2>
+          <h2 className="heading-6">Conflict Alerts</h2>
           <p className="text-sm text-muted-foreground">
             AI-detected team friction and collaboration issues
           </p>
@@ -59,10 +60,11 @@ export function ConflictsPanel() {
       </div>
 
       {conflictAlerts.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <AlertTriangle className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-          <p>No conflicts detected</p>
-        </div>
+        <EmptyState
+          icon={AlertTriangle}
+          title="No conflicts right now"
+          body="Team chats are checked for tone once a day. If a team starts to struggle, an alert appears here."
+        />
       ) : (
         <div className="space-y-4">
           {conflictAlerts.map((conflict) => (
@@ -102,7 +104,7 @@ export function ConflictsPanel() {
                         <h3 className="font-semibold">{conflict.teamName}</h3>
                         <Badge
                           className={cn(
-                            "text-[10px]",
+                            "text-xs",
                             conflict.severity === "high"
                               ? "bg-red-100 text-red-700 border-red-200"
                               : conflict.severity === "medium"
@@ -114,7 +116,7 @@ export function ConflictsPanel() {
                           {conflict.severity}
                         </Badge>
                         {conflict.isResolved && (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px]">
+                          <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             Resolved
                           </Badge>
@@ -128,13 +130,13 @@ export function ConflictsPanel() {
                   </div>
                   {!conflict.isResolved && (
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="gap-1.5">
+                      <Button variant="outline" size="sm" className="gap-2">
                         <Eye className="w-3.5 h-3.5" />
                         Review
                       </Button>
                       <Button
                         size="sm"
-                        className="gap-1.5"
+                        className="gap-2"
                         onClick={() => resolveConflict(conflict.id)}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -150,14 +152,14 @@ export function ConflictsPanel() {
                 </p>
 
                 {/* Sentiment Score */}
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                   <MessageSquare className="w-4 h-4 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">
                     Sentiment Score:
                   </span>
                   <Badge
                     className={cn(
-                      "text-[10px]",
+                      "text-xs",
                       conflict.sentimentScore >= 7
                         ? "bg-green-100 text-green-700"
                         : conflict.sentimentScore >= 5

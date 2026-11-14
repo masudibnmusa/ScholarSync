@@ -13,8 +13,9 @@ import {
   AlertTriangle,
   Check,
   CheckCheck,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 const notifIcons: Record<string, typeof Bell> = {
   mention: MessageSquare,
@@ -26,7 +27,7 @@ const notifIcons: Record<string, typeof Bell> = {
 
 const notifColors: Record<string, string> = {
   mention: "bg-primary/10 text-primary",
-  task: "bg-violet-100 text-violet-600",
+  task: "bg-teal-100 text-teal-600",
   deadline: "bg-amber-100 text-amber-600",
   team: "bg-emerald-100 text-emerald-600",
   conflict: "bg-red-100 text-red-600",
@@ -60,7 +61,7 @@ export function NotificationsPanel() {
     <div className="p-6 space-y-4 max-w-3xl mx-auto h-full flex flex-col">
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h2 className="text-xl font-bold">Notifications</h2>
+          <h2 className="heading-6">Notifications</h2>
           <p className="text-sm text-muted-foreground">
             {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
           </p>
@@ -68,7 +69,7 @@ export function NotificationsPanel() {
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5"
+          className="gap-2"
           disabled={unreadCount === 0}
           onClick={() => markAllNotificationsRead()}
         >
@@ -79,10 +80,11 @@ export function NotificationsPanel() {
 
       <ScrollArea className="flex-1">
         {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Bell className="w-12 h-12 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No notifications</p>
-          </div>
+          <EmptyState
+            icon={Bell}
+            title="You are all caught up"
+            body="New tasks, messages and review requests for your team will appear here."
+          />
         ) : (
           <div className="space-y-2">
             {notifications.map((notif) => {
@@ -117,7 +119,7 @@ export function NotificationsPanel() {
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {notif.description}
                       </p>
-                      <p className="text-[11px] text-muted-foreground/60 mt-1.5">
+                      <p className="text-xs text-muted-foreground/60 mt-2">
                         {formatNotifTime(notif.createdAt)}
                       </p>
                     </div>

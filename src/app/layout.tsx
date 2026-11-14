@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CampusNova - Student Collaboration Hub",
-  description: "AI-powered team formation, real-time collaboration, and intelligent task management for university group projects.",
+  title: "CampusNova: group project workspace for students and faculty",
+  description: "Students plan tasks, chat and share files with their team. Faculty match teams by skills, track contribution and spot struggling teams early.",
   keywords: ["CampusNova", "Student Collaboration", "University", "Group Projects", "AI Team Matching"],
   authors: [{ name: "CampusNova Team" }],
   icons: {
@@ -24,16 +24,16 @@ export const metadata: Metadata = {
     apple: "/favicon.svg",
   },
   openGraph: {
-    title: "CampusNova - Student Collaboration Hub",
-    description: "AI-powered student collaboration platform",
+    title: "CampusNova: group project workspace for students and faculty",
+    description: "One workspace for every group project on campus.",
     url: "https://campusnova.vercel.app",
     siteName: "CampusNova",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CampusNova - Student Collaboration Hub",
-    description: "AI-powered student collaboration platform",
+    title: "CampusNova: group project workspace for students and faculty",
+    description: "One workspace for every group project on campus.",
   },
 };
 
@@ -45,8 +45,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
       >
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground button-sm"
+        >
+          Skip to content
+        </a>
         <Providers>
           {children}
           <Toaster />

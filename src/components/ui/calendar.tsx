@@ -5,7 +5,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-} from "lucide-react"
+} from "@/components/icons"
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -66,7 +66,7 @@ function Calendar({
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
+          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-2",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
@@ -87,7 +87,7 @@ function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
+          "text-muted-foreground rounded-md flex-1 font-normal text-xs select-none",
           defaultClassNames.weekday
         ),
         week: cn("flex w-full mt-2", defaultClassNames.week),
@@ -96,7 +96,7 @@ function Calendar({
           defaultClassNames.week_number_header
         ),
         week_number: cn(
-          "text-[0.8rem] select-none text-muted-foreground",
+          "text-xs select-none text-muted-foreground",
           defaultClassNames.week_number
         ),
         day: cn(

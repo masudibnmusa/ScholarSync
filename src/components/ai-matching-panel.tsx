@@ -13,7 +13,7 @@ import {
   Play,
   Zap,
   Target,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, getInitials } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { runTeamMatching, applyTeamMatching } from "@/app/actions";
@@ -64,12 +64,12 @@ export function AIMatchingPanel() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto h-full overflow-y-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold">AI Team Matching</h2>
+          <h2 className="heading-6">AI Team Matching</h2>
           <p className="text-sm text-muted-foreground">
             Group enrolled students who are not on a team yet into balanced teams
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={run} disabled={isRunning || isApplying}>
+        <Button size="sm" className="gap-2" onClick={run} disabled={isRunning || isApplying}>
           {isRunning ? (
             <>
               <RotateCcw className="w-3.5 h-3.5 animate-spin" />
@@ -89,7 +89,7 @@ export function AIMatchingPanel() {
           <div className="flex items-center gap-2">
             <BrainCircuit className="w-5 h-5 text-primary" />
             <h3 className="font-semibold">Matching Engine</h3>
-            <Badge variant="secondary" className="text-[10px]">Gemini</Badge>
+            <Badge variant="secondary" className="text-xs">Gemini</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -113,12 +113,12 @@ export function AIMatchingPanel() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium mb-2">Steps</p>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {steps.map((label) => (
                   <div
                     key={label}
                     className={cn(
-                      "flex items-center gap-2 text-sm p-1.5 rounded-md",
+                      "flex items-center gap-2 text-sm p-2 rounded-md",
                       ran ? "text-emerald-600 bg-emerald-50" : "text-muted-foreground"
                     )}
                   >
@@ -156,7 +156,7 @@ export function AIMatchingPanel() {
                 <h3 className="font-semibold">Suggested Teams</h3>
               </div>
               {proposals.length > 0 && (
-                <Button size="sm" className="gap-1.5" onClick={approve} disabled={isApplying}>
+                <Button size="sm" className="gap-2" onClick={approve} disabled={isApplying}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   {isApplying ? "Creating..." : "Approve All & Create Teams"}
                 </Button>
@@ -179,7 +179,7 @@ export function AIMatchingPanel() {
                     <h4 className="font-semibold text-sm">{team.name}</h4>
                     <Badge
                       className={cn(
-                        "text-[10px] mt-0.5",
+                        "text-xs mt-0.5",
                         team.score >= 90 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
                       )}
                     >
@@ -190,19 +190,19 @@ export function AIMatchingPanel() {
 
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   {team.members.map((member) => (
-                    <div key={member.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50">
+                    <div key={member.id} className="flex items-center gap-2 px-3 py-1 rounded-lg bg-muted/50">
                       <Avatar className="w-5 h-5">
-                        <AvatarFallback className="text-[9px] bg-muted font-bold">{getInitials(member.name)}</AvatarFallback>
+                        <AvatarFallback className="text-xs bg-muted font-bold">{getInitials(member.name)}</AvatarFallback>
                       </Avatar>
                       <span className="text-xs font-medium">{member.name}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <Target className="w-3 h-3 text-emerald-500" />
                   {team.strengths.map((st) => (
-                    <Badge key={st} variant="secondary" className="text-[10px]">{st}</Badge>
+                    <Badge key={st} variant="secondary" className="text-xs">{st}</Badge>
                   ))}
                 </div>
               </div>

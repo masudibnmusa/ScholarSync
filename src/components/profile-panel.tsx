@@ -24,7 +24,7 @@ import {
   FolderOpen,
   CheckCircle2,
   Star,
-} from "lucide-react";
+} from "@/components/icons";
 import { useAppStore } from "@/lib/store";
 import { getInitials } from "@/lib/utils";
 
@@ -75,7 +75,7 @@ export function ProfilePanel() {
     <div className="p-6 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">My Profile</h2>
+          <h2 className="heading-6">My Profile</h2>
           <p className="text-sm text-muted-foreground">
             Manage your account and skills
           </p>
@@ -84,7 +84,7 @@ export function ProfilePanel() {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5"
+            className="gap-2"
             onClick={() => setIsEditing(true)}
           >
             <Edit2 className="w-3.5 h-3.5" />
@@ -101,11 +101,11 @@ export function ProfilePanel() {
               <h3 className="font-semibold">Personal Information</h3>
               {isEditing && (
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="gap-1.5" onClick={handleCancel}>
+                  <Button variant="ghost" size="sm" className="gap-2" onClick={handleCancel}>
                     <X className="w-3.5 h-3.5" />
                     Cancel
                   </Button>
-                  <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={isLoading}>
+                  <Button size="sm" className="gap-2" onClick={handleSave} disabled={isLoading}>
                     {isLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
@@ -120,12 +120,12 @@ export function ProfilePanel() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4 mb-6">
               <Avatar className="w-20 h-20">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+                <AvatarFallback className="bg-primary text-primary-foreground heading-6">
                   {getInitials(currentUser?.name)}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-bold">{currentUser?.name}</h2>
+                <h2 className="heading-6">{currentUser?.name}</h2>
                 <p className="text-sm text-muted-foreground">
                   {currentUser?.email}
                 </p>
@@ -190,12 +190,12 @@ export function ProfilePanel() {
             <h3 className="font-semibold">Skills & Expertise</h3>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {skills.map((skill) => (
                 <Badge
                   key={skill}
                   variant="secondary"
-                  className="px-2.5 py-1 text-xs"
+                  className="px-3 py-1 text-xs"
                 >
                   {isEditing && (
                     <button
@@ -267,8 +267,8 @@ export function ProfilePanel() {
                   <c.icon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{c.value}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="title-2">{c.value}</p>
+                  <p className="text-xs text-muted-foreground">
                     {c.label}
                   </p>
                 </div>

@@ -17,8 +17,9 @@ import {
   Activity,
   Eye,
   Heart,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, getInitials, getLastName } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 export function InstructorDashboard() {
   const { teams, conflictAlerts, fetchConflicts, setView } = useAppStore();
@@ -48,8 +49,8 @@ export function InstructorDashboard() {
       label: "Total Students",
       value: totalStudents,
       icon: Activity,
-      color: "text-violet-500",
-      bg: "bg-violet-50",
+      color: "text-teal-500",
+      bg: "bg-teal-50",
     },
     {
       label: "Avg. Health",
@@ -72,7 +73,7 @@ export function InstructorDashboard() {
       {/* Welcome */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Instructor Dashboard 👨‍🏫</h1>
+          <h1 className="heading-5">Instructor Dashboard 👨‍🏫</h1>
           <p className="text-muted-foreground mt-1">
             Monitor team performance, sentiment, and project progress
           </p>
@@ -81,13 +82,13 @@ export function InstructorDashboard() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-2"
             onClick={() => setView("instructor-matching")}
           >
             <BrainCircuit className="w-3.5 h-3.5" />
             AI Matching
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setView("instructor-analytics")}>
+          <Button size="sm" className="gap-2" onClick={() => setView("instructor-analytics")}>
             <BarChart3 className="w-3.5 h-3.5" />
             Full Analytics
           </Button>
@@ -109,7 +110,7 @@ export function InstructorDashboard() {
                   <stat.icon className={cn("w-5 h-5", stat.color)} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="heading-5">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
               </div>
@@ -136,7 +137,12 @@ export function InstructorDashboard() {
         </CardHeader>
         <CardContent>
           {teams.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No teams yet</p>
+            <EmptyState
+              icon={BrainCircuit}
+              title="No teams yet"
+              body="Match your class into teams to see their progress and health here."
+              action={{ label: "Open team matching", onClick: () => useAppStore.getState().setView("instructor-matching") }}
+            />
           ) : (
             <div className="space-y-4">
               {teams.map((team) => (
@@ -150,7 +156,7 @@ export function InstructorDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold text-sm">{team.name}</h4>
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-xs">
                         {team.members.length} members
                       </Badge>
                     </div>
@@ -166,11 +172,11 @@ export function InstructorDashboard() {
                       {team.members.slice(0, 3).map((m) => (
                         <div key={m.id} className="flex items-center gap-1">
                           <Avatar className="w-5 h-5">
-                            <AvatarFallback className="text-[9px] bg-muted">
+                            <AvatarFallback className="text-xs bg-muted">
                               {getInitials(m.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {getLastName(m.name)}
                           </span>
                         </div>
@@ -180,7 +186,7 @@ export function InstructorDashboard() {
                   <div className="text-right shrink-0">
                     <div
                       className={cn(
-                        "text-2xl font-bold",
+                        "heading-5",
                         team.healthScore >= 80
                           ? "text-emerald-500"
                           : team.healthScore >= 60
@@ -190,7 +196,7 @@ export function InstructorDashboard() {
                     >
                       {team.healthScore}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Health Score
                     </p>
                   </div>
@@ -221,7 +227,7 @@ export function InstructorDashboard() {
             </div>
             <div>
               <p className="font-medium text-sm">Conflict Alerts</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {activeConflicts} active alert{activeConflicts !== 1 ? "s" : ""} require{activeConflicts === 1 ? "s" : ""} attention
               </p>
             </div>
@@ -232,12 +238,12 @@ export function InstructorDashboard() {
           onClick={() => setView("instructor-matching")}
         >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
-              <BrainCircuit className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <BrainCircuit className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="font-medium text-sm">AI Team Matching</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Run intelligent team formation algorithm
               </p>
             </div>

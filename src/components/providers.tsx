@@ -8,9 +8,9 @@ import { useAppStore } from "@/lib/store";
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sb = supabaseBrowser();
-    sb.auth.getSession().then(({ data }) => {
-      if (data.session && !useAppStore.getState().currentUser) useAppStore.getState().init();
-    });
+    sb.auth.getSession().then(async ({ data }) => {
+      if (data.session && !useAppStore.getState().currentUser) await useAppStore.getState().init();
+    }).finally(() => useAppStore.setState({ sessionChecked: true }));
     const { data } = sb.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") useAppStore.getState().reset();
     });

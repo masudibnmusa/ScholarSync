@@ -12,9 +12,10 @@ import {
   CheckCircle2,
   Award,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn, getInitials } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
+import { EmptyState } from "@/components/empty-state";
 
 const categories = [
   { label: "Communication", key: "comm" },
@@ -70,7 +71,7 @@ export function PeerReviewPanel() {
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto h-full overflow-y-auto">
       <div>
-        <h2 className="text-xl font-bold">Peer Review</h2>
+        <h2 className="heading-6">Peer Review</h2>
         <p className="text-sm text-muted-foreground">
           Provide anonymous feedback for your teammates
         </p>
@@ -84,7 +85,7 @@ export function PeerReviewPanel() {
               <Star className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-lg font-bold">{teammates.length}</p>
+              <p className="title-2">{teammates.length}</p>
               <p className="text-xs text-muted-foreground">Reviews Pending</p>
             </div>
           </CardContent>
@@ -95,7 +96,7 @@ export function PeerReviewPanel() {
               <CheckCircle2 className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-lg font-bold">
+              <p className="title-2">
                 {Object.keys(submitted).length}
               </p>
               <p className="text-xs text-muted-foreground">Completed</p>
@@ -108,7 +109,7 @@ export function PeerReviewPanel() {
               <Award className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-lg font-bold">
+              <p className="title-2">
                 {teammates.length > 0
                   ? ((Object.keys(submitted).length / teammates.length) * 100).toFixed(0)
                   : 0}%
@@ -121,9 +122,11 @@ export function PeerReviewPanel() {
 
       {/* Review Forms */}
       {teammates.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No teammates found. Join a team first.</p>
-        </div>
+        <EmptyState
+          icon={Star}
+          title="No teammates to review yet"
+          body="Once your instructor places you on a team, your teammates appear here for anonymous review."
+        />
       ) : (
         <div className="space-y-6">
           {teammates.map((mate) => (
@@ -162,10 +165,11 @@ export function PeerReviewPanel() {
                         className="p-0.5 hover:scale-110 transition-transform"
                       >
                         <Star
+                          weight={(ratings[mate.userId] || 0) >= star ? "fill" : "regular"}
                           className={cn(
                             "w-6 h-6 transition-colors",
                             (ratings[mate.userId] || 0) >= star
-                              ? "fill-amber-400 text-amber-400"
+                              ? "text-amber-400"
                               : "text-muted-foreground/30"
                           )}
                         />
@@ -182,7 +186,7 @@ export function PeerReviewPanel() {
                   {categories.map((cat) => (
                     <div
                       key={cat.key}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50"
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                     >
                       <span className="text-xs font-medium">{cat.label}</span>
                       <div className="flex items-center gap-0.5">

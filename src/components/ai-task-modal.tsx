@@ -16,7 +16,7 @@ import {
   XCircle,
   Quote,
   Target,
-} from "lucide-react";
+} from "@/components/icons";
 
 export function AITaskModal() {
   const { showAIModal, dismissAIModal, taskSuggestions, acceptSuggestion, dismissSuggestion } = useAppStore();
@@ -33,8 +33,8 @@ export function AITaskModal() {
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-violet-600" />
+            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-teal-600" />
             </div>
             <div>
               <DialogTitle className="text-lg">AI Task Suggestions</DialogTitle>
@@ -66,7 +66,7 @@ export function AITaskModal() {
                   {suggestion.source && (
                     <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 text-xs">
                       <Quote className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground italic leading-relaxed">{suggestion.source}</span>
+                      <span className="text-muted-foreground leading-relaxed">{suggestion.source}</span>
                     </div>
                   )}
 

@@ -17,7 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   Zap,
-} from "lucide-react";
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export function StudentDashboard() {
@@ -72,7 +72,7 @@ export function StudentDashboard() {
       {/* Welcome Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="heading-5">
             Welcome back, {currentUser?.name?.split(" ")[0]} 👋
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -81,7 +81,7 @@ export function StudentDashboard() {
         </div>
         <Badge
           variant="outline"
-          className="flex items-center gap-1.5 px-3 py-1"
+          className="flex items-center gap-2 px-3 py-1"
         >
           <Sparkles className="w-3.5 h-3.5 text-primary" />
           AI Features Active
@@ -103,7 +103,7 @@ export function StudentDashboard() {
                   <stat.icon className={cn("w-5 h-5", stat.color)} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="heading-5">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
               </div>
@@ -141,15 +141,15 @@ export function StudentDashboard() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                 <KanbanSquare className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-lg font-bold">{todoTasks}</p>
-                  <p className="text-[11px] text-muted-foreground">To Do</p>
+                  <p className="title-2">{todoTasks}</p>
+                  <p className="text-xs text-muted-foreground">To Do</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50">
                 <Clock className="w-4 h-4 text-amber-500" />
                 <div>
-                  <p className="text-lg font-bold">{inProgressTasks}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="title-2">{inProgressTasks}</p>
+                  <p className="text-xs text-muted-foreground">
                     In Progress
                   </p>
                 </div>
@@ -157,8 +157,8 @@ export function StudentDashboard() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <div>
-                  <p className="text-lg font-bold">{doneTasks}</p>
-                  <p className="text-[11px] text-muted-foreground">Done</p>
+                  <p className="title-2">{doneTasks}</p>
+                  <p className="text-xs text-muted-foreground">Done</p>
                 </div>
               </div>
             </div>
@@ -196,18 +196,18 @@ export function StudentDashboard() {
                   <p className="text-sm font-medium truncate">
                     {m.name}
                     {m.userId === currentUser?.id && (
-                      <span className="text-[10px] text-muted-foreground ml-1">
+                      <span className="text-xs text-muted-foreground ml-1">
                         (You)
                       </span>
                     )}
                   </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {(m.skills || []).slice(0, 2).join(", ") || "Member"}
                   </p>
                 </div>
                 <Badge
                   variant="secondary"
-                  className="text-[10px] shrink-0"
+                  className="text-xs shrink-0"
                 >
                   {m.contribution ?? 0}%
                 </Badge>
@@ -229,7 +229,7 @@ export function StudentDashboard() {
             </div>
             <div>
               <p className="font-medium text-sm">Team Chat</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {teamMessages} messages
               </p>
             </div>
@@ -245,7 +245,7 @@ export function StudentDashboard() {
             </div>
             <div>
               <p className="font-medium text-sm">Shared Files</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {teamFiles} file{teamFiles !== 1 ? "s" : ""} uploaded
               </p>
             </div>
@@ -256,12 +256,12 @@ export function StudentDashboard() {
           onClick={() => setView("student-peer-review")}
         >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="font-medium text-sm">Peer Review</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {team?.members.length ? team.members.length - 1 : 0} review{team && team.members.length > 2 ? "s" : ""} pending
               </p>
             </div>

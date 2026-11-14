@@ -20,8 +20,10 @@ import {
   Pin,
   Image,
   Users,
-} from "lucide-react";
+  MessageSquare,
+} from "@/components/icons";
 import { cn, getInitials } from "@/lib/utils";
+import { EmptyState } from "@/components/empty-state";
 
 export function ChatPanel() {
   const {
@@ -73,7 +75,7 @@ export function ChatPanel() {
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2 mb-3">
             <h3 className="font-semibold text-sm">{selectedTeam?.name || "Select a team"}</h3>
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-xs">
               {selectedTeam?.members.length || 0} members
             </Badge>
           </div>
@@ -87,14 +89,14 @@ export function ChatPanel() {
         </div>
         <ScrollArea className="flex-1 p-2">
           <div className="space-y-0.5">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-2 py-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
               Channels
             </p>
             {["general", "development", "design", "random"].map((ch) => (
               <button
                 key={ch}
                 className={cn(
-                  "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors",
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
                   ch === "general"
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-accent"
@@ -106,20 +108,20 @@ export function ChatPanel() {
             ))}
           </div>
           <div className="mt-4 space-y-0.5">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-2 py-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
               Members
             </p>
-            <div className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-emerald-600">
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-emerald-600">
               <Users className="w-3.5 h-3.5" />
               <span className="text-xs">{selectedTeam?.members.length || 0} members</span>
             </div>
             {selectedTeam?.members.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground"
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground"
               >
                 <Avatar className="w-6 h-6">
-                  <AvatarFallback className="text-[10px] bg-muted">
+                  <AvatarFallback className="text-xs bg-muted">
                     {getInitials(m.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -138,7 +140,7 @@ export function ChatPanel() {
             <Hash className="w-5 h-5 text-muted-foreground" />
             <div>
               <h3 className="font-semibold text-sm">general</h3>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {selectedTeam?.description || "Group project discussion"}
               </p>
             </div>
@@ -174,16 +176,18 @@ export function ChatPanel() {
             {/* Date Divider */}
             <div className="flex items-center gap-3 py-2">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[11px] text-muted-foreground font-medium">
+              <span className="text-xs text-muted-foreground font-medium">
                 Today
               </span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
             {messages.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">
-                No messages yet. Start the conversation!
-              </p>
+              <EmptyState
+                icon={MessageSquare}
+                title="Say hello to your team"
+                body="Agree on who does what here. Work your team agrees on in chat shows up as suggested tasks a few minutes later."
+              />
             )}
 
             {messages.map((msg) => (
@@ -218,13 +222,13 @@ export function ChatPanel() {
                     <span className="text-sm font-semibold">
                       {msg.senderName}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatTime(msg.timestamp)}
                     </span>
                   </div>
                   <div
                     className={cn(
-                      "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                      "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                       msg.isMe
                         ? "bg-primary text-primary-foreground rounded-tr-md"
                         : "bg-card border border-border rounded-tl-md"
@@ -234,7 +238,7 @@ export function ChatPanel() {
                   </div>
                   {msg.fileName && (
                     <Card
-                      className="mt-1.5 p-2.5 max-w-xs border border-border cursor-pointer hover:border-primary/30"
+                      className="mt-2 p-3 max-w-xs border border-border cursor-pointer hover:border-primary/30"
                       onClick={() => msg.filePath && useAppStore.getState().downloadFile(msg.filePath)}
                     >
                       <div className="flex items-center gap-2">
@@ -246,7 +250,7 @@ export function ChatPanel() {
                             {msg.fileName}
                           </p>
                           {msg.fileSize && (
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {msg.fileSize}
                             </p>
                           )}
@@ -301,7 +305,7 @@ export function ChatPanel() {
                 </Button>
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
+            <p className="text-xs text-muted-foreground mt-2 text-center">
               <Sparkles className="w-3 h-3 inline mr-1 text-primary" />
               NLP Engine active — tasks are being extracted from conversations
             </p>

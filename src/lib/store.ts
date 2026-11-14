@@ -8,6 +8,7 @@ import * as actions from "@/app/actions";
 
 export type UserRole = "student" | "instructor";
 export type View =
+  | "landing"
   | "login"
   | "register"
   | "student-dashboard"
@@ -126,6 +127,7 @@ export interface AppState {
   currentUser: UserProfile | null;
   isLoading: boolean;
   error: string | null;
+  sessionChecked: boolean; // false until the saved session (if any) is restored on page load
 
   // Navigation
   selectedTeam: Team | null;
@@ -219,7 +221,7 @@ function closeChannels() {
 
 const empty = {
   currentUser: null,
-  currentView: "login" as View,
+  currentView: "landing" as View,
   selectedTeam: null,
   teams: [],
   chatMessages: {},
@@ -236,6 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...empty,
   isLoading: false,
   error: null,
+  sessionChecked: false,
   sidebarCollapsed: false,
 
   setView: (view) => set({ currentView: view }),

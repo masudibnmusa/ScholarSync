@@ -19,7 +19,8 @@ import {
   Clock,
   MoreVertical,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
+import { EmptyState } from "@/components/empty-state";
 
 const getFileIcon = (type: string) => {
   switch (type) {
@@ -28,7 +29,7 @@ const getFileIcon = (type: string) => {
     case "code":
       return <FileCode className="w-8 h-8 text-emerald-500" />;
     case "image":
-      return <Image className="w-8 h-8 text-violet-500" />;
+      return <Image className="w-8 h-8 text-teal-500" />;
     default:
       return <File className="w-8 h-8 text-blue-500" />;
   }
@@ -83,7 +84,7 @@ export function FilesPanel() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0 bg-card/50">
         <div>
-          <h2 className="text-lg font-bold">Shared Files</h2>
+          <h2 className="title-2">Shared Files</h2>
           <p className="text-sm text-muted-foreground">
             Upload and manage project files
           </p>
@@ -98,7 +99,7 @@ export function FilesPanel() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-2"
             onClick={handleUploadClick}
             disabled={isLoading}
           >
@@ -126,7 +127,7 @@ export function FilesPanel() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             placeholder="Search files by name..."
-            className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-9 pl-10 pr-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -134,13 +135,11 @@ export function FilesPanel() {
       {/* File Grid */}
       <ScrollArea className="flex-1 p-6">
         {files.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <FolderOpen className="w-12 h-12 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No files uploaded yet</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Click "Upload File" to get started
-            </p>
-          </div>
+          <EmptyState
+            icon={FolderOpen}
+            title="No shared files yet"
+            body="Upload drafts, datasets or slides and everyone on your team can download them."
+          />
         ) : (
           <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {files.map((file) => (
@@ -165,11 +164,11 @@ export function FilesPanel() {
                   <p className="font-medium text-sm truncate mb-0.5">
                     {file.fileName}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {formatFileSize(file.fileSize)}
                   </p>
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
                       {formatDate(file.createdAt)}
                     </div>
