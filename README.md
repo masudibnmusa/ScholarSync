@@ -126,6 +126,22 @@ Stop with `Ctrl+C` for the dev server and `npx supabase stop` for Supabase. Loca
 
 **Demo accounts** (seed, password `password123`): instructor `selim.reja@university.edu`; students `masud@`, `nazmul@`, `chinmoy@` (Team Nova) and `sara@`, `rahim@`, `fatima@` (Team Orbit), all `@university.edu`.
 
+### Testing the AI features
+
+[`supabase/ai-test-data.sql`](supabase/ai-test-data.sql) loads chat and students built to exercise each AI feature, and lists the expected results at the top. It is safe to re-run: it clears earlier AI results and teams made by matching first.
+
+```bash
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f supabase/ai-test-data.sql
+npm run dev                        # terminal 1
+npx inngest-cli@latest dev         # terminal 2, then open http://localhost:8288
+```
+
+| Feature | How to run it | Where to check |
+|---|---|---|
+| Task extraction | In the Inngest UI, send event `chat/message.created` with `{"teamId": "00000000-0000-4000-a000-000000000001"}` (or send any chat message as `masud@`). Runs after 2 minutes of quiet. | `masud@` → workspace: 4 suggested tasks |
+| Team health and conflicts | In the Inngest UI, open the `assess-team-health` function and click **Invoke** | `selim.reja@` → Conflicts: an alert for Team Orbit; Analytics: Orbit's health drops |
+| Team matching | `selim.reja@` → Matching → run it | Proposals that place the 7 new students in teams of about 3 |
+
 ## Implementation notes
 
 Where the code differs from the diagram, and why:
@@ -135,7 +151,7 @@ Where the code differs from the diagram, and why:
 - **Events come from the Server Action.** `sendMessage` sends the Inngest event after the insert, instead of a database webhook. If Inngest is unreachable the message is still saved and extraction is skipped.
 - **Team matching runs in the request.** The instructor waits for the result, so `runTeamMatching` calls Gemini directly; Gemini only proposes, and teams are created when the instructor approves.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
-- **AI model:** `gemini-3.8-flash` by default, set `GEMINI_MODEL` to change it. Every answer is checked against its zod schema before use.
+- **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
 ## Roadmap
 

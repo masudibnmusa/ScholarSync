@@ -1,10 +1,11 @@
 import "server-only";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+// 3.5-flash-lite answers in ~1-2s; the newest models (3.7, 3.8) were queuing requests for 2-4 minutes.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 // Chat text is written by students, so it is data to analyse, never instructions to follow.
 const DATA_RULE =
@@ -18,6 +19,8 @@ async function ask<T extends z.ZodType>(schema: T, system: string, user: string)
       systemInstruction: `${system}\n\n${DATA_RULE}`,
       responseMimeType: "application/json",
       responseJsonSchema: z.toJSONSchema(schema),
+      // These tasks gave the same answers on low as on the default (high), with less latency and cost.
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     },
   });
   // No text means the response was blocked or empty; skip this run rather than fail the job.
@@ -92,7 +95,8 @@ export async function matchTeams(students: Student[], teamSize: number) {
   const out = await ask(
     Matching,
     `You form balanced university project teams of about ${teamSize} students. ` +
-      "Each team should mix complementary skills and share availability. Every student goes in exactly one team. Use the given ids.",
+      "Each team should mix complementary skills and share availability. Every student goes in exactly one team. Use the given ids. " +
+      "Never leave a team with fewer than 2 students: when the count doesn't divide evenly, add the leftover students to other teams.",
     `<students>\n${JSON.stringify(students)}\n</students>`,
   );
   if (!out) return [];
