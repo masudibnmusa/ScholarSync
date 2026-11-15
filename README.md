@@ -9,8 +9,8 @@ A collaboration hub for university group projects. Students work in teams with c
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 16 (App Router), React 19, TypeScript |
-| UI | Tailwind CSS 4, shadcn/ui (Radix), lucide-react, recharts, dnd-kit |
-| State | TanStack Query (server data), Zustand (UI state only) |
+| UI | Tailwind CSS 4, Radix primitives, Phosphor icons, Framer Motion, dnd-kit, cmdk |
+| State | Zustand store in the browser: calls Server Actions, subscribes to Realtime |
 | Backend | Supabase: Postgres, Auth, Realtime, Storage |
 | Data access | Drizzle ORM, zod validation |
 | AI | Google Gen AI (Gemini), run as background jobs (Inngest) |
@@ -24,7 +24,7 @@ Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.
 
 ### How a request works
 
-1. The browser opens a view such as Tasks, and the store calls a Server Action. The action queries Postgres **as the signed-in user** through `withUser()` in [`src/db/index.ts`](src/db/index.ts): Drizzle connects as a role that bypasses RLS, so each query runs in a transaction that first sets `role = authenticated` and `request.jwt.claims` from the verified session. Never query with `adminDb` from a user request.
+1. The browser opens a page such as `/student/tasks`, and the store calls a Server Action. The action queries Postgres **as the signed-in user** through `withUser()` in [`src/db/index.ts`](src/db/index.ts): Drizzle connects as a role that bypasses RLS, so each query runs in a transaction that first sets `role = authenticated` and `request.jwt.claims` from the verified session. Never query with `adminDb` from a user request.
 2. Postgres **Row-Level Security** (RLS) returns only the rows that user may see. Access rules live in the database, not in API code.
 3. On sign-up, the `on_auth_user_created` trigger creates the matching `public.users` row (always as a student).
 4. Changes go through **Server Actions**, which validate input with zod and write with Drizzle. RLS checks every write too.
@@ -75,14 +75,25 @@ They match the app's most frequent queries: tasks by team and status, messages b
 src/
   app/actions.ts        Server Actions: every read and write, zod-validated, run as the user (RLS)
   app/api/inngest/      Inngest endpoint for the AI jobs
+  app/page.tsx          Landing page (static)
+  app/(auth)/           /login and /register; signed-in users are redirected to their home
+  app/(app)/            Signed-in app: layout checks the session, then /student/* and /instructor/* (role-checked).
+                        /student and /instructor are the workspaces; old /student/chat|tasks|files and /instructor/teams redirect there
+  app/globals.css       Design tokens (light + dark): indigo (#373063) brand, orange accent, validated chart palette
   db/schema.ts          Drizzle schema (mirrors the SQL migrations)
   db/index.ts           withUser(): runs queries as the signed-in user; adminDb for jobs only
   inngest/              Background jobs: task extraction, nightly team health
   lib/ai.ts             Gemini calls (JSON schema output, chat treated as untrusted data)
   lib/supabase/         Browser and server Supabase clients
   lib/store.ts          Client state; calls Server Actions, subscribes to Realtime
+  lib/session.ts        Signed-in profile for server layouts (cached per request)
   proxy.ts              Refreshes the session cookie on each request
-  components/           Feature panels (chat, kanban, analytics, ...)
+  components/ui/        Primitives: button, dialog, select, segmented control, progress, motion helpers
+  components/app/       Shell: icon rail (desktop), top bar + tab bar (phones), command menu (Ctrl/Cmd+K), notifications, profile
+  components/student/   Workspace (board + docked chat + files drawer), and the TaskBoard/ChatThread/FilesView pieces it uses; peer review
+  components/instructor/ Workspace (team list, read-only board, chat/files/alerts dock), analytics, conflicts, AI matching
+  components/landing/   Landing page and its interactive product demo
+  components/auth/      Sign-in / sign-up
 supabase/
   migrations/           0001 schema, RLS, views, storage · 0002 notification triggers
   seed.sql              Local demo data
@@ -119,7 +130,8 @@ Stop with `Ctrl+C` for the dev server and `npx supabase stop` for Supabase. Loca
 
 Where the code differs from the diagram, and why:
 
-- **One page, not routes.** The UI still switches views inside a single page, so data is loaded by Server Actions called from the client store instead of by Server Components, and the store caches it instead of TanStack Query. The access path is the same: Next.js server → Drizzle → Postgres as the user.
+- **Routes with a client store.** Each screen is a real route (`/student/chat`, `/instructor/teams?team=<id>`, …), guarded by server layouts that check the session and the role. The screens themselves are Client Components: data is loaded by Server Actions called from the Zustand store, which also holds the Realtime subscriptions. The access path is the same: Next.js server → Drizzle → Postgres as the user.
+- **Peer reviews are write-only for students.** There is no "my reviews" query, so the UI remembers which teammates you reviewed in `localStorage`; the database's unique constraint still rejects a second review.
 - **Events come from the Server Action.** `sendMessage` sends the Inngest event after the insert, instead of a database webhook. If Inngest is unreachable the message is still saved and extraction is skipped.
 - **Team matching runs in the request.** The instructor waits for the result, so `runTeamMatching` calls Gemini directly; Gemini only proposes, and teams are created when the instructor approves.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
@@ -132,5 +144,5 @@ Where the code differs from the diagram, and why:
 3. ✅ Teams, tasks, chat (Realtime), files (Storage), notifications, peer review
 4. ✅ Analytics and conflicts on the SQL views
 5. ✅ AI jobs: task extraction, team health, team matching
-6. Split the single page into `/student/*` and `/instructor/*` routes with Server Components
+6. ✅ `/student/*` and `/instructor/*` routes (next: move first-load data into Server Components)
 7. Course management UI (courses and enrollments are seeded or added in SQL today)

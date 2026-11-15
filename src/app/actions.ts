@@ -9,7 +9,7 @@ import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
 import type {
   ChatMessage, ConflictAlert, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
-} from "@/lib/store";
+} from "@/lib/types";
 
 const Id = z.uuid();
 const toUiStatus = (st: "todo" | "in_progress" | "done") => (st === "in_progress" ? "in-progress" : st);

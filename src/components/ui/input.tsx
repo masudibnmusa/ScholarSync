@@ -1,21 +1,37 @@
-import * as React from "react"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
+const field =
+  "w-full rounded-xl border border-input bg-card px-3.5 text-base md:text-sm text-foreground shadow-[inset_0_1px_0_rgb(var(--shadow-color)/0.03)] transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/80 hover:border-primary/40 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
-  return (
-    <input
-      type={type}
-      data-slot="input"
-      className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-        className
-      )}
-      {...props}
-    />
-  )
+export function Input({ className, ...props }: React.ComponentProps<"input">) {
+  return <input className={cn(field, "h-11 md:h-10", className)} {...props} />;
 }
 
-export { Input }
+export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  return <textarea className={cn(field, "min-h-24 py-2.5 leading-relaxed", className)} {...props} />;
+}
+
+export function Label({ className, ...props }: React.ComponentProps<"label">) {
+  return <label className={cn("text-sm font-semibold text-foreground", className)} {...props} />;
+}
+
+/** Label + control + helper/error text, wired together for screen readers. */
+export function Field({
+  label, htmlFor, hint, error, optional, className, children,
+}: { label: string; htmlFor: string; hint?: string; error?: string | null; optional?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={htmlFor}>{label}</Label>
+        {optional && <span className="text-xs text-muted-foreground">Optional</span>}
+      </div>
+      {children}
+      {error ? (
+        <p id={`${htmlFor}-error`} role="alert" className="text-xs font-medium text-destructive">{error}</p>
+      ) : hint ? (
+        <p id={`${htmlFor}-hint`} className="text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  );
+}

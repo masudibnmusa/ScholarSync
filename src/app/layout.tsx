@@ -1,62 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "CampusNova: group project workspace for students and faculty",
-  description: "Students plan tasks, chat and share files with their team. Faculty match teams by skills, track contribution and spot struggling teams early.",
-  keywords: ["CampusNova", "Student Collaboration", "University", "Group Projects", "AI Team Matching"],
-  authors: [{ name: "CampusNova Team" }],
-  icons: {
-    icon: "/favicon.svg",
-    apple: "/favicon.svg",
-  },
-  openGraph: {
-    title: "CampusNova: group project workspace for students and faculty",
-    description: "One workspace for every group project on campus.",
-    url: "https://campusnova.vercel.app",
-    siteName: "CampusNova",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "CampusNova: group project workspace for students and faculty",
-    description: "One workspace for every group project on campus.",
-  },
+  title: { default: "CampusNova: group projects that actually work", template: "%s · CampusNova" },
+  description:
+    "One workspace for university group projects. Students chat, plan tasks and share files; faculty match teams by skills, track contribution and spot struggling teams early.",
+  icons: { icon: "/favicon.svg", apple: "/favicon.svg" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f5fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0d1f" },
+  ],
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
-      >
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground button-sm"
-        >
-          Skip to content
-        </a>
-        <Providers>
-          {children}
-          <Toaster />
-        </Providers>
+    // suppressHydrationWarning: next-themes sets the theme class before React hydrates
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+      <body className={jakarta.variable}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
