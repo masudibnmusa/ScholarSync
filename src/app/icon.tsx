@@ -14,7 +14,7 @@ export default function Icon() {
           alignItems: "center",
           justifyContent: "center",
           borderRadius: "6px",
-          background: "linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)",
+          background: "linear-gradient(135deg, #7C6CF0 0%, #373063 100%)",
         }}
       >
         {/* Graduation cap shape */}

@@ -1,21 +1,35 @@
 "use client";
 
-import { useEffect } from "react";
-import { supabaseBrowser } from "@/lib/supabase/client";
-import { useAppStore } from "@/lib/store";
+import { ThemeProvider, useTheme } from "next-themes";
+import { MotionConfig } from "framer-motion";
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/overlays";
 
-// Restores an existing session on page load and clears the app when the session ends.
+function Toasts() {
+  const { resolvedTheme } = useTheme();
+  return (
+    <Toaster
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
+      position="bottom-right"
+      closeButton
+      toastOptions={{
+        classNames: {
+          toast: "!rounded-2xl !border !border-border !bg-popover !text-popover-foreground !shadow-lift !font-sans",
+          description: "!text-muted-foreground",
+        },
+      }}
+    />
+  );
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    const sb = supabaseBrowser();
-    sb.auth.getSession().then(async ({ data }) => {
-      if (data.session && !useAppStore.getState().currentUser) await useAppStore.getState().init();
-    }).finally(() => useAppStore.setState({ sessionChecked: true }));
-    const { data } = sb.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") useAppStore.getState().reset();
-    });
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  return <>{children}</>;
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      {/* reducedMotion="user": framer-motion skips transforms for people who ask for less motion */}
+      <MotionConfig reducedMotion="user">
+        <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
+      </MotionConfig>
+      <Toasts />
+    </ThemeProvider>
+  );
 }

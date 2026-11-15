@@ -1,53 +1,32 @@
-"use client"
+import { avatarColor, cn, getInitials } from "@/lib/utils";
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+const sizes = { xs: "size-6 text-[0.625rem]", sm: "size-8 text-xs", md: "size-10 text-sm", lg: "size-14 text-lg", xl: "size-20 text-2xl" };
 
-import { cn } from "@/lib/utils"
-
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+export function Avatar({ name, size = "md", className }: { name: string; size?: keyof typeof sizes; className?: string }) {
   return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
-        className
+    <span
+      aria-hidden
+      className={cn("inline-flex shrink-0 select-none items-center justify-center rounded-full font-bold text-white", sizes[size], className)}
+      style={{ backgroundColor: avatarColor(name) }}
+    >
+      {getInitials(name)}
+    </span>
+  );
+}
+
+export function AvatarStack({ names, max = 4, size = "sm", ring = "ring-card" }: { names: string[]; max?: number; size?: keyof typeof sizes; ring?: string }) {
+  const shown = names.slice(0, max);
+  const rest = names.length - shown.length;
+  return (
+    <div className="flex items-center" role="img" aria-label={names.length ? `Members: ${names.join(", ")}` : "No members"}>
+      {shown.map((n, i) => (
+        <Avatar key={n + i} name={n} size={size} className={cn("ring-2", ring, i > 0 && "-ml-1.5")} />
+      ))}
+      {rest > 0 && (
+        <span className={cn("-ml-1.5 inline-flex items-center justify-center rounded-full bg-muted font-bold text-muted-foreground ring-2", ring, sizes[size])}>
+          +{rest}
+        </span>
       )}
-      {...props}
-    />
-  )
+    </div>
+  );
 }
-
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  )
-}
-
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-export { Avatar, AvatarImage, AvatarFallback }
