@@ -79,7 +79,7 @@ export function NotificationBell({ rail }: { rail?: boolean }) {
                       type="button"
                       onClick={() => {
                         if (!n.read) markRead(n.id);
-                        router.push(notificationHref(n.type, user.role));
+                        router.push(notificationHref(n.type, user.role, n.link));
                       }}
                       className={cn("flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/60", !n.read && "bg-secondary/40")}
                     >

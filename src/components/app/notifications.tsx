@@ -67,7 +67,7 @@ export function NotificationsPanel() {
                       <motion.li key={n.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
                         className={cn("group relative flex items-center gap-1 transition-colors hover:bg-accent/50", !n.read && "bg-secondary/40")}>
                         {!n.read && <span className="absolute inset-y-0 left-0 w-1 bg-warm" aria-hidden />}
-                        <button type="button" onClick={() => { if (!n.read) markRead(n.id); router.push(notificationHref(n.type, user.role)); }}
+                        <button type="button" onClick={() => { if (!n.read) markRead(n.id); router.push(notificationHref(n.type, user.role, n.link)); }}
                           className="flex min-w-0 flex-1 items-start gap-3.5 px-4 py-3.5 text-left sm:px-5">
                           <span className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl", meta.className)}>
                             <meta.icon weight="fill" className="size-5" aria-hidden />

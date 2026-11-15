@@ -11,6 +11,7 @@ function Toasts() {
     <Toaster
       theme={resolvedTheme === "dark" ? "dark" : "light"}
       position="bottom-right"
+      offset={{ bottom: 104 }} // clear the floating chat button
       closeButton
       toastOptions={{
         classNames: {

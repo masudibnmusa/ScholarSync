@@ -21,15 +21,15 @@ export function Progress({ value, label, className, color = "var(--primary)" }: 
 }
 
 export function ProgressRing({
-  value, size = 120, stroke = 10, label, color = "var(--primary)", children,
-}: { value: number; size?: number; stroke?: number; label: string; color?: string; children?: React.ReactNode }) {
+  value, size = 120, stroke = 10, label, color = "var(--primary)", track = "var(--muted)", children,
+}: { value: number; size?: number; stroke?: number; label: string; color?: string; track?: string; children?: React.ReactNode }) {
   const v = clamp(value);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)} className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <motion.circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c}
           initial={{ strokeDashoffset: c }}

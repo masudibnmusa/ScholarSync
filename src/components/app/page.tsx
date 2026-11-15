@@ -73,11 +73,11 @@ export function EmptyState({
 export function Logo({ className, label = true }: { className?: string; label?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#7c6cf0] to-[#373063] text-white shadow-soft">
+      <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#2b4c9b] to-[#0f1e3d] text-white shadow-soft">
         <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden>
           <path d="M12 4 2.5 9 12 14l9.5-5L12 4Z" fill="currentColor" />
           <path d="M6.5 12.2V16c1.6 1.4 3.4 2 5.5 2s3.9-.6 5.5-2v-3.8L12 15.2l-5.5-3Z" fill="currentColor" fillOpacity=".7" />
-          <circle cx="20.5" cy="14.5" r="1.5" fill="#f97316" />
+          <circle cx="20.5" cy="14.5" r="1.5" fill="#fbbf24" />
         </svg>
       </span>
       {label && <span className="text-[1.0625rem] font-extrabold tracking-tight">ScholarSync</span>}

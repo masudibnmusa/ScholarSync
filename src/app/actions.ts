@@ -98,7 +98,7 @@ export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "is
     const rows = await tx
       .select({
         id: s.messages.id, senderId: s.messages.senderId, content: s.messages.content, timestamp: s.messages.createdAt,
-        senderName: s.users.name, fileName: s.files.name, fileBytes: s.files.sizeBytes, filePath: s.files.storagePath,
+        senderName: s.users.name, senderRole: s.users.role, fileName: s.files.name, fileBytes: s.files.sizeBytes, filePath: s.files.storagePath,
       })
       .from(s.messages)
       .leftJoin(s.users, eq(s.users.id, s.messages.senderId))
@@ -110,6 +110,7 @@ export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "is
       id: r.id,
       senderId: r.senderId ?? "",
       senderName: r.senderName ?? "Former member",
+      fromInstructor: r.senderRole === "instructor",
       content: r.content,
       timestamp: r.timestamp,
       fileName: r.fileName,
@@ -190,7 +191,7 @@ export async function getNotifications(): Promise<Notification[]> {
   return withUser(async (tx, uid) => {
     const rows = await tx.select().from(s.notifications).where(eq(s.notifications.userId, uid))
       .orderBy(desc(s.notifications.createdAt)).limit(50);
-    return rows.map((n) => ({ id: n.id, type: n.type, title: n.title, description: n.body, read: !!n.readAt, createdAt: n.createdAt }));
+    return rows.map((n) => ({ id: n.id, type: n.type, title: n.title, description: n.body, read: !!n.readAt, createdAt: n.createdAt, link: n.link }));
   });
 }
 
@@ -326,14 +327,17 @@ export async function runTeamMatching(teamSize = 3): Promise<{ courseId: string;
   });
   if (!pool) return null;
 
-  const names = new Map(pool.students.map((st) => [st.id, st.name]));
+  const byId = new Map(pool.students.map((st) => [st.id, st]));
   const teams = pool.students.length >= 2 ? await matchTeams(pool.students, teamSize) : [];
   return {
     courseId: pool.course.id,
     courseTitle: `${pool.course.code} · ${pool.course.title}`,
     proposals: teams.map((t) => ({
       name: t.name, score: t.score, strengths: t.strengths,
-      members: t.member_ids.map((mid) => ({ id: mid, name: names.get(mid)! })),
+      members: t.member_ids.map((mid) => {
+        const st = byId.get(mid)!;
+        return { id: mid, name: st.name, skills: st.skills ?? [], availability: st.availability ?? "" };
+      }),
     })),
   };
 }

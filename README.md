@@ -1,18 +1,19 @@
-![ScholarSync: group projects, in sync. Chat, Kanban, shared files and peer review for every team, plus AI that keeps instructors ahead of problems.](docs/banner/board-1280x400.png)
+![ScholarSync: every teammate, on the same page. Students plan, chat and share files. Instructors see every team's health, conflicts and progress at a glance.](docs/banner/light-1280x400.png)
 
 # ScholarSync
 
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=373063)](https://nextjs.org)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&labelColor=373063)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=373063)](https://www.typescriptlang.org)
-[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=373063)](https://tailwindcss.com)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres_·_Auth_·_Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white&labelColor=373063)](https://supabase.com)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=white&labelColor=373063)](https://orm.drizzle.team)
-[![Gemini](https://img.shields.io/badge/AI-Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white&labelColor=373063)](https://ai.google.dev)
-[![Inngest](https://img.shields.io/badge/Jobs-Inngest-F97316?style=flat-square&labelColor=373063)](https://www.inngest.com)
-[![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white&labelColor=373063)](https://vercel.com)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=0f1e3d)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&labelColor=0f1e3d)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0f1e3d)](https://www.typescriptlang.org)
+[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=0f1e3d)](https://tailwindcss.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres_·_Auth_·_Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white&labelColor=0f1e3d)](https://supabase.com)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=white&labelColor=0f1e3d)](https://orm.drizzle.team)
+[![Gemini](https://img.shields.io/badge/AI-Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white&labelColor=0f1e3d)](https://ai.google.dev)
+[![Inngest](https://img.shields.io/badge/Jobs-Inngest-F97316?style=flat-square&labelColor=0f1e3d)](https://www.inngest.com)
+[![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white&labelColor=0f1e3d)](https://vercel.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square&labelColor=0f1e3d)](LICENSE)
 
-A collaboration hub for university group projects. Students work in teams with chat, a Kanban board, shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
+A collaboration hub for university group projects. Students work in teams with chat, a shared task list (each task shows whether it is to do, in progress or done), shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
 > **Status:** the Supabase backend is implemented: auth, teams, tasks, chat (Realtime), files (Storage), notifications, peer review, conflict alerts, and the AI jobs. See [Implementation notes](#implementation-notes) for where the code differs from the diagram.
 
@@ -21,7 +22,7 @@ A collaboration hub for university group projects. Students work in teams with c
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 16 (App Router), React 19, TypeScript |
-| UI | Tailwind CSS 4, Radix primitives, Phosphor icons, Framer Motion, dnd-kit, cmdk |
+| UI | Tailwind CSS 4, Radix primitives, Phosphor icons, Framer Motion, cmdk |
 | State | Zustand store in the browser: calls Server Actions, subscribes to Realtime |
 | Backend | Supabase: Postgres, Auth, Realtime, Storage |
 | Data access | Drizzle ORM, zod validation |
@@ -65,8 +66,8 @@ Both views use `security_invoker = true`, so they follow the caller's access rul
 | Table | Team member | Course instructor | Anyone else |
 |---|---|---|---|
 | `tasks` | read, write | read | none |
-| `messages` | read, post as self | read | none |
-| `files` + storage | read, upload, delete own | read | none |
+| `messages` | read, post as self | read, post as self | none |
+| `files` + storage | read, upload, delete own | read, upload (chat attachments), delete own | none |
 | `peer_reviews` | write about teammates, read own | read all | none (the reviewee can't see them either) |
 | `conflict_alerts` | none | read, resolve | none |
 | `teams`, `team_members` | read | read, write | none |
@@ -90,7 +91,7 @@ ScholarSync/
 │   │   ├── layout.tsx                    Root layout: Plus Jakarta Sans font, providers, metadata
 │   │   ├── page.tsx                      Landing page (static)
 │   │   ├── actions.ts                    Server Actions: every read and write, zod-validated, run as the user (RLS)
-│   │   ├── globals.css                   Design tokens (light + dark): indigo brand, orange accent, chart palette
+│   │   ├── globals.css                   Design tokens (light + dark): navy brand, amber accent, chart palette
 │   │   ├── error.tsx · not-found.tsx     Error and 404 pages
 │   │   ├── icon.tsx                      Generated favicon
 │   │   ├── api/inngest/route.ts          Inngest endpoint that serves the AI jobs
@@ -100,13 +101,13 @@ ScholarSync/
 │   │   └── (app)/                        Signed-in app: layout.tsx checks the session
 │   │       ├── loading.tsx               Shared loading skeleton
 │   │       ├── student/                  layout.tsx allows students only
-│   │       │   ├── page.tsx              Workspace: board, docked chat, files drawer
+│   │       │   ├── page.tsx              Workspace: board + floating chat & files popup
 │   │       │   ├── peer-review/          Review teammates
 │   │       │   ├── notifications/
 │   │       │   ├── profile/
 │   │       │   └── chat/ · tasks/ · files/   Old URLs, redirect into the workspace
 │   │       └── instructor/               layout.tsx allows instructors only
-│   │           ├── page.tsx              Workspace: team list, read-only board, chat/files/alerts dock
+│   │           ├── page.tsx              Workspace: team list, read-only board, alerts dropdown in the team header, floating chat & files popup
 │   │           ├── analytics/            Progress, contribution and health per team
 │   │           ├── conflicts/            AI conflict alerts to resolve
 │   │           ├── matching/             AI team matching: run, review, approve
@@ -147,7 +148,8 @@ ScholarSync/
 ├── supabase/
 │   ├── migrations/
 │   │   ├── 0001_init.sql                 Schema, RLS, views, indexes, storage
-│   │   └── 0002_notifications.sql        Notification triggers
+│   │   ├── 0002_notifications.sql        Notification triggers
+│   │   └── 0003_instructor_chat.sql      Instructors post and attach files in team chat; reply notifications
 │   ├── seed.sql                          Local demo data
 │   ├── ai-test-data.sql                  Data for testing the AI features
 │   └── config.toml                       Local Supabase config
@@ -210,6 +212,7 @@ Where the code differs from the diagram, and why:
 - **Peer reviews are write-only for students.** There is no "my reviews" query, so the UI remembers which teammates you reviewed in `localStorage`; the database's unique constraint still rejects a second review.
 - **Events come from the Server Action.** `sendMessage` sends the Inngest event after the insert, instead of a database webhook. If Inngest is unreachable the message is still saved and extraction is skipped.
 - **Team matching runs in the request.** The instructor waits for the result, so `runTeamMatching` calls Gemini directly; Gemini only proposes (never a team under 2 students), and teams are created when the instructor approves.
+- **Instructors can join team chat.** They post and attach files as themselves (marked "Instructor"), and every team member is notified. Once an instructor has posted in a team's chat, student replies notify them too, with at most one unread reply notification per team so a busy chat doesn't flood them. The Files tab stays read-only for instructors; files they attach in chat appear there. Chat and Files share one popup, opened from a floating button in the bottom-right corner of each workspace (full screen on phones) that shows an unread count; `?view=chat` and `?view=files` open it. Instructors see a team's conflict alerts in a dropdown next to its health badge. Anyone can attach a file by dropping it on the thread.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -222,3 +225,7 @@ Where the code differs from the diagram, and why:
 5. ✅ AI jobs: task extraction, team health, team matching
 6. ✅ `/student/*` and `/instructor/*` routes (next: move first-load data into Server Components)
 7. Course management UI (courses and enrollments are seeded or added in SQL today)
+
+## License
+
+[MIT](LICENSE) © 2026 Masud Ibn Musa

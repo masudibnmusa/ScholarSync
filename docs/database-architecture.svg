@@ -2,25 +2,25 @@
 <title id="t">ScholarSync database architecture</title>
 <desc id="d">Entity-relationship diagram of the 12 Postgres tables, 2 views and 6 enums in supabase/migrations/0001_init.sql. Every row belongs to a course or a team: courses own teams and enrollments, teams own members, tasks, messages, files, peer reviews, conflict alerts and task suggestions. Users teach courses, enroll, join teams and receive notifications.</desc>
 <style>
-  /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */
+  /* Primitive: raw values, from src/app/globals.css (navy brand, amber for AI) */
   svg {
-    --gray-50: #f9fafb; --gray-200: #e1e5ea; --gray-500: #606369; --gray-950: #0d1117; --white: #ffffff;
-    --indigo-50: #e8f2ff; --indigo-500: #3665e4; --indigo-800: #1e3f97; --navy-700: #264186;
-    --teal-50: #dcf9f8;   --teal-500: #00bbbd;   --teal-800: #006566;
-    --green-50: #e1f8eb;  --green-500: #00aa6f;  --green-800: #005d39;
-    --violet-50: #f8edff; --violet-500: #a15acf; --violet-800: #633481;
-    --orange-500: #f68f5f; --orange-800: #8b492a;
+    --gray-50: #f5f7fa; --gray-200: #d5dde9; --gray-500: #4a5872; --gray-950: #0f1b2d; --white: #ffffff;
+    --blue-50: #e1e8f5; --blue-500: #1e40af; --blue-800: #1e3a8a; --navy-700: #0f1e3d;
+    --teal-50: #dcf5f2;   --teal-500: #0d9488;   --teal-800: #115e59;
+    --magenta-50: #fae8ff; --magenta-500: #c026d3; --magenta-800: #86198f;
+    --amber-50: #fef3c7; --amber-500: #d97706; --amber-800: #92400e;
+    --gold-500: #f59e0b; --gold-800: #9a4b05;
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
     /* Semantic: purpose aliases */
     --surface: var(--white); --surface-sunken: var(--gray-50); --border: var(--gray-200);
     --text: var(--gray-950); --text-muted: var(--gray-500); --edge: var(--gray-500); --accent: var(--navy-700);
-    --key-primary: var(--orange-800); --key-foreign: var(--gray-500); --fk-users: var(--indigo-500);
-    --domain-people: var(--indigo-500); --domain-people-tint: var(--indigo-50); --domain-people-ink: var(--indigo-800);
+    --key-primary: var(--gold-800); --key-foreign: var(--gray-500); --fk-users: var(--blue-500);
+    --domain-people: var(--blue-500); --domain-people-tint: var(--blue-50); --domain-people-ink: var(--blue-800);
     --domain-teams: var(--teal-500);    --domain-teams-tint: var(--teal-50);    --domain-teams-ink: var(--teal-800);
-    --domain-work: var(--green-500);    --domain-work-tint: var(--green-50);    --domain-work-ink: var(--green-800);
-    --domain-ai: var(--violet-500);     --domain-ai-tint: var(--violet-50);     --domain-ai-ink: var(--violet-800);
+    --domain-work: var(--magenta-500);    --domain-work-tint: var(--magenta-50);    --domain-work-ink: var(--magenta-800);
+    --domain-ai: var(--amber-500);     --domain-ai-tint: var(--amber-50);     --domain-ai-ink: var(--amber-800);
     --domain-view: var(--gray-500);     --domain-view-tint: var(--gray-50);     --domain-view-ink: var(--gray-950);
   }
 

@@ -4,6 +4,7 @@ export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
+  fromInstructor?: boolean;
   content: string;
   timestamp: string;
   isMe: boolean;
@@ -50,6 +51,7 @@ export interface Notification {
   description: string;
   read: boolean;
   createdAt: string;
+  link?: string | null;
 }
 
 export interface FileUpload {
@@ -94,5 +96,5 @@ export interface MatchProposal {
   name: string;
   score: number;
   strengths: string[];
-  members: { id: string; name: string }[];
+  members: { id: string; name: string; skills: string[]; availability: string }[];
 }

@@ -2,35 +2,28 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import {
-  CaretUpDown, ChatsCircle, Check, CheckCircle, FolderOpen, Kanban, MagnifyingGlass, Plus, SidebarSimple, Target,
+  CaretUpDown, Check, CheckCircle, MagnifyingGlass, Plus, Target,
 } from "@phosphor-icons/react/dist/ssr";
 import { useAppStore } from "@/lib/store";
-import { cn, dueInfo, firstName, healthInfo, toneText } from "@/lib/utils";
+import { cn, dueInfo, firstName, toneText } from "@/lib/utils";
 import type { KanbanTask, Team } from "@/lib/types";
 import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
-import { ChatThread } from "@/components/student/chat";
-import { FilesView } from "@/components/student/files";
+import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
-import { AiSuggestionsButton, NoTeam } from "@/components/student/shared";
-import { Avatar, AvatarStack } from "@/components/ui/avatar";
+import { AiSuggestionsButton, MembersButton, NoTeam } from "@/components/student/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogDescription, DialogTitle, SheetContent } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger, Tooltip } from "@/components/ui/overlays";
+import { Tooltip } from "@/components/ui/overlays";
 import { Progress } from "@/components/ui/progress";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStoredValue } from "@/hooks/use-client";
 
-type View = "board" | "chat" | "files";
-const DOCK_KEY = "scholarsync:chat-dock";
 
 function TeamSwitcher({ team }: { team: Team }) {
   const teams = useAppStore((s) => s.teams);
@@ -62,38 +55,6 @@ function TeamSwitcher({ team }: { team: Team }) {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/** Avatars that open a breakdown of who has done what. */
-function MembersButton({ team }: { team: Team }) {
-  const user = useUser();
-  const health = healthInfo(team.healthScore);
-  return (
-    <Popover>
-      <PopoverTrigger className="flex items-center gap-2 rounded-full p-1 pr-2.5 transition-colors hover:bg-accent" aria-label={`${team.members.length} members. Show contribution`}>
-        <AvatarStack names={team.members.map((m) => m.name)} />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-4">
-        <div className="flex items-baseline justify-between">
-          <p className="text-sm font-bold">Who&apos;s done what</p>
-          <span className={cn("text-xs font-semibold", toneText[health.tone])}>{health.label}</span>
-        </div>
-        <ul className="mt-3 space-y-3">
-          {team.members.map((m) => (
-            <li key={m.userId}>
-              <div className="mb-1.5 flex items-center gap-2.5">
-                <Avatar name={m.name} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{m.name}{m.userId === user.id && <span className="font-normal text-muted-foreground"> (you)</span>}</span>
-                <span className="text-sm font-bold tabular-nums">{m.contribution}%</span>
-              </div>
-              <Progress value={m.contribution} label={`${m.name}: share of completed tasks`} color={m.userId === user.id ? "var(--warm)" : "var(--primary)"} />
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">Share of the team&apos;s completed tasks.</p>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -136,33 +97,22 @@ export function StudentWorkspace() {
   const team = useAppStore((s) => s.selectedTeam);
   const loaded = useAppStore((s) => s.loaded.teams);
   const tasks = useAppStore((s) => s.kanbanTasks);
-  const fileCount = useAppStore((s) => s.files.length);
-  const suggestions = useAppStore((s) => s.taskSuggestions.length);
   const user = useUser();
 
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const view = (["chat", "files"].includes(params.get("view") ?? "") ? params.get("view") : "board") as View;
   const wantsNew = params.get("new") === "1";
 
-  const [dockPref, setDockPref] = useStoredValue(DOCK_KEY, true);
-  const dockOpen = dockPref || view === "chat";
   const [scope, setScope] = React.useState<"all" | "mine">("all");
   const [query, setQuery] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<KanbanTask | null>(null);
-  const [filesOpen, setFilesOpen] = React.useState(false);
 
-  const setView = (v: View) => router.replace(v === "board" ? pathname : `${pathname}?view=${v}`, { scroll: false });
   const openTask = (t: KanbanTask | null) => { setEditing(t); setDialogOpen(true); };
   const closeDialog = (open: boolean) => {
     setDialogOpen(open);
     if (!open && wantsNew) router.replace(pathname, { scroll: false }); // ?new=1 came from a link; clear it
-  };
-  const closeDock = () => {
-    setDockPref(false);
-    if (view === "chat") setView("board");
   };
 
   if (!loaded) {
@@ -180,7 +130,7 @@ export function StudentWorkspace() {
   const shown = tasks.filter((t) => (scope === "all" || t.assigneeId === user.id) && (!q || `${t.title} ${t.description} ${t.assigneeName}`.toLowerCase().includes(q))).length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       <h1 className="sr-only">{team.name} workspace</h1>
 
       {/* Team bar */}
@@ -196,33 +146,14 @@ export function StudentWorkspace() {
         <MembersButton team={team} />
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" className="hidden lg:inline-flex" onClick={() => setFilesOpen(true)} aria-label={`Files${fileCount ? `, ${fileCount}` : ""}`}>
-            <FolderOpen aria-hidden /> <span className="hidden xl:inline">Files</span>
-            {fileCount > 0 && <span className="rounded-full bg-muted px-1.5 text-xs font-bold tabular-nums text-muted-foreground">{fileCount}</span>}
-          </Button>
           <AiSuggestionsButton />
           <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>
-          <Tooltip label={dockOpen ? "Hide chat" : "Show chat"}>
-            <Button variant={dockOpen ? "secondary" : "outline"} size="icon" className="hidden lg:inline-flex" aria-pressed={dockOpen} aria-label="Team chat panel"
-              onClick={() => (dockOpen ? closeDock() : setDockPref(true))}>
-              <SidebarSimple className="size-5 -scale-x-100" />
-            </Button>
-          </Tooltip>
         </div>
       </header>
 
-      {/* Phone/tablet: one pane at a time */}
-      <div className="shrink-0 px-4 pt-3 lg:hidden">
-        <Segmented label="Workspace section" value={view} onChange={setView} className="w-full [&>button]:flex-1 [&>button]:justify-center" options={[
-          { value: "board", label: <><Kanban aria-hidden className="size-4" />Board</> },
-          { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />Chat{suggestions > 0 && <span className="size-1.5 rounded-full bg-warm" aria-hidden />}</> },
-          { value: "files", label: <><FolderOpen aria-hidden className="size-4" />Files</> },
-        ]} />
-      </div>
-
       <div className="flex min-h-0 flex-1">
         {/* Board */}
-        <section aria-label="Task board" className={cn("min-w-0 flex-1 flex-col gap-4 p-4 lg:flex lg:p-6", view === "board" ? "flex" : "hidden")}>
+        <section aria-label="Task board" className="flex min-w-0 flex-1 flex-col gap-4 p-4 lg:p-6">
           <div className="flex flex-wrap items-center gap-3">
             <Segmented label="Show tasks" value={scope} onChange={setScope} options={[{ value: "all", label: "Everyone" }, { value: "mine", label: "Mine" }]} />
             <div className="relative w-full max-w-60">
@@ -236,58 +167,9 @@ export function StudentWorkspace() {
             <TaskBoard scope={scope} query={query} onEdit={openTask} />
           </div>
         </section>
-
-        {/* Chat dock */}
-        <AnimatePresence initial={false}>
-          {dockOpen && (
-            <motion.aside
-              key="dock"
-              aria-label="Team chat"
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 24 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className={cn(
-                "min-h-0 w-full shrink-0 flex-col border-l bg-card lg:w-[23rem] xl:w-[26rem]",
-                view === "chat" ? "flex" : "hidden",
-                dockOpen ? "lg:flex" : "lg:hidden",
-              )}
-            >
-              <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-                <ChatsCircle weight="duotone" className="size-5 text-primary" aria-hidden />
-                <p className="text-sm font-extrabold">Team chat</p>
-                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-pulse-ring rounded-full bg-success" /><span className="relative size-2 rounded-full bg-success" /></span>
-                  live
-                </span>
-                <Tooltip label="Hide chat">
-                  <Button variant="ghost" size="icon-sm" className="ml-auto hidden lg:inline-flex" onClick={closeDock} aria-label="Hide chat">
-                    <SidebarSimple className="size-4 -scale-x-100" />
-                  </Button>
-                </Tooltip>
-              </div>
-              <div className="min-h-0 flex-1">
-                <ChatThread key={team.id} team={team} />
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
-
-        {/* Files on phones; on desktop they open in a drawer */}
-        <section aria-label="Files" className={cn("min-w-0 flex-1 overflow-y-auto p-4 lg:hidden", view === "files" ? "block" : "hidden")}>
-          <FilesView team={team} />
-        </section>
       </div>
 
-      <Dialog open={filesOpen} onOpenChange={setFilesOpen}>
-        <SheetContent side="right">
-          <div className="border-b p-5 pr-14">
-            <DialogTitle className="flex items-center gap-2 text-lg font-extrabold"><FolderOpen weight="duotone" className="size-5 text-primary" aria-hidden />Files</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">Everything your team has shared, in one place.</DialogDescription>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-5 scroll-thin"><FilesView team={team} /></div>
-        </SheetContent>
-      </Dialog>
+      <ChatWidget key={team.id} team={team} />
 
       <TaskDialog open={dialogOpen || wantsNew} onOpenChange={closeDialog} task={wantsNew && !dialogOpen ? null : editing} team={team} />
     </div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, ChatsCircle, Check, FolderOpen, Kanban, MagnifyingGlass, ShieldCheck, Sparkle, UsersThree, Warning,
+  ArrowLeft, ArrowRight, Check, MagnifyingGlass, ShieldCheck, Sparkle, UsersThree, Warning,
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
@@ -13,19 +13,18 @@ import { cn, healthInfo, timeAgo, toneVar } from "@/lib/utils";
 import type { ConflictAlert, Team } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { HealthBadge, severityBadge } from "@/components/instructor/charts";
-import { ChatThread } from "@/components/student/chat";
-import { FilesView } from "@/components/student/files";
+import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard } from "@/components/student/kanban";
-import { Avatar, AvatarStack } from "@/components/ui/avatar";
+import { MembersButton } from "@/components/student/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EASE } from "@/components/ui/motion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlays";
 import { Progress } from "@/components/ui/progress";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type Dock = "chat" | "files" | "alerts";
 type Sort = "health" | "progress" | "name";
 
 function TeamRow({ team, active, alerts, onSelect }: { team: Team; active: boolean; alerts: number; onSelect: () => void }) {
@@ -90,6 +89,31 @@ function AlertsList({ alerts }: { alerts: ConflictAlert[] }) {
   );
 }
 
+/** Header button next to the health badge: the team's conflict alerts in a dropdown. */
+function TeamAlertsButton({ alerts, open }: { alerts: ConflictAlert[]; open: number }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className={cn("h-7 gap-1.5 rounded-full px-2.5 text-xs", open > 0 && "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive")}
+          aria-label={open ? `Conflict alerts, ${open} open` : "Conflict alerts, none open"}>
+          <Warning weight={open ? "fill" : "regular"} className="size-3.5" aria-hidden />
+          {open ? `${open} open ${open === 1 ? "alert" : "alerts"}` : "No alerts"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <p className="text-sm font-bold">Conflict alerts</p>
+          <span className="text-xs font-semibold text-muted-foreground">{open ? `${open} open` : "Nothing open"}</span>
+        </div>
+        <div className="max-h-[min(28rem,60dvh)] overflow-y-auto scroll-thin"><AlertsList alerts={alerts} /></div>
+        <div className="border-t p-2">
+          <Button asChild variant="ghost" size="sm" className="w-full"><Link href="/instructor/conflicts">All conflict alerts <ArrowRight aria-hidden /></Link></Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function InstructorWorkspace() {
   const teams = useAppStore((s) => s.teams);
   const loaded = useAppStore((s) => s.loaded.teams);
@@ -104,8 +128,6 @@ export function InstructorWorkspace() {
 
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<Sort>("health");
-  const [dock, setDock] = React.useState<Dock>("chat");
-  const [mobilePane, setMobilePane] = React.useState<"board" | "dock">("board");
 
   // ?team=<id> picks the team, so a team can be linked to and Back returns to the list on phones.
   const fromUrl = teams.find((t) => t.id === teamParam) ?? null;
@@ -184,14 +206,15 @@ export function InstructorWorkspace() {
 
       {/* Selected team */}
       {current && (
-        <section aria-label={current.name} className={cn("min-w-0 flex-1 flex-col lg:flex", teamParam ? "flex" : "hidden")}>
+        <section aria-label={current.name} className={cn("relative min-w-0 flex-1 flex-col lg:flex", teamParam ? "flex" : "hidden")}>
           <header className="shrink-0 border-b bg-card/70 px-4 py-3 backdrop-blur lg:px-6">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
               <Button asChild variant="ghost" size="icon" className="-ml-2 lg:hidden"><Link href={pathname} aria-label="Back to teams"><ArrowLeft className="size-5" /></Link></Button>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1 md:flex-none">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate text-lg font-extrabold">{current.name}</h2>
                   <HealthBadge score={current.healthScore} />
+                  <TeamAlertsButton alerts={teamAlerts} open={currentOpen} />
                 </div>
                 {current.description && <p className="truncate text-xs text-muted-foreground">{current.description}</p>}
               </div>
@@ -202,61 +225,20 @@ export function InstructorWorkspace() {
                 </div>
                 <Progress value={current.progress} label={`${current.name} progress`} className="h-1.5" />
               </div>
-              <ul className="ml-auto hidden items-center gap-1.5 xl:flex" aria-label="Members and their share of completed tasks">
-                {current.members.map((m) => (
-                  <li key={m.userId} className="flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-3">
-                    <Avatar name={m.name} size="xs" />
-                    <span className="max-w-28 truncate text-xs font-semibold">{m.name}</span>
-                    <span className="text-xs font-bold tabular-nums text-muted-foreground">{m.contribution}%</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="ml-auto xl:hidden"><AvatarStack names={current.members.map((m) => m.name)} /></div>
+              <div className="ml-auto"><MembersButton team={current} align="end" /></div>
             </div>
           </header>
 
-          <div className="shrink-0 px-4 pt-3 lg:hidden">
-            <Segmented label="Team section" value={mobilePane === "board" ? "board" : dock} className="w-full [&>button]:flex-1 [&>button]:justify-center"
-              onChange={(v) => { if (v === "board") setMobilePane("board"); else { setDock(v as Dock); setMobilePane("dock"); } }}
-              options={[
-                { value: "board", label: <><Kanban aria-hidden className="size-4" />Board</> },
-                { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />Chat</> },
-                { value: "files", label: <><FolderOpen aria-hidden className="size-4" />Files</> },
-                { value: "alerts", label: <><Warning aria-hidden className="size-4" />Alerts{currentOpen > 0 && <span className="size-1.5 rounded-full bg-destructive" aria-hidden />}</> },
-              ]} />
-          </div>
-
           <div className="flex min-h-0 flex-1">
-            <div className={cn("min-w-0 flex-1 flex-col p-4 lg:flex lg:p-6", mobilePane === "board" ? "flex" : "hidden")}>
+            <div className="flex min-w-0 flex-1 flex-col p-4 lg:p-6">
               <AnimatePresence mode="wait">
                 <motion.div key={current.id} className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, ease: EASE }}>
                   <TaskBoard readOnly />
                 </motion.div>
               </AnimatePresence>
             </div>
-
-            <aside aria-label="Team activity" className={cn("min-h-0 w-full shrink-0 flex-col border-l bg-card lg:flex lg:w-[21rem] 2xl:w-[26rem]", mobilePane === "dock" ? "flex" : "hidden")}>
-              <div className="hidden shrink-0 border-b p-3 lg:block">
-                <Segmented label="Team activity" value={dock} onChange={setDock} className="w-full [&>button]:flex-1 [&>button]:justify-center" options={[
-                  { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />Chat</> },
-                  { value: "files", label: <><FolderOpen aria-hidden className="size-4" />Files</> },
-                  { value: "alerts", label: <><Warning aria-hidden className="size-4" />Alerts{currentOpen > 0 && <span className="rounded-full bg-destructive px-1.5 text-[0.625rem] font-extrabold text-destructive-foreground">{currentOpen}</span>}</> },
-                ]} />
-              </div>
-              <div className="min-h-0 flex-1">
-                {dock === "chat" && <ChatThread key={current.id} team={current} readOnly />}
-                {dock === "files" && <div className="h-full overflow-y-auto p-4 scroll-thin"><FilesView team={current} readOnly /></div>}
-                {dock === "alerts" && (
-                  <div className="h-full overflow-y-auto scroll-thin">
-                    <AlertsList alerts={teamAlerts} />
-                    <div className="px-4 pb-4">
-                      <Button asChild variant="ghost" size="sm" className="w-full"><Link href="/instructor/conflicts">All conflict alerts <ArrowRight aria-hidden /></Link></Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </aside>
           </div>
+          <ChatWidget key={current.id} team={current} instructor />
         </section>
       )}
     </div>

@@ -4,100 +4,100 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── Design tokens ──────────────────────────────────────────────────────
-   Deep indigo (#373063) anchors the brand; orange is for action and AI moments.
+   Navy (#0f1e3d) anchors the brand; amber/gold is for action and AI moments.
    Every text/background pair below is checked for WCAG AA (4.5:1). */
 :root {
   --radius: 0.875rem;
 
-  --background: #f6f5fb;
-  --foreground: #1e1a3a;
+  --background: #f5f7fa;
+  --foreground: #0f1b2d;
   --card: #ffffff;
-  --card-foreground: #1e1a3a;
+  --card-foreground: #0f1b2d;
   --popover: #ffffff;
-  --popover-foreground: #1e1a3a;
-  --primary: #4a3f9f;
+  --popover-foreground: #0f1b2d;
+  --primary: #1e40af;
   --primary-foreground: #ffffff;
-  --secondary: #e7e5f6;
-  --secondary-foreground: #3a3182;
-  --muted: #eeedf6;
-  --muted-foreground: #5b5878;
-  --accent: #eae8f7;
-  --accent-foreground: #342c75;
+  --secondary: #e1e8f5;
+  --secondary-foreground: #1e3a8a;
+  --muted: #edf1f7;
+  --muted-foreground: #4a5872;
+  --accent: #e5ebf6;
+  --accent-foreground: #172f6e;
   --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: #dddbee;
-  --input: #c9c6e2;
-  --ring: #6d5fd6;
+  --border: #d5dde9;
+  --input: #b8c4d8;
+  --ring: #3b6fd8;
 
-  /* --brand is the light lavender used on the dark indigo panels (sidebar, hero cards). */
-  --brand: #b9aeff;
-  --warm: #f97316;
-  --warm-foreground: #431407;
-  --warm-text: #ae3b0b;
+  /* --brand is the gold used on the dark navy panels (sidebar, hero cards). */
+  --brand: #fcd34d;
+  --warm: #f59e0b;
+  --warm-foreground: #3b2300;
+  --warm-text: #9a4b05;
   /* Status text is dark enough to pass AA on its own 12–15% tint (badges) as well as on cards. */
   --success: #166534;
   --warning: #92400e;
   --info: #0369a1;
 
-  --sidebar: #373063;
-  --sidebar-foreground: #efedfb;
-  --sidebar-muted: #c3bde6;
-  --sidebar-accent: #463e7c;
-  --sidebar-border: #4d4588;
-  --scrim: #0d0b1f;
-  --shadow-color: 30 26 58;
+  --sidebar: #0f1e3d;
+  --sidebar-foreground: #e8eef9;
+  --sidebar-muted: #a9b8d4;
+  --sidebar-accent: #1a2d55;
+  --sidebar-border: #253a66;
+  --scrim: #050b18;
+  --shadow-color: 15 27 45;
 
-  /* Categorical chart slots, in fixed order. Checked with the dataviz palette validator on #fff. */
-  --chart-1: #6d5fd6;
-  --chart-2: #f97316;
+  /* Categorical chart slots, in fixed order: navy blue, amber, teal, magenta (distinct in hue and lightness). */
+  --chart-1: #1e40af;
+  --chart-2: #d97706;
   --chart-3: #0d9488;
-  --chart-4: #d946ef;
+  --chart-4: #c026d3;
 
   --shadow-soft: 0 1px 2px rgb(var(--shadow-color) / 0.05), 0 6px 20px -10px rgb(var(--shadow-color) / 0.16);
   --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.06), 0 18px 40px -16px rgb(var(--shadow-color) / 0.3);
 }
 
 .dark {
-  --background: #0f0d1f;
-  --foreground: #eceafb;
-  --card: #17142d;
-  --card-foreground: #eceafb;
-  --popover: #1c1936;
-  --popover-foreground: #eceafb;
-  --primary: #a99cff;
-  --primary-foreground: #17123d;
-  --secondary: #26224a;
-  --secondary-foreground: #cfc9ff;
-  --muted: #1d1a38;
-  --muted-foreground: #a9a5c9;
-  --accent: #2a2552;
-  --accent-foreground: #e4e0ff;
+  --background: #0a1120;
+  --foreground: #e4eaf5;
+  --card: #111a2e;
+  --card-foreground: #e4eaf5;
+  --popover: #16213a;
+  --popover-foreground: #e4eaf5;
+  --primary: #8fb2ff;
+  --primary-foreground: #0a1a3f;
+  --secondary: #18264a;
+  --secondary-foreground: #c3d4ff;
+  --muted: #142038;
+  --muted-foreground: #97a6c2;
+  --accent: #1b2b52;
+  --accent-foreground: #dbe5ff;
   --destructive: #f87171;
   --destructive-foreground: #450a0a;
-  --border: #2b2750;
-  --input: #3a3568;
-  --ring: #a99cff;
+  --border: #1f2d4d;
+  --input: #2c3d63;
+  --ring: #8fb2ff;
 
-  --brand: #b9aeff;
-  --warm: #fb923c;
-  --warm-foreground: #431407;
-  --warm-text: #fdba74;
+  --brand: #fcd34d;
+  --warm: #fbbf24;
+  --warm-foreground: #3b2300;
+  --warm-text: #fcd34d;
   --success: #4ade80;
   --warning: #fbbf24;
   --info: #38bdf8;
 
-  --sidebar: #231f47;
-  --sidebar-foreground: #efedfb;
-  --sidebar-muted: #aaa4d6;
-  --sidebar-accent: #322c63;
-  --sidebar-border: #3a3470;
+  --sidebar: #0c1830;
+  --sidebar-foreground: #e8eef9;
+  --sidebar-muted: #a3b3d1;
+  --sidebar-accent: #16274a;
+  --sidebar-border: #20345e;
   --shadow-color: 0 0 0;
 
-  /* Darker steps chosen for the dark card (#17142d), not a flip of the light ones. */
-  --chart-1: #7c6ee6;
-  --chart-2: #ea580c;
-  --chart-3: #0f9f93;
-  --chart-4: #d946ef;
+  /* Brighter steps chosen for the dark card (#111a2e), not a flip of the light ones. */
+  --chart-1: #6b93f0;
+  --chart-2: #f59e0b;
+  --chart-3: #2dd4bf;
+  --chart-4: #e879f9;
 
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px -10px rgb(0 0 0 / 0.5);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 18px 40px -16px rgb(0 0 0 / 0.7);

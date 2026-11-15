@@ -28,8 +28,10 @@ export function isActive(pathname: string, href: string) {
   return href === "/student" || href === "/instructor" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-// Notification types (set by database triggers) → where each one leads.
-export function notificationHref(type: string, role: string) {
+// Notification types (set by database triggers) → where each one leads. A trigger can store an exact
+// in-app route in `link` (e.g. an instructor's reply notification opens that team's chat).
+export function notificationHref(type: string, role: string, link?: string | null) {
+  if (link?.startsWith(role === "instructor" ? "/instructor" : "/student")) return link;
   if (role === "instructor") return type === "conflict" ? "/instructor/conflicts" : "/instructor";
   if (type === "message") return "/student?view=chat";
   if (type === "review") return "/student/peer-review";

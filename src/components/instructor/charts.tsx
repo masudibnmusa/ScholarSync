@@ -30,8 +30,8 @@ export function Legend({ series }: { series: Series[] }) {
 }
 
 /**
- * Horizontal grouped bars on one shared axis. Values are read from the axis, the hover/focus
- * tooltip and the table on the page, so identity never depends on colour alone.
+ * Horizontal grouped bars on one shared axis. Each bar carries its value at its end (direct labels), and the
+ * hover/focus tooltip and the table on the page repeat them, so identity never depends on colour alone.
  */
 export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: BarRow[]; series: Series[]; max?: number; suffix?: string; label: string }) {
   const top = max ?? niceMax(Math.max(1, ...rows.flatMap((r) => r.values)));
@@ -42,7 +42,7 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
     <figure aria-label={label}>
       <div className="grid grid-cols-[fit-content(9rem)_minmax(0,1fr)] gap-x-3">
         <div />
-        <div className="relative mb-1.5 h-4" aria-hidden>
+        <div className="relative mb-1.5 mr-9 h-4" aria-hidden>
           {ticks.map((t, i) => (
             <span key={i} className={cn("absolute top-0 text-[0.6875rem] tabular-nums text-muted-foreground", i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i % 2 === 1 && "hidden sm:block")} style={{ left: `${(i / (ticks.length - 1)) * 100}%` }}>
               {t}{suffix}
@@ -61,23 +61,32 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
               onPointerLeave={() => setActive(null)}
               onFocus={() => setActive(row.id)}
               onBlur={() => setActive(null)}
-              className={cn("relative flex flex-col justify-center gap-0.5 rounded-lg py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", active === row.id && "bg-accent/60")}
+              className={cn("relative flex flex-col justify-center rounded-lg py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", active === row.id && "bg-accent/60")}
             >
-              {/* hairline gridlines, recessive */}
-              {ticks.map((_, i) => (
-                <span key={i} className="pointer-events-none absolute inset-y-0 w-px bg-border" style={{ left: `${(i / (ticks.length - 1)) * 100}%` }} aria-hidden />
-              ))}
-              {series.map((s, i) => (
-                <motion.span
-                  key={s.name}
-                  className="relative block h-3.5 min-w-0.5 rounded-r-[4px]"
-                  style={{ backgroundColor: s.color, opacity: active && active !== row.id ? 0.45 : 1 }}
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${Math.max(0, Math.min(100, (row.values[i] / top) * 100))}%` }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.8, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                />
-              ))}
+              <div className="relative mr-9 flex flex-col gap-1">
+                {/* hairline gridlines, recessive */}
+                {ticks.map((_, i) => (
+                  <span key={i} className="pointer-events-none absolute -inset-y-2.5 w-px bg-border/70" style={{ left: `${(i / (ticks.length - 1)) * 100}%` }} aria-hidden />
+                ))}
+                {series.map((s, i) => {
+                  const pct = Math.max(0, Math.min(100, (row.values[i] / top) * 100));
+                  return (
+                    <div key={s.name} className="relative h-3.5">
+                      <motion.span
+                        className="absolute inset-y-0 left-0 block min-w-1 rounded-full"
+                        style={{ backgroundColor: s.color, opacity: active && active !== row.id ? 0.45 : 1 }}
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${pct}%` }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.8, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                      />
+                      <span className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap pl-1.5 text-[0.6875rem] font-bold tabular-nums text-muted-foreground" style={{ left: `${pct}%` }} aria-hidden>
+                        {row.values[i]}{suffix}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
               {active === row.id && (
                 <div role="presentation" className="pointer-events-none absolute -top-2 right-2 z-10 -translate-y-full rounded-xl border bg-popover px-3 py-2 shadow-lift">
                   <p className="text-xs font-bold">{row.label}</p>

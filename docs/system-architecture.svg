@@ -2,22 +2,22 @@
 <title id="t">ScholarSync system architecture</title>
 <desc id="d">Browser talks to the Next.js server, which queries Supabase Postgres as the signed-in user under Row-Level Security. Realtime pushes changes back to the browser. Sign-up creates the users row through a trigger. Files go straight to Supabase Storage, checked by storage RLS. See the README implementation notes for differences. Inngest runs Gemini (Google Gen AI) jobs on database events and writes results back to Postgres.</desc>
 <style>
-  /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */
+  /* Primitive: raw values, from src/app/globals.css (navy brand, amber for AI) */
   svg {
-    --gray-50: #f9fafb; --gray-200: #e1e5ea; --gray-500: #606369; --gray-950: #0d1117; --white: #ffffff;
-    --indigo-50: #e8f2ff; --indigo-500: #3665e4; --indigo-800: #1e3f97; --navy-700: #264186;
-    --teal-50: #dcf9f8;   --teal-500: #00bbbd;   --teal-800: #006566;
-    --green-50: #e1f8eb;  --green-500: #00aa6f;  --green-800: #005d39;
-    --violet-50: #f8edff; --violet-500: #a15acf; --violet-800: #633481;
+    --gray-50: #f5f7fa; --gray-200: #d5dde9; --gray-500: #4a5872; --gray-950: #0f1b2d; --white: #ffffff;
+    --blue-50: #e1e8f5; --blue-500: #1e40af; --blue-800: #1e3a8a; --navy-700: #0f1e3d;
+    --teal-50: #dcf5f2;   --teal-500: #0d9488;   --teal-800: #115e59;
+    --magenta-50: #fae8ff; --magenta-500: #c026d3; --magenta-800: #86198f;
+    --amber-50: #fef3c7; --amber-500: #d97706; --amber-800: #92400e;
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
     /* Semantic: purpose aliases */
     --surface: var(--white); --surface-sunken: var(--gray-50); --border: var(--gray-200);
     --text: var(--gray-950); --text-muted: var(--gray-500); --edge: var(--gray-500);
-    --layer-client: var(--indigo-500); --layer-client-tint: var(--indigo-50); --layer-client-ink: var(--indigo-800);
+    --layer-client: var(--blue-500); --layer-client-tint: var(--blue-50); --layer-client-ink: var(--blue-800);
     --layer-server: var(--teal-500);   --layer-server-tint: var(--teal-50);   --layer-server-ink: var(--teal-800);
-    --layer-data: var(--green-500);    --layer-data-tint: var(--green-50);    --layer-data-ink: var(--green-800);
-    --layer-ai: var(--violet-500);     --layer-ai-tint: var(--violet-50);     --layer-ai-ink: var(--violet-800);
+    --layer-data: var(--magenta-500);    --layer-data-tint: var(--magenta-50);    --layer-data-ink: var(--magenta-800);
+    --layer-ai: var(--amber-500);     --layer-ai-tint: var(--amber-50);     --layer-ai-ink: var(--amber-800);
     --accent: var(--navy-700);
   }
 
