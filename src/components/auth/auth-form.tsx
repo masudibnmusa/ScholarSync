@@ -164,7 +164,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       )}
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        {isLogin ? "New to CampusNova?" : "Already have an account?"}{" "}
+        {isLogin ? "New to ScholarSync?" : "Already have an account?"}{" "}
         <Link href={isLogin ? "/register" : "/login"} className="font-semibold text-primary underline-offset-4 hover:underline">
           {isLogin ? "Create an account" : "Sign in"}
         </Link>

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1290 760" width="1290" height="760" role="img" aria-labelledby="t d">
-<title id="t">CampusNova system architecture</title>
+<title id="t">ScholarSync system architecture</title>
 <desc id="d">Browser talks to the Next.js server, which queries Supabase Postgres as the signed-in user under Row-Level Security. Realtime pushes changes back to the browser. Sign-up creates the users row through a trigger. Files go straight to Supabase Storage, checked by storage RLS. See the README implementation notes for differences. Inngest runs Gemini (Google Gen AI) jobs on database events and writes results back to Postgres.</desc>
 <style>
   /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */

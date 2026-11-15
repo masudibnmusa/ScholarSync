@@ -15,7 +15,7 @@ export function useClientValue<T>(read: () => T, server: T): T {
 
 export const useMounted = () => useClientValue(() => true, false);
 
-const STORAGE_EVENT = "campusnova:storage";
+const STORAGE_EVENT = "scholarsync:storage";
 
 /** localStorage-backed state, kept in sync across components and tabs. Falls back quietly if storage is blocked. */
 export function useStoredValue<T>(key: string | null, fallback: T): [T, (value: T) => void] {

@@ -30,7 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStoredValue } from "@/hooks/use-client";
 
 type View = "board" | "chat" | "files";
-const DOCK_KEY = "campusnova:chat-dock";
+const DOCK_KEY = "scholarsync:chat-dock";
 
 function TeamSwitcher({ team }: { team: Team }) {
   const teams = useAppStore((s) => s.teams);

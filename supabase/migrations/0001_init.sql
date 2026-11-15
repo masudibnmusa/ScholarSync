@@ -1,4 +1,4 @@
--- CampusNova core schema (Supabase / Postgres 15+)
+-- ScholarSync core schema (Supabase / Postgres 15+)
 -- Access control lives here as RLS, so API code never re-implements "is this user allowed?" checks.
 
 -- ─── Enums ──────────────────────────────────────────────────────────────

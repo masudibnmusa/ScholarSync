@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1060" width="1680" height="1060" role="img" aria-labelledby="t d">
-<title id="t">CampusNova database architecture</title>
+<title id="t">ScholarSync database architecture</title>
 <desc id="d">Entity-relationship diagram of the 12 Postgres tables, 2 views and 6 enums in supabase/migrations/0001_init.sql. Every row belongs to a course or a team: courses own teams and enrollments, teams own members, tasks, messages, files, peer reviews, conflict alerts and task suggestions. Users teach courses, enroll, join teams and receive notifications.</desc>
 <style>
   /* Primitive: raw values, from src/app/globals.css (OKLCH converted to hex) */

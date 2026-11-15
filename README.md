@@ -1,4 +1,4 @@
-# CampusNova
+# ScholarSync
 
 A collaboration hub for university group projects. Students work in teams with chat, a Kanban board, shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
@@ -18,7 +18,7 @@ A collaboration hub for university group projects. Students work in teams with c
 
 ## System architecture
 
-![CampusNova system architecture: browser, Next.js server, Supabase and AI jobs](docs/system-architecture.svg)
+![ScholarSync system architecture: browser, Next.js server, Supabase and AI jobs](docs/system-architecture.svg)
 
 Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.css), defined in three layers inside the SVG (primitive → semantic → component). It always renders in the light theme.
 
@@ -35,7 +35,7 @@ Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.
 
 Every row belongs to a **course** or a **team**, and the access rules follow that ownership. Profile fields live on `users` because they are one-to-one with the account. Progress and contribution are computed in **views** rather than stored, so they can't drift out of date.
 
-![CampusNova database architecture: 12 tables, 2 views and 6 enums, grouped by people & courses, teams, team work and AI output](docs/database-architecture.svg)
+![ScholarSync database architecture: 12 tables, 2 views and 6 enums, grouped by people & courses, teams, team work and AI output](docs/database-architecture.svg)
 
 Lines connect each parent's primary key to the child's foreign key column. Foreign keys to `users` are shown as blue `uuid → users` labels instead of lines, so the diagram stays readable. Colors use the same tokens as the system diagram.
 

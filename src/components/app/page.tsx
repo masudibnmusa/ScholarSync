@@ -80,7 +80,7 @@ export function Logo({ className, label = true }: { className?: string; label?: 
           <circle cx="20.5" cy="14.5" r="1.5" fill="#f97316" />
         </svg>
       </span>
-      {label && <span className="text-[1.0625rem] font-extrabold tracking-tight">CampusNova</span>}
+      {label && <span className="text-[1.0625rem] font-extrabold tracking-tight">ScholarSync</span>}
     </span>
   );
 }

@@ -159,7 +159,7 @@ export function MatchingPanel() {
                   <Confetti weight="duotone" className="size-9" aria-hidden />
                 </motion.span>
                 <h2 className="mt-4 text-xl font-extrabold">{state.count} {state.count === 1 ? "team" : "teams"} created</h2>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">Students now see their team, chat and board the next time they open CampusNova.</p>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">Students now see their team, chat and board the next time they open ScholarSync.</p>
                 <Button asChild className="mt-5"><Link href="/instructor">View teams <ArrowRight aria-hidden /></Link></Button>
               </div>
             </Card>

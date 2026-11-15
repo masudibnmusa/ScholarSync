@@ -44,7 +44,7 @@ function Header() {
   return (
     <header className={cn("fixed inset-x-0 top-0 z-40 transition-[background-color,border-color,box-shadow] duration-300", scrolled ? "border-b bg-background/85 shadow-soft backdrop-blur-xl" : "border-b border-transparent")}>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:px-6">
-        <Link href="/" className="rounded-xl" aria-label="CampusNova home"><Logo /></Link>
+        <Link href="/" className="rounded-xl" aria-label="ScholarSync home"><Logo /></Link>
         <nav aria-label="Sections" className="ml-8 hidden items-center gap-1 md:flex">
           {[["Features", "#features"], ["Who it's for", "#audience"], ["How it works", "#how"]].map(([label, href]) => (
             <a key={href} href={href} className="rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{label}</a>
@@ -87,7 +87,7 @@ function Hero() {
 
           <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.16, ease: EASE }}
             className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            CampusNova gives every university team one place to chat, plan and share files, and gives faculty a clear view of who is doing the work.
+            ScholarSync gives every university team one place to chat, plan and share files, and gives faculty a clear view of who is doing the work.
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.24, ease: EASE }} className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -147,7 +147,7 @@ function Features() {
         <SectionHeading eyebrow="Everything in one place" title="Stop juggling five apps for one assignment" body="Chat, tasks, files and feedback live together, so nothing falls through the cracks the night before the deadline." />
 
         <Stagger inView className="mt-12 grid gap-4 md:grid-cols-6">
-          <FeatureCard className="md:col-span-4" icon={Sparkle} warm title="AI turns talk into tasks" body={`Someone writes "I'll do the slides by Friday". CampusNova suggests it as a task. You tap once to add it to the board.`}>
+          <FeatureCard className="md:col-span-4" icon={Sparkle} warm title="AI turns talk into tasks" body={`Someone writes "I'll do the slides by Friday". ScholarSync suggests it as a task. You tap once to add it to the board.`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="flex-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-sm"><span className="font-bold">Sara:</span> I'll do the slides by Friday.</div>
               <ArrowRight className="mx-auto size-5 shrink-0 rotate-90 text-warm-text transition-transform duration-300 group-hover:translate-y-1 sm:rotate-0 sm:group-hover:translate-x-1 sm:group-hover:translate-y-0" />
@@ -212,7 +212,7 @@ const audiences = {
   students: {
     icon: Student,
     title: "For students: less chasing, more doing",
-    body: "Open CampusNova and you know what is yours, what is due and what the team said while you were in class.",
+    body: "Open ScholarSync and you know what is yours, what is due and what the team said while you were in class.",
     points: [
       { icon: Kanban, t: "Your tasks, sorted by due date", d: "The dashboard leads with what you owe the team this week." },
       { icon: Sparkle, t: "No more \"who was doing that?\"", d: "AI suggests tasks from chat so commitments don't get lost." },

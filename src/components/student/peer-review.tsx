@@ -75,7 +75,7 @@ export function PeerReviewPanel() {
 
   // There is no "my reviews" endpoint, so remember submitted reviews in this browser.
   // The database still rejects a second review of the same teammate.
-  const storageKey = team ? `campusnova:reviews:${user.id}:${team.id}` : null;
+  const storageKey = team ? `scholarsync:reviews:${user.id}:${team.id}` : null;
   const [done, setDone] = useStoredValue<string[]>(storageKey, NONE);
 
   const mateId = selected && mates.some((m) => m.userId === selected) ? selected : mates.find((m) => !done.includes(m.userId))?.userId ?? mates[0]?.userId ?? null;

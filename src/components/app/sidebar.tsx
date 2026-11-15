@@ -57,7 +57,7 @@ export function Rail({ onSignOut }: { onSignOut: () => void }) {
   return (
     <aside className="relative hidden h-dvh w-[4.5rem] shrink-0 flex-col items-center overflow-hidden bg-sidebar py-3 text-sidebar-foreground lg:flex">
       <div className="pointer-events-none absolute -left-16 -top-16 size-40 rounded-full bg-brand/25 blur-3xl" aria-hidden />
-      <Link href={homeFor(user.role)} className="relative rounded-xl" aria-label="CampusNova home"><Logo label={false} /></Link>
+      <Link href={homeFor(user.role)} className="relative rounded-xl" aria-label="ScholarSync home"><Logo label={false} /></Link>
 
       <nav aria-label="Main" className="relative mt-6">
         <ul className="flex flex-col items-center gap-1.5">

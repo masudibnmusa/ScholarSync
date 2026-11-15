@@ -6,7 +6,7 @@ import { Providers } from "@/components/providers";
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "CampusNova: group projects that actually work", template: "%s · CampusNova" },
+  title: { default: "ScholarSync: group projects that actually work", template: "%s · ScholarSync" },
   description:
     "One workspace for university group projects. Students chat, plan tasks and share files; faculty match teams by skills, track contribution and spot struggling teams early.",
   icons: { icon: "/favicon.svg", apple: "/favicon.svg" },

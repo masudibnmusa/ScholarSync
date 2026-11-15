@@ -14,7 +14,7 @@ export function AuthFrame({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       <main className="flex flex-col px-6 py-6 sm:px-10">
         <div className="flex items-center justify-between">
-          <Link href="/" className="rounded-xl" aria-label="CampusNova home"><Logo /></Link>
+          <Link href="/" className="rounded-xl" aria-label="ScholarSync home"><Logo /></Link>
           <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="size-4" aria-hidden /> Home
           </Link>

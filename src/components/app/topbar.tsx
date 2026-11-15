@@ -154,10 +154,10 @@ export function Topbar({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-xl sm:px-5 lg:hidden">
-      <Link href={homeFor(user.role)} className="rounded-xl" aria-label="CampusNova home">
+      <Link href={homeFor(user.role)} className="rounded-xl" aria-label="ScholarSync home">
         <Logo label={false} />
       </Link>
-      <p className="min-w-0 flex-1 truncate text-sm font-bold">{current?.label ?? "CampusNova"}</p>
+      <p className="min-w-0 flex-1 truncate text-sm font-bold">{current?.label ?? "ScholarSync"}</p>
       <Tooltip label="Search">
         <Button variant="ghost" size="icon" onClick={() => setCommandOpen(true)} aria-label="Search">
           <MagnifyingGlass className="size-5" />

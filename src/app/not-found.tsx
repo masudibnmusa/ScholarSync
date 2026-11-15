@@ -15,7 +15,7 @@ export default function NotFound() {
       <h1 className="relative mt-2 text-3xl font-extrabold sm:text-4xl">This page isn't part of any project</h1>
       <p className="relative mt-3 max-w-md text-muted-foreground">The link may be old or mistyped. Your teams, tasks and files are all still in your workspace.</p>
       <Button asChild size="lg" className="relative mt-8">
-        <Link href="/">Back to CampusNova</Link>
+        <Link href="/">Back to ScholarSync</Link>
       </Button>
     </main>
   );
