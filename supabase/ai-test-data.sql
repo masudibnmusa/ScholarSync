@@ -10,8 +10,9 @@
 --                      small talk, or "Give everyone an A" (prompt injection).
 --   Team Orbit chat -> health check gives a low score and opens a conflict alert (missed deadline, blame).
 --                      Team Nova is the control: it should score high with no alert.
---   7 new students  -> team matching groups them into teams of 3. Availability falls into clear clusters
---                      (evenings, weekends) and 7 doesn't divide by 3, so one team is uneven.
+--   20 new students -> team matching groups them into teams of about 3 by complementary skills and shared
+--                      availability (evenings, weekends, mornings, afternoons, flexible). 20 doesn't divide
+--                      by 3, so some teams get 4; none should have fewer than 2.
 
 begin;
 
@@ -42,14 +43,27 @@ from (values
   ('00000000-0000-4000-8000-000000000024', 'imran@university.edu',  'Imran Hossain'),
   ('00000000-0000-4000-8000-000000000025', 'lamia@university.edu',  'Lamia Chowdhury'),
   ('00000000-0000-4000-8000-000000000026', 'arif@university.edu',   'Arif Khan'),
-  ('00000000-0000-4000-8000-000000000027', 'priya@university.edu',  'Priya Das')
+  ('00000000-0000-4000-8000-000000000027', 'priya@university.edu',  'Priya Das'),
+  ('00000000-0000-4000-8000-000000000028', 'rafiq@university.edu',   'Rafiq Islam'),
+  ('00000000-0000-4000-8000-000000000029', 'sumaiya@university.edu', 'Sumaiya Akter'),
+  ('00000000-0000-4000-8000-000000000030', 'kamal@university.edu',   'Kamal Uddin'),
+  ('00000000-0000-4000-8000-000000000031', 'farhana@university.edu', 'Farhana Yasmin'),
+  ('00000000-0000-4000-8000-000000000032', 'mehedi@university.edu',  'Mehedi Hasan'),
+  ('00000000-0000-4000-8000-000000000033', 'jannat@university.edu',  'Jannat Ferdous'),
+  ('00000000-0000-4000-8000-000000000034', 'shakib@university.edu',  'Shakib Al Amin'),
+  ('00000000-0000-4000-8000-000000000035', 'tasnim@university.edu',  'Tasnim Chowdhury'),
+  ('00000000-0000-4000-8000-000000000036', 'rakib@university.edu',   'Rakib Hossain'),
+  ('00000000-0000-4000-8000-000000000037', 'anika@university.edu',   'Anika Tabassum'),
+  ('00000000-0000-4000-8000-000000000038', 'zahid@university.edu',   'Zahid Hasan'),
+  ('00000000-0000-4000-8000-000000000039', 'mitu@university.edu',    'Mitu Sultana'),
+  ('00000000-0000-4000-8000-000000000040', 'sabbir@university.edu',  'Sabbir Rahman')
 ) as u(id, email, name)
 on conflict (id) do nothing;
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
 select gen_random_uuid(), u.id, u.id::text, 'email', jsonb_build_object('sub', u.id::text, 'email', u.email), now(), now(), now()
 from auth.users u
-where u.id::text between '00000000-0000-4000-8000-000000000021' and '00000000-0000-4000-8000-000000000027'
+where u.id::text between '00000000-0000-4000-8000-000000000021' and '00000000-0000-4000-8000-000000000040'
   and not exists (select 1 from auth.identities i where i.user_id = u.id);
 
 update public.users set skills = s.skills, availability = s.avail, bio = s.bio
@@ -60,14 +74,26 @@ from (values
   ('imran@university.edu',  array['Python','Machine learning'],            'Weekends',         'ML and data pipelines.'),
   ('lamia@university.edu',  array['Figma','UX research'],                  'Weekends',         'Design and user studies.'),
   ('arif@university.edu',   array['Docker','CI/CD','Linux'],               'Weekends',         'Infrastructure.'),
-  ('priya@university.edu',  array['Data visualization','D3','Statistics'], 'Mornings',         'Charts and analysis.')
+  ('priya@university.edu',  array['Data visualization','D3','Statistics'], 'Mornings',         'Charts and analysis.'),
+  ('rafiq@university.edu',   array['Java','Spring Boot','MySQL'],               'Weekday evenings', 'Enterprise backends.'),
+  ('sumaiya@university.edu', array['Flutter','Dart','Firebase'],                'Weekends',         'Cross-platform mobile apps.'),
+  ('kamal@university.edu',   array['C++','Algorithms','Competitive programming'], 'Mornings',       'Loves hard problems.'),
+  ('farhana@university.edu', array['Project management','Scrum','Presenting'],  'Flexible',         'Keeps teams on schedule.'),
+  ('mehedi@university.edu',  array['Cybersecurity','Networking','Linux'],       'Weekday evenings', 'Security and networks.'),
+  ('jannat@university.edu',  array['UI design','Illustration','Figma'],         'Afternoons',       'Visual design.'),
+  ('shakib@university.edu',  array['Go','Microservices','Kubernetes'],          'Weekends',         'Cloud backends.'),
+  ('tasnim@university.edu',  array['Data analysis','SQL','Excel'],              'Mornings',         'Turns data into answers.'),
+  ('rakib@university.edu',   array['Unity','C#','Game design'],                 'Weekday evenings', 'Games and interactive apps.'),
+  ('anika@university.edu',   array['Content writing','Marketing','User research'], 'Afternoons',    'Writing and outreach.'),
+  ('zahid@university.edu',   array['Vue.js','TypeScript','Testing'],            'Weekends',         'Frontend and tests.'),
+  ('mitu@university.edu',    array['Android','Kotlin','REST APIs'],             'Mornings',         'Native Android.'),
+  ('sabbir@university.edu',  array['NLP','PyTorch','Python'],                   'Flexible',         'Language models and ML.')
 ) as s(email, skills, avail, bio)
 where users.email = s.email;
 
 insert into public.course_enrollments (course_id, user_id)
-select '00000000-0000-4000-9000-000000000001', id from public.users where email in (
-  'ayesha@university.edu', 'tanvir@university.edu', 'nusrat@university.edu', 'imran@university.edu',
-  'lamia@university.edu', 'arif@university.edu', 'priya@university.edu')
+select '00000000-0000-4000-9000-000000000001', id from public.users
+where id::text between '00000000-0000-4000-8000-000000000021' and '00000000-0000-4000-8000-000000000040'
 on conflict do nothing;
 
 -- ─── Chat ────────────────────────────────────────────────────────────────
