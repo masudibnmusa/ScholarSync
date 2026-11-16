@@ -187,7 +187,7 @@ export function MatchingPanel() {
       requestAnimationFrame(() => headingRef.current?.focus());
     } catch (err) {
       console.error("Team matching failed:", err);
-      setState({ kind: "error", message: "The AI service didn't answer. Check that GEMINI_API_KEY is set, then try again." });
+      setState({ kind: "error", message: "The AI service didn't answer. It's often busy for a moment; try again. If it keeps failing, check GEMINI_API_KEY." });
     }
   }
 
