@@ -2,13 +2,13 @@
 
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
-import { and, asc, count, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
 import type {
-  ChatMessage, ConflictAlert, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -308,13 +308,85 @@ export async function dismissSuggestion(id: string) {
   await withUser((tx) => tx.update(s.taskSuggestions).set({ status: "dismissed" }).where(eq(s.taskSuggestions.id, id)));
 }
 
+// ─── Courses ───────────────────────────────────────────────────────────
+
+export async function getCourses(): Promise<Course[]> {
+  return withUser(async (tx, uid) => {
+    const rows = await tx
+      .select({ c: s.courses, instructorName: s.users.name, studentCount: sql<number>`public.course_student_count(${s.courses.id})::int` })
+      .from(s.courses)
+      .leftJoin(s.users, eq(s.users.id, s.courses.instructorId))
+      .orderBy(desc(s.courses.createdAt));
+    if (!rows.length) return [];
+    // RLS trims these to what the caller may see: the full roster and every team for their own courses, their own row and team otherwise.
+    const enrolled = await tx
+      .select({ courseId: s.courseEnrollments.courseId, userId: s.courseEnrollments.userId, name: s.users.name })
+      .from(s.courseEnrollments)
+      .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId));
+    const teams = await tx.select({ id: s.teams.id, courseId: s.teams.courseId, name: s.teams.name }).from(s.teams);
+    const members = teams.length
+      ? await tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, teams.map((t) => t.id)))
+      : [];
+
+    return rows.map(({ c, instructorName, studentCount }) => {
+      const courseTeams = teams.filter((t) => t.courseId === c.id);
+      const placed = new Set(members.filter((m) => courseTeams.some((t) => t.id === m.teamId)).map((m) => m.userId));
+      const roster = enrolled.filter((e) => e.courseId === c.id);
+      const isMine = c.instructorId === uid;
+      const myTeamId = members.find((m) => m.userId === uid && courseTeams.some((t) => t.id === m.teamId))?.teamId;
+      return {
+        id: c.id, code: c.code, title: c.title, term: c.term,
+        instructorName: instructorName ?? "Instructor",
+        isMine,
+        enrolled: roster.some((e) => e.userId === uid),
+        studentCount,
+        teamCount: courseTeams.length,
+        unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
+        myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
+        students: isMine ? roster.map((e) => e.name) : [],
+      };
+    });
+  });
+}
+
+const CourseInput = z.object({
+  code: z.string().trim().min(2).max(20).transform((v) => v.toUpperCase()),
+  title: z.string().trim().min(3).max(120),
+  term: z.string().trim().min(3).max(40),
+});
+
+export async function createCourse(input: z.input<typeof CourseInput>) {
+  const c = CourseInput.parse(input);
+  // RLS (courses_write) rejects non-instructors.
+  await withUser((tx, uid) => tx.insert(s.courses).values({ ...c, instructorId: uid }));
+}
+
+export async function deleteCourse(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.courses).where(eq(s.courses.id, id)));
+}
+
+export async function joinCourse(id: string) {
+  Id.parse(id);
+  await withUser((tx, uid) => tx.insert(s.courseEnrollments).values({ courseId: id, userId: uid }).onConflictDoNothing());
+}
+
+export async function leaveCourse(id: string) {
+  Id.parse(id);
+  // A trigger also takes the student off this course's teams.
+  await withUser((tx, uid) => tx.delete(s.courseEnrollments).where(and(eq(s.courseEnrollments.courseId, id), eq(s.courseEnrollments.userId, uid))));
+}
+
 // ─── AI team matching (instructors) ────────────────────────────────────
 
-export async function runTeamMatching(teamSize = 3): Promise<{ courseId: string; courseTitle: string; proposals: MatchProposal[] } | null> {
+export async function runTeamMatching(teamSize = 3, courseId?: string): Promise<{ courseId: string; courseTitle: string; proposals: MatchProposal[] } | null> {
   z.number().int().min(2).max(8).parse(teamSize);
+  Id.optional().parse(courseId);
   // Read the pool first, then call the model outside the transaction so no DB connection waits on the model.
   const pool = await withUser(async (tx, uid) => {
-    const [course] = await tx.select().from(s.courses).where(eq(s.courses.instructorId, uid)).orderBy(desc(s.courses.createdAt)).limit(1);
+    const [course] = await tx.select().from(s.courses)
+      .where(and(eq(s.courses.instructorId, uid), courseId ? eq(s.courses.id, courseId) : undefined))
+      .orderBy(desc(s.courses.createdAt)).limit(1);
     if (!course) return null;
     const placed = tx.select({ id: s.teamMembers.userId }).from(s.teamMembers)
       .innerJoin(s.teams, eq(s.teams.id, s.teamMembers.teamId)).where(eq(s.teams.courseId, course.id));

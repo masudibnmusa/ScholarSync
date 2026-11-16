@@ -98,3 +98,18 @@ export interface MatchProposal {
   strengths: string[];
   members: { id: string; name: string; skills: string[]; availability: string }[];
 }
+
+export interface Course {
+  id: string;
+  code: string;
+  title: string;
+  term: string;
+  instructorName: string;
+  isMine: boolean; // I teach it
+  enrolled: boolean;
+  studentCount: number;
+  teamCount: number; // teams I can see: all of them for the instructor, mine for a student
+  unplaced: number; // instructor only: enrolled students not on a team yet
+  myTeam: string | null; // student only
+  students: string[]; // instructor only: names, for the roster preview
+}

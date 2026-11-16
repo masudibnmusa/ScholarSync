@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowsClockwise, ArrowRight, Check, CheckCircle, Clock, Confetti, IdentificationCard, Minus, Plus, Sparkle, ThumbsUp, UsersThree, WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { applyTeamMatching, runTeamMatching } from "@/app/actions";
+import { applyTeamMatching, getCourses, runTeamMatching } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { MatchProposal } from "@/lib/types";
+import type { Course, MatchProposal } from "@/lib/types";
 import { EmptyState, Page } from "@/components/app/page";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarStack } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnimatedNumber, EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { ProgressRing } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const steps = [
   { icon: IdentificationCard, title: "Profiles", body: "Skills and availability from each student." },
@@ -163,11 +165,23 @@ export function MatchingPanel() {
   const [confirm, setConfirm] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
+  const router = useRouter();
+  const params = useSearchParams();
+  const [courses, setCourses] = React.useState<Course[]>([]);
+  React.useEffect(() => {
+    getCourses().then((cs) => setCourses(cs.filter((c) => c.isMine))).catch((err) => console.error("Loading courses failed:", err));
+  }, []);
+  // The course comes from the dashboard link (?course=); otherwise the newest course.
+  const courseId = params.get("course") ?? courses[0]?.id;
+  const pickCourse = (id: string) => {
+    setState({ kind: "idle" });
+    router.replace(`/instructor/matching?course=${id}`, { scroll: false });
+  };
 
   async function generate() {
     setState({ kind: "loading" });
     try {
-      const res = await runTeamMatching(size);
+      const res = await runTeamMatching(size, courseId);
       if (!res) return setState({ kind: "no-course" });
       setState({ kind: "ready", result: { ...res, proposals: res.proposals.map((p, i) => ({ ...p, key: `${i}-${p.name}` })) } });
       requestAnimationFrame(() => headingRef.current?.focus());
@@ -228,6 +242,17 @@ export function MatchingPanel() {
 
           {/* Controls */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-5 backdrop-blur-sm">
+            {courses.length > 0 && (
+              <div className="mb-4">
+                <p id="course-label" className="mb-2 text-sm font-bold text-white">Course</p>
+                <Select value={courseId} onValueChange={pickCourse} disabled={busy}>
+                  <SelectTrigger aria-labelledby="course-label" className="border-white/15 bg-white/10 text-white hover:border-white/30 [&_svg]:text-sidebar-muted"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.unplaced} without a team)</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <p id="size-label" className="text-sm font-bold text-white">Students per team</p>
             <div className="mt-3 flex items-center justify-between gap-2" role="group" aria-labelledby="size-label">
               <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-white/10 text-white hover:bg-white/20 hover:text-white" aria-label="Fewer students per team" disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
@@ -270,7 +295,7 @@ export function MatchingPanel() {
           )}
 
           {state.kind === "no-course" && (
-            <Card><EmptyState icon={UsersThree} title="You don't have a course yet" description="Matching works on the students enrolled in your course. Ask your administrator to set up the course and enrolments." /></Card>
+            <Card><EmptyState icon={UsersThree} title="You don't have a course yet" description="Matching works on the students enrolled in your course. Create one from your dashboard; students join it there."><Button asChild><Link href="/instructor/courses">Go to dashboard <ArrowRight aria-hidden /></Link></Button></EmptyState></Card>
           )}
 
           {state.kind === "created" && (

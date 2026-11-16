@@ -1,4 +1,4 @@
-import { Bell, ChartLineUp, Kanban, Sparkle, Star, UserCircle, Warning } from "@phosphor-icons/react/dist/ssr";
+import { Bell, ChartLineUp, SquaresFour, Kanban, Sparkle, Star, UserCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 
 export type NavItem = { href: string; label: string; short?: string; icon: Icon; badge?: "notifications" | "conflicts" | "suggestions"; secondary?: boolean };
@@ -6,6 +6,7 @@ export type NavItem = { href: string; label: string; short?: string; icon: Icon;
 // The workspace (board + chat + files for a team) is home for both roles; everything else is a side trip.
 // `secondary` items sit behind "More" in the mobile tab bar (max five tabs). `short` is the tab-bar label.
 export const studentNav: NavItem[] = [
+  { href: "/student/courses", label: "Dashboard", icon: SquaresFour },
   { href: "/student", label: "Workspace", icon: Kanban, badge: "suggestions" },
   { href: "/student/peer-review", label: "Peer review", short: "Reviews", icon: Star },
   { href: "/student/notifications", label: "Notifications", short: "Inbox", icon: Bell, badge: "notifications" },
@@ -13,10 +14,11 @@ export const studentNav: NavItem[] = [
 ];
 
 export const instructorNav: NavItem[] = [
+  { href: "/instructor/courses", label: "Dashboard", icon: SquaresFour },
   { href: "/instructor", label: "Workspace", icon: Kanban },
   { href: "/instructor/analytics", label: "Analytics", icon: ChartLineUp },
   { href: "/instructor/conflicts", label: "Conflicts", icon: Warning, badge: "conflicts" },
-  { href: "/instructor/matching", label: "AI matching", short: "Matching", icon: Sparkle },
+  { href: "/instructor/matching", label: "AI matching", short: "Matching", icon: Sparkle, secondary: true },
   { href: "/instructor/notifications", label: "Notifications", icon: Bell, badge: "notifications", secondary: true },
   { href: "/instructor/profile", label: "Profile", icon: UserCircle, secondary: true },
 ];
