@@ -36,6 +36,8 @@ export interface TeamMember {
 
 export interface Team {
   id: string;
+  courseId: string;
+  courseCode: string;
   name: string;
   description: string;
   healthScore: number;
@@ -104,11 +106,14 @@ export interface Course {
   code: string;
   title: string;
   term: string;
+  description: string; // what the course is
+  goals: string;
+  rationale: string; // why take it
   instructorName: string;
   isMine: boolean; // I teach it
   enrolled: boolean;
   studentCount: number;
-  teamCount: number; // teams I can see: all of them for the instructor, mine for a student
+  teamCount: number; // every team in the course
   unplaced: number; // instructor only: enrolled students not on a team yet
   myTeam: string | null; // student only
   students: string[]; // instructor only: names, for the roster preview

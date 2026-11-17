@@ -77,7 +77,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         }
       }
       const profile = await getProfile();
-      router.replace(homeFor(profile.role));
+      router.replace(`${homeFor(profile.role)}/courses`);
       router.refresh();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");

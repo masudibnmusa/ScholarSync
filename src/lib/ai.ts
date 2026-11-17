@@ -1,6 +1,7 @@
 import "server-only";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
+import { fitToSizes, teamSizes } from "@/lib/team-sizes";
 
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -109,22 +110,22 @@ export type Student = { id: string; name: string; skills: string[]; availability
 
 /** Splits students into balanced teams by complementary skills and overlapping availability. */
 export async function matchTeams(students: Student[], teamSize: number) {
+  const sizes = teamSizes(students.length, teamSize);
   const out = await ask(
     Matching,
-    `You form balanced university project teams of about ${teamSize} students. ` +
-      "Each team should mix complementary skills and share availability. Every student goes in exactly one team. Use the given ids. " +
-      "Never leave a team with fewer than 2 students: when the count doesn't divide evenly, add the leftover students to other teams.",
+    `You form balanced university project teams. Make exactly ${sizes.length} teams with these sizes: ${sizes.join(", ")}. ` +
+      "Each team should mix complementary skills and share availability. Every student goes in exactly one team. Use the given ids.",
     `<students>\n${JSON.stringify(students)}\n</students>`,
   );
   if (!out) return [];
   // Keep only real ids, each used once, so a bad model answer can't invent or duplicate students.
   const known = new Set(students.map((s) => s.id));
   const used = new Set<string>();
-  return out.teams
-    .map((t) => ({
-      ...t,
-      score: Math.round(Math.min(100, Math.max(0, t.score))),
-      member_ids: t.member_ids.filter((id) => known.has(id) && !used.has(id) && used.add(id)),
-    }))
-    .filter((t) => t.member_ids.length > 0);
+  const drafts = out.teams.map((t) => ({
+    ...t,
+    score: Math.round(Math.min(100, Math.max(0, t.score))),
+    member_ids: t.member_ids.filter((id) => known.has(id) && !used.has(id) && used.add(id)),
+  }));
+  // The model doesn't reliably keep to the sizes it was given, so enforce them.
+  return fitToSizes(drafts, sizes, students.map((s) => s.id));
 }

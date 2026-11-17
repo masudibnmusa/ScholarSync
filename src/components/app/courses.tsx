@@ -4,10 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BookOpen, Books, ChalkboardTeacher, DotsThree, MagnifyingGlass, Plus, SignIn, SignOut, Sparkle, Student, Trash, UserPlus, UsersThree,
+  BookOpen, Books, ChalkboardTeacher, DotsThree, MagnifyingGlass, PencilSimple, Plus, SignIn, SignOut, Sparkle, Student, Trash, UserPlus, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { createCourse, deleteCourse, getCourses, joinCourse, leaveCourse } from "@/app/actions";
+import { createCourse, deleteCourse, updateCourse, getCourses, joinCourse, leaveCourse } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Course } from "@/lib/types";
@@ -20,22 +20,22 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Field, Input } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
 import { EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Each course gets a stable accent from its code, so cards are easy to tell apart at a glance.
 const accents = ["var(--primary)", "var(--warm)", "var(--info)", "var(--success)"];
-const accentOf = (code: string) => accents[[...code].reduce((n, ch) => n + ch.charCodeAt(0), 0) % accents.length];
+export const accentOf = (code: string) => accents[[...code].reduce((n, ch) => n + ch.charCodeAt(0), 0) % accents.length];
 
 function defaultTerm() {
   const d = new Date();
   return `${d.getMonth() < 5 ? "Spring" : d.getMonth() < 8 ? "Summer" : "Fall"} ${d.getFullYear()}`;
 }
 
-function CourseCard({ course, role, busy, onJoin, onLeave, onDelete }: {
-  course: Course; role: string; busy: boolean; onJoin: () => void; onLeave: () => void; onDelete: () => void;
+function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
+  course: Course; role: string; busy: boolean; onJoin: () => void; onLeave: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const accent = accentOf(course.code);
   const instructor = role === "instructor";
@@ -52,13 +52,16 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onDelete }: {
 
       <div className="flex flex-1 flex-col p-5 pt-4">
         <div className="flex items-start gap-2">
-          <h3 className="min-w-0 flex-1 text-base font-extrabold leading-snug">{course.title}</h3>
+          <h3 className="min-w-0 flex-1 text-base font-extrabold leading-snug">
+            <Link href={`/${role}/courses/${course.id}`} className="rounded outline-none after:absolute after:inset-0 after:rounded-[inherit] hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/40">{course.title}</Link>
+          </h3>
           {instructor && course.isMine && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="-mr-2 -mt-1" aria-label={`Options for ${course.code}`}><DotsThree weight="bold" /></Button>
+                <Button variant="ghost" size="icon-sm" className="relative z-10 -mr-2 -mt-1" aria-label={`Options for ${course.code}`}><DotsThree weight="bold" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={onEdit}><PencilSimple aria-hidden /> Edit course</DropdownMenuItem>
                 <DropdownMenuItem destructive onSelect={onDelete}><Trash aria-hidden /> Delete course</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -80,7 +83,7 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onDelete }: {
           </div>
         </dl>
 
-        <div className="mt-auto pt-5">
+        <div className="relative z-10 mt-auto pt-5">
           {instructor ? (
             <>
               <div className="mb-3 flex min-h-8 items-center justify-between gap-2">
@@ -113,11 +116,13 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onDelete }: {
   );
 }
 
-function NewCourseDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
-  const [form, setForm] = React.useState({ code: "", title: "", term: defaultTerm() });
+/** Creates a course, or edits `course` when given. Remount it (key) per course so the form starts from that course. */
+export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?: Course; open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void }) {
+  const blank = { code: "", title: "", term: defaultTerm(), description: "", goals: "", rationale: "" };
+  const [form, setForm] = React.useState(course ? { code: course.code, title: course.title, term: course.term, description: course.description, goals: course.goals, rationale: course.rationale } : blank);
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,24 +130,30 @@ function NewCourseDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
     setSaving(true);
     setError(null);
     try {
-      await createCourse(form);
-      toast.success(`${form.code.trim().toUpperCase()} created`, { description: "Students can now find and join it from their dashboard." });
-      setForm({ code: "", title: "", term: defaultTerm() });
+      const code = form.code.trim().toUpperCase();
+      if (course) {
+        await updateCourse(course.id, form);
+        toast.success(`${code} updated`);
+      } else {
+        await createCourse(form);
+        toast.success(`${code} created`, { description: "Students can now find and join it from their dashboard." });
+        setForm(blank);
+      }
       onOpenChange(false);
-      onCreated();
+      onSaved();
     } catch (err) {
-      console.error("Create course failed:", err);
-      setError(err instanceof Error && /duplicate|unique/i.test(err.message) ? "A course with this code already exists for this term." : "Could not create the course. Please try again.");
+      console.error("Save course failed:", err);
+      setError(err instanceof Error && /duplicate|unique/i.test(err.message) ? "A course with this code already exists for this term." : `Could not ${course ? "save" : "create"} the course. Please try again.`);
     }
     setSaving(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New course</DialogTitle>
-          <DialogDescription>Students join it from their dashboard. Then let AI match them into teams.</DialogDescription>
+          <DialogTitle>{course ? `Edit ${course.code}` : "New course"}</DialogTitle>
+          <DialogDescription>{course ? "Enrolled students and teams stay as they are." : "Students join it from their dashboard. Then let AI match them into teams."}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
@@ -152,9 +163,18 @@ function NewCourseDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
           <Field label="Title" htmlFor="course-title" error={error}>
             <Input id="course-title" value={form.title} onChange={set("title")} placeholder="Software Engineering Project" maxLength={120} aria-invalid={!!error || undefined} />
           </Field>
+          <Field label="What is this course?" htmlFor="course-description" optional hint="Shown at the top of the course page.">
+            <Textarea id="course-description" value={form.description} onChange={set("description")} maxLength={4000} rows={3} placeholder="A hands-on introduction to…" />
+          </Field>
+          <Field label="Goals" htmlFor="course-goals" optional hint="One goal per line; each becomes a checklist item.">
+            <Textarea id="course-goals" value={form.goals} onChange={set("goals")} maxLength={4000} rows={4} placeholder={"Build a working project as a team\nPresent it at the end of term"} />
+          </Field>
+          <Field label="Why take this course?" htmlFor="course-rationale" optional>
+            <Textarea id="course-rationale" value={form.rationale} onChange={set("rationale")} maxLength={4000} rows={3} placeholder="What students gain from it…" />
+          </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" loading={saving}>{!saving && <Plus weight="bold" aria-hidden />} Create course</Button>
+            <Button type="submit" loading={saving}>{!saving && (course ? <PencilSimple aria-hidden /> : <Plus weight="bold" aria-hidden />)} {course ? "Save changes" : "Create course"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -173,6 +193,7 @@ export function CoursesDashboard() {
   const [query, setQuery] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState<Course | null>(null);
   const [pending, setPending] = React.useState<Pending>(null);
 
   const load = React.useCallback(() => getCourses().then(setCourses, (err) => {
@@ -261,7 +282,7 @@ export function CoursesDashboard() {
                 {shown.map((c) => (
                   <StaggerItem key={c.id} className="h-full">
                     <CourseCard course={c} role={user.role} busy={busyId === c.id}
-                      onJoin={() => join(c)} onLeave={() => setPending({ kind: "leave", course: c })} onDelete={() => setPending({ kind: "delete", course: c })} />
+                      onJoin={() => join(c)} onLeave={() => setPending({ kind: "leave", course: c })} onEdit={() => setEditing(c)} onDelete={() => setPending({ kind: "delete", course: c })} />
                   </StaggerItem>
                 ))}
               </Stagger>
@@ -288,7 +309,8 @@ export function CoursesDashboard() {
         </AnimatePresence>
       )}
 
-      {instructor && <NewCourseDialog open={creating} onOpenChange={setCreating} onCreated={load} />}
+      {instructor && <CourseDialog open={creating} onOpenChange={setCreating} onSaved={load} />}
+      {editing && <CourseDialog key={editing.id} course={editing} open onOpenChange={(o) => !o && setEditing(null)} onSaved={load} />}
       <ConfirmDialog
         open={!!pending}
         onOpenChange={(o) => !o && setPending(null)}

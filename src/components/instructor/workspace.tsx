@@ -13,6 +13,7 @@ import { cn, healthInfo, timeAgo, toneVar } from "@/lib/utils";
 import type { ConflictAlert, Team } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { HealthBadge, severityBadge } from "@/components/instructor/charts";
+import { EditTeamButton } from "@/components/instructor/edit-team";
 import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard } from "@/components/student/kanban";
 import { MembersButton } from "@/components/student/shared";
@@ -42,6 +43,7 @@ function TeamRow({ team, active, alerts, onSelect }: { team: Team; active: boole
       {active && <motion.span layoutId="team-row-bar" className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-warm" aria-hidden />}
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{team.name}</span>
+        <span className="shrink-0 rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[0.6875rem] font-bold text-secondary-foreground" title="Course">{team.courseCode}</span>
         {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{alerts}<span className="sr-only"> open {alerts === 1 ? "alert" : "alerts"}</span></Badge>}
       </div>
       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -160,7 +162,7 @@ export function InstructorWorkspace() {
 
   const q = query.trim().toLowerCase();
   const list = teams
-    .filter((t) => !q || `${t.name} ${t.description} ${t.members.map((m) => m.name).join(" ")}`.toLowerCase().includes(q))
+    .filter((t) => !q || `${t.name} ${t.courseCode} ${t.description} ${t.members.map((m) => m.name).join(" ")}`.toLowerCase().includes(q))
     .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : sort === "health" ? a.healthScore - b.healthScore : b.progress - a.progress));
   const avgProgress = Math.round(teams.reduce((n, t) => n + t.progress, 0) / teams.length);
   const teamAlerts = current ? alerts.filter((a) => a.teamId === current.id).sort((a, b) => Number(a.isResolved) - Number(b.isResolved)) : [];
@@ -179,7 +181,7 @@ export function InstructorWorkspace() {
           </div>
           <div className="relative">
             <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Team or student…" aria-label="Search teams or students" className="h-9 pl-10 md:h-9" />
+            <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Team, student or course…" aria-label="Search teams, students or courses" className="h-9 pl-10 md:h-9" />
           </div>
           <Segmented label="Sort teams" value={sort} onChange={setSort} className="w-full [&>button]:flex-1 [&>button]:justify-center"
             options={[{ value: "health", label: "Attention" }, { value: "progress", label: "Progress" }, { value: "name", label: "A–Z" }]} />
@@ -213,6 +215,7 @@ export function InstructorWorkspace() {
               <div className="min-w-0 flex-1 md:flex-none">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate text-lg font-extrabold">{current.name}</h2>
+                  <Link href={`/instructor/courses/${current.courseId}`} className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-bold text-secondary-foreground transition-colors hover:bg-primary hover:text-primary-foreground" aria-label={`Course ${current.courseCode}`}>{current.courseCode}</Link>
                   <HealthBadge score={current.healthScore} />
                   <TeamAlertsButton alerts={teamAlerts} open={currentOpen} />
                 </div>
@@ -225,7 +228,7 @@ export function InstructorWorkspace() {
                 </div>
                 <Progress value={current.progress} label={`${current.name} progress`} className="h-1.5" />
               </div>
-              <div className="ml-auto"><MembersButton team={current} align="end" /></div>
+              <div className="ml-auto flex items-center gap-2"><EditTeamButton team={current} /><MembersButton team={current} align="end" /></div>
             </div>
           </header>
 

@@ -7,6 +7,7 @@ import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
+import { supabaseServer } from "@/lib/supabase/server";
 import type {
   ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
 } from "@/lib/types";
@@ -46,9 +47,10 @@ export async function updateProfile(input: z.infer<typeof ProfileInput>) {
 
 export async function getTeams(): Promise<Team[]> {
   return withUser(async (tx) => {
-    const rows = await tx.select().from(s.teams).orderBy(asc(s.teams.name));
+    const rows = await tx.select({ t: s.teams, courseCode: s.courses.code }).from(s.teams)
+      .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId)).orderBy(asc(s.teams.name));
     if (!rows.length) return [];
-    const ids = rows.map((r) => r.id);
+    const ids = rows.map((r) => r.t.id);
 
     const members = await tx
       .select({
@@ -66,11 +68,13 @@ export async function getTeams(): Promise<Team[]> {
       .where(inArray(s.messages.teamId, ids))
       .groupBy(s.messages.teamId);
 
-    return rows.map((t) => {
+    return rows.map(({ t, courseCode }) => {
       const p = progress.find((x) => x.teamId === t.id);
       const done = p?.doneTasks ?? 0;
       return {
         id: t.id,
+        courseId: t.courseId,
+        courseCode,
         name: t.name,
         description: t.description,
         healthScore: t.healthScore ?? 100, // no AI assessment yet: nothing flagged
@@ -313,7 +317,7 @@ export async function dismissSuggestion(id: string) {
 export async function getCourses(): Promise<Course[]> {
   return withUser(async (tx, uid) => {
     const rows = await tx
-      .select({ c: s.courses, instructorName: s.users.name, studentCount: sql<number>`public.course_student_count(${s.courses.id})::int` })
+      .select({ c: s.courses, instructorName: s.users.name, studentCount: sql<number>`public.course_student_count(${s.courses.id})::int`, teamTotal: sql<number>`public.course_team_count(${s.courses.id})::int` })
       .from(s.courses)
       .leftJoin(s.users, eq(s.users.id, s.courses.instructorId))
       .orderBy(desc(s.courses.createdAt));
@@ -328,19 +332,19 @@ export async function getCourses(): Promise<Course[]> {
       ? await tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, teams.map((t) => t.id)))
       : [];
 
-    return rows.map(({ c, instructorName, studentCount }) => {
+    return rows.map(({ c, instructorName, studentCount, teamTotal }) => {
       const courseTeams = teams.filter((t) => t.courseId === c.id);
       const placed = new Set(members.filter((m) => courseTeams.some((t) => t.id === m.teamId)).map((m) => m.userId));
       const roster = enrolled.filter((e) => e.courseId === c.id);
       const isMine = c.instructorId === uid;
       const myTeamId = members.find((m) => m.userId === uid && courseTeams.some((t) => t.id === m.teamId))?.teamId;
       return {
-        id: c.id, code: c.code, title: c.title, term: c.term,
+        id: c.id, code: c.code, title: c.title, term: c.term, description: c.description, goals: c.goals, rationale: c.rationale,
         instructorName: instructorName ?? "Instructor",
         isMine,
         enrolled: roster.some((e) => e.userId === uid),
         studentCount,
-        teamCount: courseTeams.length,
+        teamCount: teamTotal,
         unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
         students: isMine ? roster.map((e) => e.name) : [],
@@ -353,6 +357,9 @@ const CourseInput = z.object({
   code: z.string().trim().min(2).max(20).transform((v) => v.toUpperCase()),
   title: z.string().trim().min(3).max(120),
   term: z.string().trim().min(3).max(40),
+  description: z.string().trim().max(4000).optional(),
+  goals: z.string().trim().max(4000).optional(),
+  rationale: z.string().trim().max(4000).optional(),
 });
 
 export async function createCourse(input: z.input<typeof CourseInput>) {
@@ -361,9 +368,51 @@ export async function createCourse(input: z.input<typeof CourseInput>) {
   await withUser((tx, uid) => tx.insert(s.courses).values({ ...c, instructorId: uid }));
 }
 
+export async function updateCourse(id: string, input: z.input<typeof CourseInput>) {
+  Id.parse(id);
+  const c = CourseInput.parse(input);
+  const rows = await withUser((tx) => tx.update(s.courses).set(c).where(eq(s.courses.id, id)).returning({ id: s.courses.id }));
+  if (!rows.length) throw new Error("Course not found or not yours");
+}
+
+/**
+ * Removes the stored uploads of these teams. Runs BEFORE the rows are deleted: the storage policy checks
+ * that the caller teaches the team, which can't be checked once the team is gone.
+ */
+async function removeTeamFiles(teamIds: string[]) {
+  if (!teamIds.length) return;
+  const paths = await withUser((tx) =>
+    tx.select({ path: s.files.storagePath }).from(s.files).where(inArray(s.files.teamId, teamIds)));
+  if (!paths.length) return;
+  const sb = await supabaseServer();
+  for (let i = 0; i < paths.length; i += 1000) { // Storage removes at most 1000 objects per call
+    const { error } = await sb.storage.from("team-files").remove(paths.slice(i, i + 1000).map((p) => p.path));
+    if (error) throw new Error(`Could not remove the team's files: ${error.message}`);
+  }
+}
+
 export async function deleteCourse(id: string) {
   Id.parse(id);
+  const teamIds = await withUser(async (tx, uid) => {
+    const [c] = await tx.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.id, id), eq(s.courses.instructorId, uid)));
+    if (!c) throw new Error("Course not found or not yours");
+    return (await tx.select({ id: s.teams.id }).from(s.teams).where(eq(s.teams.courseId, id))).map((t) => t.id);
+  });
+  await removeTeamFiles(teamIds);
   await withUser((tx) => tx.delete(s.courses).where(eq(s.courses.id, id)));
+}
+
+export async function deleteTeam(id: string) {
+  Id.parse(id);
+  await withUser(async (tx, uid) => {
+    const [t] = await tx.select({ id: s.teams.id }).from(s.teams)
+      .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId))
+      .where(and(eq(s.teams.id, id), eq(s.courses.instructorId, uid)));
+    if (!t) throw new Error("Team not found or not yours");
+  });
+  await removeTeamFiles([id]);
+  // Cascades to members, tasks, chat, file rows, reviews, alerts and suggestions. Members return to "no team".
+  await withUser((tx) => tx.delete(s.teams).where(eq(s.teams.id, id)));
 }
 
 export async function joinCourse(id: string) {
@@ -375,6 +424,61 @@ export async function leaveCourse(id: string) {
   Id.parse(id);
   // A trigger also takes the student off this course's teams.
   await withUser((tx, uid) => tx.delete(s.courseEnrollments).where(and(eq(s.courseEnrollments.courseId, id), eq(s.courseEnrollments.userId, uid))));
+}
+
+// ─── Team editing (instructors) ────────────────────────────────────────
+
+export type RosterStudent = { id: string; name: string; skills: string[]; teamId: string | null; teamName: string | null };
+
+/** Everyone enrolled in a course, with the team each one is on (if any). RLS limits this to the course's instructor. */
+export async function getCourseRoster(courseId: string): Promise<RosterStudent[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const students = await tx
+      .select({ id: s.users.id, name: s.users.name, skills: s.users.skills })
+      .from(s.courseEnrollments)
+      .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId))
+      .where(eq(s.courseEnrollments.courseId, courseId))
+      .orderBy(asc(s.users.name));
+    const placed = await tx
+      .select({ userId: s.teamMembers.userId, teamId: s.teams.id, teamName: s.teams.name })
+      .from(s.teamMembers)
+      .innerJoin(s.teams, eq(s.teams.id, s.teamMembers.teamId))
+      .where(eq(s.teams.courseId, courseId));
+    return students.map((st) => {
+      const p = placed.find((x) => x.userId === st.id);
+      return { ...st, teamId: p?.teamId ?? null, teamName: p?.teamName ?? null };
+    });
+  });
+}
+
+const TeamEdit = z.object({
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(500),
+  memberIds: z.array(Id).min(1).max(20),
+});
+
+/** Renames a team and sets its exact member list. A student moved in from another team of the same course leaves that team. */
+export async function updateTeam(teamId: string, input: z.infer<typeof TeamEdit>) {
+  Id.parse(teamId);
+  const t = TeamEdit.parse(input);
+  const ids = [...new Set(t.memberIds)];
+  await withUser(async (tx) => {
+    // RLS (teams_write) makes this return nothing unless the caller teaches the team's course.
+    const [team] = await tx.update(s.teams).set({ name: t.name, description: t.description })
+      .where(eq(s.teams.id, teamId)).returning({ courseId: s.teams.courseId });
+    if (!team) throw new Error("Team not found or not yours");
+
+    const enrolled = await tx.select({ id: s.courseEnrollments.userId }).from(s.courseEnrollments)
+      .where(and(eq(s.courseEnrollments.courseId, team.courseId), inArray(s.courseEnrollments.userId, ids)));
+    if (enrolled.length !== ids.length) throw new Error("Every member must be enrolled in the course");
+
+    const courseTeams = tx.select({ id: s.teams.id }).from(s.teams).where(eq(s.teams.courseId, team.courseId));
+    // Off this team: anyone not in the new list. Off other teams in this course: anyone joining this one.
+    await tx.delete(s.teamMembers).where(and(eq(s.teamMembers.teamId, teamId), notInArray(s.teamMembers.userId, ids)));
+    await tx.delete(s.teamMembers).where(and(inArray(s.teamMembers.teamId, courseTeams), inArray(s.teamMembers.userId, ids), sql`${s.teamMembers.teamId} <> ${teamId}`));
+    await tx.insert(s.teamMembers).values(ids.map((userId) => ({ teamId, userId }))).onConflictDoNothing();
+  });
 }
 
 // ─── AI team matching (instructors) ────────────────────────────────────
