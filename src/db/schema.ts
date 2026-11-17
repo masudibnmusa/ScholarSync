@@ -29,6 +29,9 @@ export const courses = pgTable("courses", {
   code: text("code").notNull(),
   title: text("title").notNull(),
   term: text("term").notNull(),
+  description: text("description").notNull().default(""),
+  goals: text("goals").notNull().default(""),
+  rationale: text("rationale").notNull().default(""),
   instructorId: uuid("instructor_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
