@@ -228,4 +228,4 @@ Where the code differs from the diagram, and why:
 
 ## License
 
-[MIT](LICENSE) © 2026 Masud Ibn Musa
+[MIT](LICENSE) 
