@@ -2,6 +2,7 @@ import "server-only";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { fitToSizes, teamSizes } from "@/lib/team-sizes";
+import { cleanSlots, SLOT_HORIZON_DAYS, type MeetingSlot } from "@/lib/meeting";
 
 const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -152,4 +153,30 @@ export async function summarizeWeek(teamName: string, lines: ChatLine[], activit
   if (!out) return null;
   const cap = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean).slice(0, 5);
   return { summary: out.summary.trim(), done: cap(out.done), late: cap(out.late), decisions: cap(out.decisions) };
+}
+
+const Slots = z.object({
+  slots: z.array(z.object({
+    date: z.string().describe("YYYY-MM-DD"),
+    start: z.string().describe("24-hour HH:MM"),
+    minutes: z.number().describe("Length in minutes, usually 60"),
+    attendees: z.array(z.string()).describe("Only members whose written availability really covers this time, names spelled exactly as given"),
+    note: z.string().describe("One short sentence on why this time fits"),
+  })),
+});
+
+/** Up to three meeting times in the next two weeks that fit the members' stated availability. */
+export async function suggestMeetings(members: { name: string; availability: string }[], today: string, busyDates: string[]) {
+  const weekday = new Date(today + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
+  const out = await ask(
+    Slots,
+    "You schedule a one-hour meeting for a student project team. Each member wrote their availability in free text. " +
+      `Suggest 3 different times between tomorrow and ${SLOT_HORIZON_DAYS} days from today that fit as many members as possible, ` +
+      "best first, on different days. Mornings start 09:00, afternoons 14:00, evenings 18:00 or later; keep times on the hour or half hour. " +
+      "Be strict: 'weekday evenings' does not cover a weekend or a morning, 'weekends' does not cover Monday-Friday. " +
+      "When no time fits everyone, pick times that fit the most members and list only those. " +
+      "Members with no availability written, or 'flexible', fit any time. Prefer days before the team's upcoming deadlines.",
+    `Today is ${weekday} ${today}.\nUpcoming deadlines: ${busyDates.join(", ") || "none"}\n<students>\n${JSON.stringify(members)}\n</students>`,
+  );
+  return cleanSlots((out?.slots ?? []) as MeetingSlot[], members.map((m) => m.name), today);
 }

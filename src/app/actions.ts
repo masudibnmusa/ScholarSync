@@ -6,7 +6,8 @@ import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lte, ne, notInAr
 import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
-import { matchTeams } from "@/lib/ai";
+import { matchTeams, suggestMeetings } from "@/lib/ai";
+import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { toCsv } from "@/lib/utils";
 import { sendDigestTo } from "@/lib/digest";
@@ -149,6 +150,21 @@ export async function sendMessage(teamId: string, content: string, fileId?: stri
     // The message is saved; only the AI task extraction is skipped.
     console.error("Inngest unavailable, task extraction skipped:", err);
   }
+}
+
+/** AI-picked meeting times from the members' availability. Members only (RLS on team_members). */
+export async function suggestMeetingTimes(teamId: string): Promise<MeetingSlot[]> {
+  Id.parse(teamId);
+  const { members, deadlines } = await withUser(async (tx, uid) => {
+    const members = await tx.select({ id: s.users.id, name: s.users.name, availability: s.users.availability })
+      .from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId)).where(eq(s.teamMembers.teamId, teamId));
+    if (!members.some((m) => m.id === uid)) throw new Error("Only team members can schedule a meeting");
+    const deadlines = await tx.select({ d: s.tasks.dueDate }).from(s.tasks)
+      .where(and(eq(s.tasks.teamId, teamId), ne(s.tasks.status, "done"), sql`${s.tasks.dueDate} between current_date and current_date + 14`));
+    return { members, deadlines: [...new Set(deadlines.map((r) => r.d!))].sort() };
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  return suggestMeetings(members.map((m) => ({ name: m.name, availability: m.availability })), today, deadlines);
 }
 
 // ─── Tasks ─────────────────────────────────────────────────────────────

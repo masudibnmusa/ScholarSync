@@ -4,12 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { getWeeklySummary, refreshWeeklySummary } from "@/app/actions";
+import { getWeeklySummary, refreshWeeklySummary, suggestMeetingTimes } from "@/app/actions";
+import { proposalMessage, slotLabel, type MeetingSlot } from "@/lib/meeting";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowClockwise, CaretDown, ChatTeardropText, Check, CheckCircle, ClipboardText, Clock, Quotes, Sparkle, UsersThree, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowClockwise, CalendarPlus, CaretDown, ChatTeardropText, Check, CheckCircle, ClipboardText, Clock, Quotes, Sparkle, UsersThree, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { useAppStore } from "@/lib/store";
-import { cn, healthInfo, timeAgo, toneText } from "@/lib/utils";
+import { cn, firstName, healthInfo, timeAgo, toneText } from "@/lib/utils";
 import type { Team, WeeklySummary } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
@@ -191,6 +192,98 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
           <Button variant="secondary" onClick={refresh} loading={refreshing} disabled={recap === undefined}>
             {!refreshing && <ArrowClockwise aria-hidden />} {recap ? "Refresh from this week" : "Write it now"}
           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** AI reads everyone's availability and suggests times; picking one posts a proposal to the team chat. */
+export function MeetingButton({ team }: { team: Team }) {
+  const sendMessage = useAppStore((s) => s.sendMessage);
+  const [open, setOpen] = React.useState(false);
+  const [slots, setSlots] = React.useState<MeetingSlot[] | null | undefined>(undefined); // undefined = not asked, null = loading
+  const [posting, setPosting] = React.useState<string | null>(null);
+
+  async function find() {
+    setSlots(null);
+    try {
+      setSlots(await suggestMeetingTimes(team.id));
+    } catch (err) {
+      console.error("Suggesting meeting times failed:", err);
+      toast.error("Could not suggest times. The AI may be busy; try again in a minute.");
+      setSlots(undefined);
+    }
+  }
+
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (next && slots === undefined) find();
+  }
+
+  async function propose(s: MeetingSlot) {
+    setPosting(s.date + s.start);
+    if (await sendMessage(team.id, proposalMessage(s, team.members.length))) {
+      toast.success("Proposal posted to the team chat");
+      setOpen(false);
+    }
+    setPosting(null);
+  }
+
+  const unknown = team.members.filter((m) => !m.availability.trim());
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <CalendarPlus weight="duotone" aria-hidden />
+          <span className="hidden xl:inline">Find a time</span>
+          <span className="xl:hidden">Meet</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-butter text-warm-text"><CalendarPlus weight="fill" className="size-4" aria-hidden /></span>
+            Find a meeting time
+          </DialogTitle>
+          <DialogDescription>The AI matches everyone&apos;s availability from their profiles. Pick a time to propose it in the team chat.</DialogDescription>
+        </DialogHeader>
+        <ul className="flex flex-wrap gap-1.5" aria-label="Member availability">
+          {team.members.map((m) => (
+            <li key={m.userId} className="flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2.5 text-xs">
+              <Avatar name={m.name} size="xs" /><span className="font-semibold">{firstName(m.name)}</span>
+              <span className="text-muted-foreground">{m.availability.trim() || "not set"}</span>
+            </li>
+          ))}
+        </ul>
+        {slots === null || slots === undefined ? (
+          <div className="space-y-2" aria-busy="true"><Skeleton className="h-16" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+        ) : slots.length === 0 ? (
+          <EmptyState icon={CalendarPlus} title="No good time found" description="Ask teammates to add their availability on their profile, then try again." className="py-6" />
+        ) : (
+          <ul className="space-y-2">
+            {slots.map((s, i) => {
+              const all = s.attendees.length >= team.members.length;
+              return (
+                <li key={s.date + s.start} className={cn("flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3", i === 0 && "border-primary/30 bg-primary/5")}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.9375rem] font-bold">{slotLabel(s)}</p>
+                    <p className={cn("text-xs font-semibold", all ? "text-success" : "text-warm-text")}>
+                      {all ? "Works for everyone" : `${s.attendees.length} of ${team.members.length}: ${s.attendees.map(firstName).join(", ") || "unclear"}`}
+                    </p>
+                    {s.note && <p className="mt-0.5 text-xs text-muted-foreground">{s.note}</p>}
+                  </div>
+                  <Button size="sm" variant={i === 0 ? "default" : "secondary"} loading={posting === s.date + s.start} disabled={!!posting} onClick={() => propose(s)}>
+                    Propose
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">{unknown.length ? `${unknown.length} without availability, treated as flexible.` : "Check the time with everyone in chat."}</p>
+          <Button variant="ghost" size="sm" onClick={find} disabled={slots === null}><ArrowClockwise aria-hidden />Try again</Button>
         </div>
       </DialogContent>
     </Dialog>
