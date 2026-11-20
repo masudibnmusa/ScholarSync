@@ -125,7 +125,20 @@ export const weeklyRecaps = inngest.createFunction(
   },
 );
 
-// Every morning (UTC), after the due reminders: one email per person with what they have not read yet.
+// Every morning (UTC): tell instructors about teams that missed a milestone or have 3+ overdue tasks.
+// The SQL function (migration 0017) writes the notifications and sends each alert once.
+export const riskAlerts = inngest.createFunction(
+  { id: "instructor-risk-alerts", triggers: [{ cron: "15 7 * * *" }] },
+  async ({ step }) => {
+    const sent = await step.run("send-alerts", async () => {
+      const [row] = await db.execute<{ sent: number }>(sql`select public.send_risk_alerts() as sent`);
+      return row.sent;
+    });
+    return { sent };
+  },
+);
+
+// Every morning (UTC), after the due reminders and risk alerts: one email per person with what they have not read yet.
 // Each notification is emailed at most once (notifications.emailed_at).
 export const dailyDigests = inngest.createFunction(
   { id: "daily-email-digests", triggers: [{ cron: "30 7 * * *" }] },
@@ -137,4 +150,4 @@ export const dailyDigests = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, weeklyRecaps, dailyDigests];
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, dailyDigests];
