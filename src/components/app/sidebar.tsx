@@ -1,17 +1,17 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MagnifyingGlass, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { homeFor, isActive, navFor, type NavItem } from "@/components/app/nav";
+import { homeFor, isActive, navFor, SIDEBAR_COOKIE, type NavItem } from "@/components/app/nav";
 import { Logo } from "@/components/app/page";
 import { UserMenu } from "@/components/app/topbar";
 import { useUser } from "@/components/app/user-context";
 import { Tooltip } from "@/components/ui/overlays";
-import { useStoredValue } from "@/hooks/use-client";
 
 export function useBadgeCounts(): Record<NonNullable<NavItem["badge"]>, number> {
   const notifications = useAppStore((s) => s.unreadNotifCount);
@@ -51,10 +51,14 @@ export function NavLinks({ onNavigate, pillId, items, collapsed }: { onNavigate?
 }
 
 /** Desktop navigation: a floating sage panel with labelled links, search and the account card. Collapses to an icon rail. */
-export function Sidebar({ onSignOut }: { onSignOut: () => void }) {
+export function Sidebar({ onSignOut, initialCollapsed }: { onSignOut: () => void; initialCollapsed: boolean }) {
   const user = useUser();
   const setCommandOpen = useAppStore((s) => s.setCommandOpen);
-  const [collapsed, setCollapsed] = useStoredValue("scholarsync:sidebar-collapsed", false);
+  const [collapsed, setCollapsedState] = React.useState(initialCollapsed);
+  const setCollapsed = (next: boolean) => {
+    setCollapsedState(next);
+    document.cookie = `${SIDEBAR_COOKIE}=${next ? 1 : 0}; path=/; max-age=31536000; samesite=lax`;
+  };
 
   const toggle = (
     <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">

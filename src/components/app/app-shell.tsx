@@ -69,7 +69,7 @@ function MobileNav() {
   );
 }
 
-export function AppShell({ user, children }: { user: UserProfile; children: React.ReactNode }) {
+export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfile; sidebarCollapsed: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const mainRef = React.useRef<HTMLElement>(null);
@@ -104,7 +104,7 @@ export function AppShell({ user, children }: { user: UserProfile; children: Reac
         Skip to content
       </a>
       <div className="flex h-dvh overflow-hidden bg-background">
-        <Sidebar onSignOut={signOut} />
+        <Sidebar onSignOut={signOut} initialCollapsed={sidebarCollapsed} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onSignOut={signOut} />
           <main id="main" ref={mainRef} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none scroll-thin">

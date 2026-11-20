@@ -23,6 +23,8 @@ export const instructorNav: NavItem[] = [
   { href: "/instructor/profile", label: "Profile", icon: UserCircle, secondary: true },
 ];
 
+export const SIDEBAR_COOKIE = "sidebar-collapsed";
+
 export const navFor = (role: string) => (role === "instructor" ? instructorNav : studentNav);
 export const homeFor = (role: string) => (role === "instructor" ? "/instructor" : "/student");
 
