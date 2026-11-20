@@ -13,6 +13,7 @@ import { cn, firstName } from "@/lib/utils";
 import { useClientValue } from "@/hooks/use-client";
 import type { Course } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
+import { JoinWithCodeButton } from "@/components/app/invite";
 import { EmptyState, Page, PageHeader, StatCard } from "@/components/app/page";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { AvatarStack } from "@/components/ui/avatar";
@@ -269,7 +270,7 @@ export function CoursesDashboard() {
         title={`${greeting}, ${firstName(user.name)}`}
         description={[today, summary].filter(Boolean).join(" · ") || "\u00a0"}
       >
-        {instructor && <Button onClick={() => setCreating(true)}><Plus weight="bold" aria-hidden /> New course</Button>}
+        {instructor ? <Button onClick={() => setCreating(true)}><Plus weight="bold" aria-hidden /> New course</Button> : <JoinWithCodeButton />}
       </PageHeader>
 
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">

@@ -106,3 +106,8 @@ export function csvCell(v: string | number | null | undefined) {
 
 /** Rows to CSV text (CRLF line ends, as Excel expects). */
 export const toCsv = (rows: (string | number | null | undefined)[][]) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+
+/** A same-site path to return to after signing in, or null. Rejects "//host" and "/\\host", which browsers treat as other sites. */
+export function safeNext(v: string | string[] | undefined) {
+  return typeof v === "string" && /^\/(?![/\\])/.test(v) ? v : null;
+}

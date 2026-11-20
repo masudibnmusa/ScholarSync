@@ -12,7 +12,7 @@ import { toCsv } from "@/lib/utils";
 import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, CourseGrading, MyGrade, CriterionScore,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -681,6 +681,7 @@ export async function getCourses(): Promise<Course[]> {
         unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
         students: isMine ? roster.map((e) => e.name) : [],
+        joinCode: isMine ? c.joinCode : null,
       };
     });
   });
@@ -751,6 +752,37 @@ export async function deleteTeam(id: string) {
 export async function joinCourse(id: string) {
   Id.parse(id);
   await withUser((tx, uid) => tx.insert(s.courseEnrollments).values({ courseId: id, userId: uid }).onConflictDoNothing());
+}
+
+// Invite codes are typed by hand too: ignore case, spaces and dashes.
+const JoinCode = z.string().transform((v) => v.toUpperCase().replace(/[\s-]/g, "")).pipe(z.string().regex(/^[A-Z0-9]{6}$/, "Invite codes are 6 letters and digits"));
+
+/** The course behind an invite code, or null when no course has it. */
+export async function getInvite(code: string): Promise<CourseInvite | null> {
+  const parsed = JoinCode.safeParse(code);
+  if (!parsed.success) return null;
+  return withUser(async (tx, uid) => {
+    const [row] = await tx.select({ c: s.courses, instructorName: s.users.name }).from(s.courses)
+      .leftJoin(s.users, eq(s.users.id, s.courses.instructorId)).where(eq(s.courses.joinCode, parsed.data));
+    if (!row) return null;
+    const [enrolled] = await tx.select({ id: s.courseEnrollments.userId }).from(s.courseEnrollments)
+      .where(and(eq(s.courseEnrollments.courseId, row.c.id), eq(s.courseEnrollments.userId, uid)));
+    return {
+      id: row.c.id, code: row.c.code, title: row.c.title, term: row.c.term, instructorName: row.instructorName ?? "Instructor",
+      enrolled: !!enrolled, isMine: row.c.instructorId === uid,
+    };
+  });
+}
+
+/** Joins the course behind an invite code and returns its id. RLS (enroll_self_insert) still applies: students only. */
+export async function joinCourseByCode(code: string): Promise<string> {
+  const joinCode = JoinCode.parse(code);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select({ id: s.courses.id }).from(s.courses).where(eq(s.courses.joinCode, joinCode));
+    if (!course) throw new Error("No course has that invite code");
+    await tx.insert(s.courseEnrollments).values({ courseId: course.id, userId: uid }).onConflictDoNothing();
+    return course.id;
+  });
 }
 
 export async function leaveCourse(id: string) {

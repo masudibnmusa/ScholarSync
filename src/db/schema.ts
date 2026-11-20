@@ -2,6 +2,7 @@
 import {
   pgTable, pgEnum, pgView, uuid, text, timestamp, smallint, doublePrecision, date, bigint, jsonb, numeric, integer, primaryKey, boolean,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const userRole = pgEnum("user_role", ["student", "instructor"]);
 export const taskStatus = pgEnum("task_status", ["todo", "in_progress", "done"]);
@@ -33,6 +34,7 @@ export const courses = pgTable("courses", {
   goals: text("goals").notNull().default(""),
   rationale: text("rationale").notNull().default(""),
   gradesReleased: boolean("grades_released").notNull().default(false),
+  joinCode: text("join_code").notNull().default(sql`public.new_join_code()`),
   instructorId: uuid("instructor_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

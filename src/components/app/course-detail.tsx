@@ -13,6 +13,7 @@ import { useAppStore } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
 import { GradingPanel, MyGradeCard } from "@/components/app/grading";
+import { InviteButton } from "@/components/app/invite";
 import { Milestones } from "@/components/app/milestones";
 import { EmptyState, Page, StatCard } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
@@ -186,6 +187,7 @@ export function CourseDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canEdit && course.joinCode && <InviteButton code={course.joinCode} courseCode={course.code} />}
             {canEdit && <Button variant="secondary" loading={exporting} onClick={exportReport}>{!exporting && <DownloadSimple aria-hidden />} Export report</Button>}
             {canEdit && <Button variant="secondary" onClick={() => setEditing(true)}><PencilSimple aria-hidden /> Edit course</Button>}
             {canEdit && course.unplaced >= 2 && (

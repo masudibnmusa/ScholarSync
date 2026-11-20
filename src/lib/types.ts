@@ -184,4 +184,15 @@ export interface Course {
   unplaced: number; // instructor only: enrolled students not on a team yet
   myTeam: string | null; // student only
   students: string[]; // instructor only: names, for the roster preview
+  joinCode: string | null; // instructor only: the invite code (/join/<code>)
+}
+
+export interface CourseInvite {
+  id: string;
+  code: string;
+  title: string;
+  term: string;
+  instructorName: string;
+  enrolled: boolean;
+  isMine: boolean;
 }

@@ -23,7 +23,7 @@ const demoAccounts = [
 
 type Errors = Partial<Record<"name" | "email" | "password", string>>;
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, next }: { mode: "login" | "register"; next?: string | null }) {
   const router = useRouter();
   const isLogin = mode === "login";
   const [values, setValues] = React.useState({ name: "", email: "", password: "" });
@@ -77,7 +77,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         }
       }
       const profile = await getProfile();
-      router.replace(`${homeFor(profile.role)}/courses`);
+      router.replace(next ?? `${homeFor(profile.role)}/courses`);
       router.refresh();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -165,7 +165,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
         {isLogin ? "New to ScholarSync?" : "Already have an account?"}{" "}
-        <Link href={isLogin ? "/register" : "/login"} className="font-semibold text-primary underline-offset-4 hover:underline">
+        <Link href={`${isLogin ? "/register" : "/login"}${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-primary underline-offset-4 hover:underline">
           {isLogin ? "Create an account" : "Sign in"}
         </Link>
       </p>
