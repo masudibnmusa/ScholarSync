@@ -5,3 +5,5 @@ node_modules
 supabase/.temp
 supabase/.branches
 .taste-skill
+# TypeScript incremental build cache
+*.tsbuildinfo
