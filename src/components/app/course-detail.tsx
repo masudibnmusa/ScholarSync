@@ -148,20 +148,20 @@ export function CourseDetail({ id }: { id: string }) {
 
       <motion.header
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}
-        className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lift sm:p-8"
-        style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 45%, black))` }}
+        className="relative overflow-hidden rounded-3xl p-6 text-foreground shadow-soft sm:p-8"
+        style={{ background: accent }}
       >
-        <div className="pointer-events-none absolute inset-0 bg-dots opacity-15" aria-hidden />
-        <BookOpen weight="duotone" className="pointer-events-none absolute -bottom-10 -right-6 size-56 text-white/10" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-dots opacity-25" aria-hidden />
+        <BookOpen weight="duotone" className="pointer-events-none absolute -bottom-10 -right-6 size-56 text-foreground/[0.07]" aria-hidden />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-black/25 px-2.5 py-1 font-mono text-xs font-bold tracking-wide backdrop-blur-sm">{course.code}</span>
-              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm">{course.term}</span>
-              {!instructor && course.enrolled && <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-foreground">Enrolled</span>}
+              <span className="rounded-lg bg-glass-strong px-2.5 py-1 font-mono text-xs font-bold tracking-wide">{course.code}</span>
+              <span className="rounded-full bg-glass px-2.5 py-0.5 text-xs font-semibold">{course.term}</span>
+              {!instructor && course.enrolled && <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">Enrolled</span>}
             </div>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{course.title}</h1>
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-white/80">
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-foreground/75">
               <ChalkboardTeacher className="size-4" aria-hidden /> {course.isMine ? "You teach this course" : `Taught by ${course.instructorName}`}
             </p>
           </div>

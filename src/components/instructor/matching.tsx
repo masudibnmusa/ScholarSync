@@ -55,17 +55,17 @@ function Stepper({ current }: { current: number }) {
           <li key={s.title} className="relative flex gap-3 sm:flex-col sm:pr-6" aria-current={active ? "step" : undefined}>
             {/* connector between steps (desktop) */}
             {i < steps.length - 1 && (
-              <span className="absolute left-12 right-0 top-5 hidden h-0.5 overflow-hidden rounded-full bg-white/10 sm:block" aria-hidden>
+              <span className="absolute left-12 right-0 top-5 hidden h-0.5 overflow-hidden rounded-full bg-glass sm:block" aria-hidden>
                 <motion.span className="block h-full bg-brand" initial={false} animate={{ width: done ? "100%" : "0%" }} transition={{ duration: 0.6, ease: EASE }} />
               </span>
             )}
             <span className={cn("relative flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",
-              done ? "bg-brand text-sidebar" : active ? "bg-warm text-warm-foreground shadow-lift" : "bg-white/10 text-brand")}>
+              done ? "bg-primary text-primary-foreground" : active ? "bg-warm text-warm-foreground shadow-lift" : "bg-glass text-brand")}>
               {done ? <Check weight="bold" className="size-5" aria-hidden /> : <s.icon weight="duotone" className="size-5" aria-hidden />}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white"><span className="text-sidebar-muted">Step {n} · </span>{s.title}{done && <span className="sr-only"> (done)</span>}</p>
-              <p className="mt-0.5 text-sm text-sidebar-muted">{s.body}</p>
+              <p className="text-sm font-bold text-foreground"><span className="text-muted-foreground">Step {n} · </span>{s.title}{done && <span className="sr-only"> (done)</span>}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{s.body}</p>
             </div>
           </li>
         );
@@ -222,7 +222,7 @@ export function MatchingPanel() {
       <motion.section
         aria-labelledby="matching-title"
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}
-        className="relative overflow-hidden rounded-3xl bg-sidebar p-6 text-sidebar-foreground shadow-lift sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-peach p-6 text-foreground shadow-lift sm:p-8"
       >
         <div className="pointer-events-none absolute -right-24 -top-28 size-96 animate-drift rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--warm)_30%,transparent),transparent_65%)]" aria-hidden />
         <div className="pointer-events-none absolute -bottom-40 -left-16 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--brand)_30%,transparent),transparent_65%)]" aria-hidden />
@@ -231,41 +231,41 @@ export function MatchingPanel() {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
           <div className="min-w-0 space-y-7">
             <div>
-              <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
                 <Sparkle weight="fill" className="size-3.5" aria-hidden /> Powered by AI · you stay in control
               </p>
-              <h1 id="matching-title" className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">AI team matching</h1>
-              <p className="mt-2 max-w-xl text-sm text-sidebar-muted sm:text-[0.9375rem]">Group the students who aren&apos;t on a team yet into balanced teams, in seconds.</p>
+              <h1 id="matching-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">AI team matching</h1>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">Group the students who aren&apos;t on a team yet into balanced teams, in seconds.</p>
             </div>
             <Stepper current={stepFor(state.kind)} />
           </div>
 
           {/* Controls */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-5 backdrop-blur-sm">
+          <div className="rounded-2xl border border-glass-border bg-glass p-5 backdrop-blur-sm">
             {courses.length > 0 && (
               <div className="mb-4">
-                <p id="course-label" className="mb-2 text-sm font-bold text-white">Course</p>
+                <p id="course-label" className="mb-2 text-sm font-bold text-foreground">Course</p>
                 <Select value={courseId} onValueChange={pickCourse} disabled={busy}>
-                  <SelectTrigger aria-labelledby="course-label" className="border-white/15 bg-white/10 text-white hover:border-white/30 [&_svg]:text-sidebar-muted"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-labelledby="course-label" className="border-glass-border bg-glass text-foreground hover:border-primary/40 [&_svg]:text-muted-foreground"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.unplaced} without a team)</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            <p id="size-label" className="text-sm font-bold text-white">Students per team</p>
+            <p id="size-label" className="text-sm font-bold text-foreground">Students per team</p>
             <div className="mt-3 flex items-center justify-between gap-2" role="group" aria-labelledby="size-label">
-              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-white/10 text-white hover:bg-white/20 hover:text-white" aria-label="Fewer students per team" disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
+              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label="Fewer students per team" disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
               <output aria-live="polite" className="flex flex-col items-center">
-                <span className="text-4xl font-extrabold tabular-nums text-white">{size}</span>
-                <span className="text-[0.6875rem] font-semibold text-sidebar-muted">per team</span>
+                <span className="text-4xl font-extrabold tabular-nums text-foreground">{size}</span>
+                <span className="text-[0.6875rem] font-semibold text-muted-foreground">per team</span>
               </output>
-              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-white/10 text-white hover:bg-white/20 hover:text-white" aria-label="More students per team" disabled={size >= 8 || busy} onClick={() => setSize((n) => n + 1)}><Plus weight="bold" /></Button>
+              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label="More students per team" disabled={size >= 8 || busy} onClick={() => setSize((n) => n + 1)}><Plus weight="bold" /></Button>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-1.5" role="group" aria-label="Quick sizes">
               {PRESETS.map((n) => (
                 <button key={n} type="button" disabled={busy} onClick={() => setSize(n)} aria-pressed={size === n}
-                  className={cn("h-9 rounded-lg text-sm font-bold transition-colors disabled:opacity-50", size === n ? "bg-brand text-sidebar" : "bg-white/[0.06] text-sidebar-muted hover:bg-white/15 hover:text-white")}>
+                  className={cn("h-9 rounded-lg text-sm font-bold transition-colors disabled:opacity-50", size === n ? "bg-primary text-primary-foreground" : "bg-glass text-muted-foreground hover:bg-glass-strong hover:text-foreground")}>
                   {n}
                 </button>
               ))}
@@ -274,7 +274,7 @@ export function MatchingPanel() {
               {!busy && <Sparkle weight="fill" aria-hidden />}
               {state.kind === "ready" ? "Regenerate" : "Generate teams"}
             </Button>
-            <p className="mt-2.5 text-center text-[0.6875rem] text-sidebar-muted">Uneven numbers get a few larger teams, never one of a single student.</p>
+            <p className="mt-2.5 text-center text-[0.6875rem] text-muted-foreground">Uneven numbers get a few larger teams, never one of a single student.</p>
           </div>
         </div>
       </motion.section>

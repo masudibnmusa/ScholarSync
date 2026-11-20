@@ -19,7 +19,7 @@ export function PageHeader({ title, description, children }: { title: string; de
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-extrabold sm:text-[1.75rem]">{title}</h1>
+        <h1 className="text-2xl font-extrabold sm:text-[2rem]"><span className="highlight">{title}</span></h1>
         {description && <p className="mt-1 text-sm text-muted-foreground sm:text-[0.9375rem]">{description}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
@@ -27,29 +27,28 @@ export function PageHeader({ title, description, children }: { title: string; de
   );
 }
 
+// Pastel card fill + a stronger tile for the icon, as in the reference dashboard.
 const tones = {
-  primary: "bg-primary/10 text-primary",
-  warm: "bg-warm/15 text-warm-text",
-  info: "bg-info/12 text-info",
-  success: "bg-success/12 text-success",
-  danger: "bg-destructive/12 text-destructive",
+  primary: { card: "bg-peach", tile: "bg-peach-strong" },
+  warm: { card: "bg-butter", tile: "bg-butter-strong" },
+  info: { card: "bg-sky", tile: "bg-sky-strong" },
+  success: { card: "bg-sage", tile: "bg-sage-strong" },
+  danger: { card: "bg-rose", tile: "bg-rose-strong" },
 } as const;
 
 export function StatCard({
   icon: IconCmp, label, value, suffix, hint, tone = "primary", compact,
 }: { icon: Icon; label: string; value: number; suffix?: string; hint?: React.ReactNode; tone?: keyof typeof tones; compact?: boolean }) {
   return (
-    <Card interactive className={cn("h-full", compact ? "p-4 sm:p-5" : "p-5")}>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <span className={cn("size-9 shrink-0 items-center justify-center rounded-xl", compact ? "hidden sm:flex" : "flex", tones[tone])}>
-          <IconCmp weight="duotone" className="size-5" aria-hidden />
-        </span>
-      </div>
-      <p className="mt-2 text-3xl font-extrabold tracking-tight">
+    <Card interactive className={cn("h-full border-transparent", tones[tone].card, compact ? "p-4 sm:p-5" : "p-5")}>
+      <span className={cn("size-10 items-center justify-center rounded-2xl text-white shadow-soft", compact ? "hidden sm:flex" : "flex", tones[tone].tile)}>
+        <IconCmp weight="fill" className="size-5" aria-hidden />
+      </span>
+      <p className={cn("text-sm font-semibold text-foreground/80", compact ? "sm:mt-4" : "mt-4")}>{label}</p>
+      <p className="mt-1 text-3xl font-extrabold tracking-tight">
         <AnimatedNumber value={value} suffix={suffix} />
       </p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-foreground/70">{hint}</p>}
     </Card>
   );
 }
@@ -73,11 +72,11 @@ export function EmptyState({
 export function Logo({ className, label = true }: { className?: string; label?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#2b4c9b] to-[#0f1e3d] text-white shadow-soft">
+      <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-peach-strong to-primary text-white shadow-soft">
         <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden>
           <path d="M12 4 2.5 9 12 14l9.5-5L12 4Z" fill="currentColor" />
           <path d="M6.5 12.2V16c1.6 1.4 3.4 2 5.5 2s3.9-.6 5.5-2v-3.8L12 15.2l-5.5-3Z" fill="currentColor" fillOpacity=".7" />
-          <circle cx="20.5" cy="14.5" r="1.5" fill="#fbbf24" />
+          <circle cx="20.5" cy="14.5" r="1.5" fill="#fde7b0" />
         </svg>
       </span>
       {label && <span className="text-[1.0625rem] font-extrabold tracking-tight">ScholarSync</span>}

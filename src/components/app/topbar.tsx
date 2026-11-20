@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Bell, BellSlash, CheckCircle, Checks, ChatCircleDots, Desktop, MagnifyingGlass, Moon, SignOut, Star, Sun, UserCircle, Warning,
+  Bell, BellSlash, CaretUpDown, CheckCircle, Checks, ChatCircleDots, Desktop, MagnifyingGlass, Moon, SignOut, Star, Sun, UserCircle, Warning,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { useAppStore } from "@/lib/store";
@@ -29,7 +29,7 @@ export const notificationIcon: Record<string, { icon: Icon; className: string }>
   system: { icon: Bell, className: "bg-muted text-muted-foreground" },
 };
 
-export function NotificationBell({ rail }: { rail?: boolean }) {
+export function NotificationBell() {
   const user = useUser();
   const router = useRouter();
   const notifications = useAppStore((s) => s.notifications);
@@ -40,20 +40,20 @@ export function NotificationBell({ rail }: { rail?: boolean }) {
 
   return (
     <Popover>
-      <Tooltip label="Notifications" side={rail ? "right" : "bottom"}>
+      <Tooltip label="Notifications">
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className={cn("relative", rail && "size-11 rounded-xl text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-white")} aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
-            <Bell weight={unread ? "fill" : "regular"} className={rail ? "size-[1.375rem]" : "size-5"} />
+          <Button variant="ghost" size="icon" className="relative" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
+            <Bell weight={unread ? "fill" : "regular"} className="size-5" />
             {unread > 0 && (
               <span className="absolute right-1.5 top-1.5 flex size-2.5">
                 <span className="absolute inline-flex size-full animate-pulse-ring rounded-full bg-warm" />
-                <span className={cn("relative inline-flex size-2.5 rounded-full bg-warm ring-2", rail ? "ring-sidebar" : "ring-background")} />
+                <span className="relative inline-flex size-2.5 rounded-full bg-warm ring-2 ring-background" />
               </span>
             )}
           </Button>
         </PopoverTrigger>
       </Tooltip>
-      <PopoverContent side={rail ? "right" : "bottom"} align="end" className="w-[min(24rem,calc(100vw-2rem))] overflow-hidden p-0">
+      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] overflow-hidden p-0">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
           <p className="text-sm font-bold">Notifications</p>
           {unread > 0 && (
@@ -111,15 +111,26 @@ export function NotificationBell({ rail }: { rail?: boolean }) {
   );
 }
 
-export function UserMenu({ onSignOut, rail }: { onSignOut: () => void; rail?: boolean }) {
+export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sidebar?: "wide" | "collapsed" }) {
   const user = useUser();
   const { theme, setTheme } = useTheme();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className={cn("tap flex items-center rounded-full p-0.5 transition-shadow", rail ? "hover:ring-4 hover:ring-white/15" : "ml-1 hover:ring-4 hover:ring-primary/15")} aria-label={`Account menu for ${user.name}`}>
-        <Avatar name={user.name} size="sm" className="size-9" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side={rail ? "right" : "bottom"} align="end" className="w-64">
+      {sidebar === "wide" ? (
+        <DropdownMenuTrigger className="tap flex w-full items-center gap-3 rounded-2xl bg-sidebar-accent/70 p-2.5 text-left shadow-soft transition-colors hover:bg-sidebar-accent" aria-label={`Account menu for ${user.name}`}>
+          <Avatar name={user.name} size="sm" className="size-9" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold">{user.name}</span>
+            <span className="block truncate text-xs text-sidebar-muted">{user.email}</span>
+          </span>
+          <CaretUpDown className="size-4 shrink-0 text-sidebar-muted" aria-hidden />
+        </DropdownMenuTrigger>
+      ) : (
+        <DropdownMenuTrigger className={cn("tap flex items-center rounded-full p-0.5 transition-shadow hover:ring-4", sidebar ? "hover:ring-sidebar-accent" : "ml-1 hover:ring-primary/15")} aria-label={`Account menu for ${user.name}`}>
+          <Avatar name={user.name} size="sm" className="size-9" />
+        </DropdownMenuTrigger>
+      )}
+      <DropdownMenuContent side={sidebar === "wide" ? "top" : sidebar ? "right" : "bottom"} align="end" className="w-64">
         <div className="flex items-center gap-3 px-2.5 py-2">
           <Avatar name={user.name} />
           <div className="min-w-0">
@@ -145,7 +156,7 @@ export function UserMenu({ onSignOut, rail }: { onSignOut: () => void; rail?: bo
   );
 }
 
-/** Phone/tablet header. On desktop the rail carries search, notifications and the account menu. */
+/** Phone/tablet header. On desktop the sidebar carries search, notifications and the account menu. */
 export function Topbar({ onSignOut }: { onSignOut: () => void }) {
   const user = useUser();
   const pathname = usePathname();

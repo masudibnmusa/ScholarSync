@@ -19,7 +19,8 @@ export function firstName(name: string | undefined | null) {
 }
 
 // Avatar colours: fixed pairs (not random) so one person always gets the same colour. All pass AA with white text.
-const AVATAR_COLORS = ["#0f766e", "#c2410c", "#0369a1", "#6d28d9", "#a16207", "#be123c", "#047857", "#4338ca", "#9d174d", "#0e7490", "#7e22ce", "#4d7c0f", "#1d4ed8"];
+// Earthy tones to sit with the pastel UI; each passes 4.5:1 against white initials.
+const AVATAR_COLORS = ["#a6482a", "#57775a", "#4f6f8f", "#8a5a2b", "#7a4e6e", "#3f6f6a", "#9a4f45", "#5d6b3a", "#6a5a8a", "#8a6a2a"];
 export function avatarColor(seed: string) {
   // FNV-1a, then fold the high bits in: the low bits alone put similar names on the same colour.
   let h = 2166136261;

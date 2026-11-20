@@ -26,7 +26,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Each course gets a stable accent from its code, so cards are easy to tell apart at a glance.
-const accents = ["var(--primary)", "var(--warm)", "var(--info)", "var(--success)"];
+const accents = ["var(--peach)", "var(--sage)", "var(--butter)", "var(--sky)"];
 export const accentOf = (code: string) => accents[[...code].reduce((n, ch) => n + ch.charCodeAt(0), 0) % accents.length];
 
 function defaultTerm() {
@@ -41,12 +41,12 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
   const instructor = role === "instructor";
   return (
     <Card interactive className="group relative flex h-full flex-col overflow-hidden">
-      <div className="relative h-24 overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent}, color-mix(in oklab, ${accent} 50%, black))` }}>
-        <div className="pointer-events-none absolute inset-0 bg-dots opacity-20" aria-hidden />
-        <BookOpen weight="duotone" className="absolute -bottom-4 -right-3 size-24 text-white/15 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" aria-hidden />
+      <div className="relative h-24 overflow-hidden" style={{ background: accent }}>
+        <div className="pointer-events-none absolute inset-0 bg-dots opacity-30" aria-hidden />
+        <BookOpen weight="duotone" className="absolute -bottom-4 -right-3 size-24 text-foreground/10 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" aria-hidden />
         <div className="relative flex items-start justify-between gap-2 p-4">
-          <span className="rounded-lg bg-black/25 px-2.5 py-1 font-mono text-xs font-bold tracking-wide text-white backdrop-blur-sm">{course.code}</span>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-white backdrop-blur-sm">{course.term}</span>
+          <span className="rounded-lg bg-glass-strong px-2.5 py-1 font-mono text-xs font-bold tracking-wide text-foreground">{course.code}</span>
+          <span className="rounded-full bg-glass px-2.5 py-0.5 text-[0.6875rem] font-semibold text-foreground">{course.term}</span>
         </div>
       </div>
 

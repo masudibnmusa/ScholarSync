@@ -50,15 +50,15 @@ const valueOf = (t: Team, k: SortKey) =>
 const memberColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 const memberColor = (i: number) => memberColors[i % memberColors.length];
 // Lighter status hues that keep contrast on the dark navy hero.
-const heroRing = { success: "#4ade80", warning: "#fbbf24", danger: "#f87171" } as const;
+const heroRing = { success: "var(--sage-strong)", warning: "var(--butter-strong)", danger: "var(--rose-strong)" } as const;
 
 /** One figure in the hero: light text on the navy panel. */
 function HeroStat({ icon: I, label, value, suffix, hint }: { icon: Icon; label: string; value: number; suffix?: string; hint: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
-      <p className="flex items-center gap-1.5 text-xs font-semibold text-sidebar-muted"><I weight="duotone" className="size-4 text-brand" aria-hidden />{label}</p>
-      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-white"><AnimatedNumber value={value} suffix={suffix} /></p>
-      <p className="mt-0.5 text-[0.6875rem] text-sidebar-muted">{hint}</p>
+    <div className="rounded-2xl border border-glass-border bg-glass p-4 backdrop-blur-sm">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><I weight="duotone" className="size-4 text-brand" aria-hidden />{label}</p>
+      <p className="mt-1.5 text-2xl font-extrabold tracking-tight text-foreground"><AnimatedNumber value={value} suffix={suffix} /></p>
+      <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -155,7 +155,7 @@ export function AnalyticsPanel() {
       <motion.section
         aria-labelledby="analytics-title"
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}
-        className="relative overflow-hidden rounded-3xl bg-sidebar p-6 text-sidebar-foreground shadow-lift sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-peach p-6 text-foreground shadow-lift sm:p-8"
       >
         <div className="pointer-events-none absolute -right-24 -top-32 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--brand)_35%,transparent),transparent_65%)]" aria-hidden />
         <div className="pointer-events-none absolute -bottom-40 left-1/3 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--warm)_22%,transparent),transparent_65%)]" aria-hidden />
@@ -163,22 +163,22 @@ export function AnalyticsPanel() {
 
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
               <Pulse weight="bold" className="size-3.5" aria-hidden /> Course pulse · {teams.length} {teams.length === 1 ? "team" : "teams"}
             </p>
-            <h1 id="analytics-title" className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Analytics</h1>
-            <p className="mt-2 max-w-xl text-sm text-sidebar-muted sm:text-[0.9375rem]">How your teams are progressing, collaborating and sharing the work.</p>
+            <h1 id="analytics-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Analytics</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">How your teams are progressing, collaborating and sharing the work.</p>
 
             {/* Insight callout: the team to look at first */}
-            <div className="mt-6 flex max-w-xl flex-wrap items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-4 sm:flex-nowrap">
-              <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", worstHealth.tone === "success" ? "bg-success/25 text-[#86efac]" : "bg-warm/25 text-[#fdba74]")}>
+            <div className="mt-6 flex max-w-xl flex-wrap items-start gap-3 rounded-2xl border border-glass-border bg-glass p-4 sm:flex-nowrap">
+              <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", worstHealth.tone === "success" ? "bg-success/25 text-success" : "bg-warm/25 text-warm-text")}>
                 {worstHealth.tone === "success" ? <CheckCircle weight="fill" className="size-5" aria-hidden /> : <Sparkle weight="fill" className="size-5" aria-hidden />}
               </span>
               <div className="min-w-0 flex-1 basis-[calc(100%-3rem)] sm:basis-auto">
-                <p className="font-bold text-white">
+                <p className="font-bold text-foreground">
                   {worstHealth.tone === "success" ? "Every team is on track" : `${worst.name} needs a look`}
                 </p>
-                <p className="mt-0.5 text-sm text-sidebar-muted">
+                <p className="mt-0.5 text-sm text-muted-foreground">
                   {worstHealth.tone === "success"
                     ? `The lowest health score is ${worst.healthScore}, at ${worst.name}.`
                     : `Health ${worst.healthScore} (${worstHealth.label.toLowerCase()}), ${worst.progress}% done${openFor(worst.id) ? `, ${openFor(worst.id)} open ${openFor(worst.id) === 1 ? "alert" : "alerts"}` : ""}.`}
@@ -195,13 +195,13 @@ export function AnalyticsPanel() {
           <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
             <div className="flex flex-col items-center">
               <ProgressRing value={avgHealth} size={148} stroke={12} color={heroRing[avgHealthInfo.tone]}
-                track="rgb(255 255 255 / 0.12)" label="Average team health">
+                track="var(--glass-strong)" label="Average team health">
                 <span className="flex flex-col items-center">
-                  <span className="text-4xl font-extrabold tabular-nums text-white"><AnimatedNumber value={avgHealth} /></span>
-                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-sidebar-muted">avg health</span>
+                  <span className="text-4xl font-extrabold tabular-nums text-foreground"><AnimatedNumber value={avgHealth} /></span>
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">avg health</span>
                 </span>
               </ProgressRing>
-              <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-sidebar-muted"><Heartbeat weight="fill" className="size-3.5 text-brand" aria-hidden />{avgHealthInfo.label}</p>
+              <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Heartbeat weight="fill" className="size-3.5 text-brand" aria-hidden />{avgHealthInfo.label}</p>
             </div>
             <div className="grid w-full grid-cols-2 gap-3 sm:w-72">
               <HeroStat icon={ChartLineUp} label="Avg progress" value={avg((t) => t.progress)} suffix="%" hint="Tasks completed" />

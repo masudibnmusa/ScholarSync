@@ -5,7 +5,7 @@ import { CircleNotch } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "tap relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[background-color,color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[1.125rem]",
+  "tap relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-[background-color,color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[1.125rem]",
   {
     variants: {
       variant: {
@@ -20,9 +20,9 @@ export const buttonVariants = cva(
       size: {
         sm: "h-9 px-3 text-[0.8125rem]",
         default: "h-10 px-4",
-        lg: "h-12 px-6 text-base rounded-2xl",
+        lg: "h-12 px-6 text-base",
         icon: "size-10",
-        "icon-sm": "size-8 rounded-lg",
+        "icon-sm": "size-8",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

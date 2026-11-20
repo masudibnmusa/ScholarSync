@@ -309,15 +309,15 @@ function How() {
 function FinalCta() {
   return (
     <section className="px-4 pb-16 sm:px-6 sm:pb-24">
-      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-sidebar px-6 py-14 text-center text-sidebar-foreground sm:px-12 sm:py-20">
-        <div className="pointer-events-none absolute -left-24 -top-24 size-80 animate-drift rounded-full bg-brand/35 blur-3xl" aria-hidden />
+      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-sage px-6 py-14 text-center text-foreground sm:px-12 sm:py-20">
+        <div className="pointer-events-none absolute -left-24 -top-24 size-80 animate-drift rounded-full bg-peach-strong/40 blur-3xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-32 -right-16 size-96 animate-drift rounded-full bg-warm/25 blur-3xl [animation-delay:-9s]" aria-hidden />
-        <div className="pointer-events-none absolute inset-0 bg-dots opacity-[0.08] invert" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-dots opacity-25" aria-hidden />
         <h2 className="relative mx-auto max-w-2xl text-3xl font-extrabold sm:text-5xl sm:leading-[1.08]">Your next group project can be the easy one.</h2>
-        <p className="relative mx-auto mt-4 max-w-lg text-lg text-sidebar-muted">Set up takes a minute. Your team's chat, board and files are waiting.</p>
+        <p className="relative mx-auto mt-4 max-w-lg text-lg text-muted-foreground">Set up takes a minute. Your team's chat, board and files are waiting.</p>
         <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg" variant="warm" className="group w-full sm:w-auto"><Link href="/register">Get started <ArrowRight className="transition-transform group-hover:translate-x-1" aria-hidden /></Link></Button>
-          <Button asChild size="lg" variant="ghost" className="w-full text-white hover:bg-white/10 hover:text-white sm:w-auto"><Link href="/login">Sign in</Link></Button>
+          <Button asChild size="lg" variant="ghost" className="w-full bg-glass hover:bg-glass-strong sm:w-auto"><Link href="/login">Sign in</Link></Button>
         </div>
       </Reveal>
     </section>
