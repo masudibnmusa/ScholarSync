@@ -15,7 +15,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -343,6 +343,31 @@ export async function saveMilestone(courseId: string, input: z.input<typeof Mile
 export async function deleteMilestone(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.courseMilestones).where(eq(s.courseMilestones.id, id)));
+}
+
+// ─── Announcements ─────────────────────────────────────────────────────
+
+export async function getAnnouncements(courseId: string): Promise<Announcement[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ a: s.courseAnnouncements, authorName: s.users.name }).from(s.courseAnnouncements)
+      .leftJoin(s.users, eq(s.users.id, s.courseAnnouncements.authorId))
+      .where(eq(s.courseAnnouncements.courseId, courseId)).orderBy(desc(s.courseAnnouncements.createdAt));
+    return rows.map(({ a, authorName }) => ({ id: a.id, title: a.title, body: a.body, authorName: authorName ?? "Instructor", createdAt: a.createdAt }));
+  });
+}
+
+const AnnouncementInput = z.object({ title: z.string().trim().min(1).max(120), body: z.string().trim().max(4000) });
+
+export async function postAnnouncement(courseId: string, input: z.input<typeof AnnouncementInput>) {
+  Id.parse(courseId);
+  const a = AnnouncementInput.parse(input);
+  await withUser((tx, uid) => tx.insert(s.courseAnnouncements).values({ ...a, courseId, authorId: uid }));
+}
+
+export async function deleteAnnouncement(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.courseAnnouncements).where(eq(s.courseAnnouncements.id, id)));
 }
 
 export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {

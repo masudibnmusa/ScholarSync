@@ -157,6 +157,15 @@ export const taskChecklistItems = pgTable("task_checklist_items", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const courseAnnouncements = pgTable("course_announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  authorId: uuid("author_id"),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
 export const teamSummaries = pgTable("team_summaries", {
   teamId: uuid("team_id").notNull(),
   weekStart: date("week_start").notNull(),

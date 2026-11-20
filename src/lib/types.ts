@@ -230,3 +230,11 @@ export interface TeamReview {
   createdAt: string;
   flags: ("far-from-others" | "all-lowest")[];
 }
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}
