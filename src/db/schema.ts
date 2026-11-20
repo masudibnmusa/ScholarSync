@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   bio: text("bio").notNull(),
   skills: text("skills").array().notNull(),
   availability: text("availability").notNull(),
+  emailDigest: boolean("email_digest").notNull().default(true),
   createdAt: ts("created_at").notNull(),
   updatedAt: ts("updated_at").notNull(),
 });
@@ -103,6 +104,7 @@ export const notifications = pgTable("notifications", {
   body: text("body").notNull().default(""),
   link: text("link"),
   readAt: ts("read_at"),
+  emailedAt: ts("emailed_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
@@ -143,6 +145,34 @@ export const taskComments = pgTable("task_comments", {
   taskId: uuid("task_id").notNull(),
   authorId: uuid("author_id"),
   body: text("body").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const taskChecklistItems = pgTable("task_checklist_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull(),
+  body: text("body").notNull(),
+  done: boolean("done").notNull().default(false),
+  position: integer("position").notNull().default(0),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const courseAnnouncements = pgTable("course_announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  authorId: uuid("author_id"),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const taskEvents = pgTable("task_events", {
+  id: bigint("id", { mode: "number" }).primaryKey(),
+  taskId: uuid("task_id").notNull(),
+  actorId: uuid("actor_id"),
+  field: text("field").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

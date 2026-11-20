@@ -49,7 +49,7 @@ export interface AppState {
   downloadFile: (storagePath: string) => Promise<void>;
   deleteFile: (teamId: string, fileId: string) => Promise<boolean>;
   submitPeerReview: (teamId: string, targetId: string, overallRating: number, feedback: string, categoryRatings: Record<string, number>) => Promise<boolean>;
-  updateProfile: (data: { bio?: string; skills?: string[]; availability?: string }) => Promise<boolean>;
+  updateProfile: (data: { bio?: string; skills?: string[]; availability?: string; emailDigest?: boolean }) => Promise<boolean>;
   resolveConflict: (id: string) => Promise<void>;
   acceptSuggestion: (id: string) => Promise<void>;
   dismissSuggestion: (id: string) => Promise<void>;

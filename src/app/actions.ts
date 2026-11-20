@@ -2,17 +2,20 @@
 
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
-import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
-import { matchTeams } from "@/lib/ai";
+import { matchTeams, suggestMeetings } from "@/lib/ai";
+import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { toCsv } from "@/lib/utils";
-import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
+import { sendDigestTo } from "@/lib/digest";
+import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/grading";
+import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -31,7 +34,7 @@ export async function getProfile(): Promise<UserProfile> {
   return withUser(async (tx, uid) => {
     const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
     if (!u) throw new Error("Profile not found");
-    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest };
   });
 }
 
@@ -39,11 +42,18 @@ const ProfileInput = z.object({
   bio: z.string().max(2000).optional(),
   skills: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   availability: z.string().max(200).optional(),
+  emailDigest: z.boolean().optional(),
 });
 
 export async function updateProfile(input: z.infer<typeof ProfileInput>) {
   const data = ProfileInput.parse(input);
   await withUser((tx, uid) => tx.update(s.users).set(data).where(eq(s.users.id, uid)));
+}
+
+/** Emails me my current digest without marking anything as emailed, so I can see what it looks like. */
+export async function sendSampleDigest(): Promise<number> {
+  const uid = await withUser(async (_tx, uid) => uid);
+  return sendDigestTo(uid, { sample: true });
 }
 
 // ─── Teams ─────────────────────────────────────────────────────────────
@@ -143,6 +153,21 @@ export async function sendMessage(teamId: string, content: string, fileId?: stri
   }
 }
 
+/** AI-picked meeting times from the members' availability. Members only (RLS on team_members). */
+export async function suggestMeetingTimes(teamId: string): Promise<MeetingSlot[]> {
+  Id.parse(teamId);
+  const { members, deadlines } = await withUser(async (tx, uid) => {
+    const members = await tx.select({ id: s.users.id, name: s.users.name, availability: s.users.availability })
+      .from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId)).where(eq(s.teamMembers.teamId, teamId));
+    if (!members.some((m) => m.id === uid)) throw new Error("Only team members can schedule a meeting");
+    const deadlines = await tx.select({ d: s.tasks.dueDate }).from(s.tasks)
+      .where(and(eq(s.tasks.teamId, teamId), ne(s.tasks.status, "done"), sql`${s.tasks.dueDate} between current_date and current_date + 14`));
+    return { members, deadlines: [...new Set(deadlines.map((r) => r.d!))].sort() };
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  return suggestMeetings(members.map((m) => ({ name: m.name, availability: m.availability })), today, deadlines);
+}
+
 // ─── Tasks ─────────────────────────────────────────────────────────────
 
 export async function getTasks(teamId: string): Promise<KanbanTask[]> {
@@ -152,14 +177,16 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
       .select({
         t: s.tasks, assigneeName: s.users.name,
         commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
+        checklist: sql<[number, number]>`(select array[count(*) filter (where i.done), count(*)]::int[] from public.task_checklist_items i where i.task_id = ${s.tasks.id})`,
       })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName, commentCount }) => ({
+    return rows.map(({ t, assigneeName, commentCount, checklist }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
       assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate, commentCount,
+      checklistDone: checklist[0], checklistTotal: checklist[1],
     }));
   });
 }
@@ -221,6 +248,46 @@ export async function addTaskComment(taskId: string, body: string) {
 export async function deleteTaskComment(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
+}
+
+export async function getTaskHistory(taskId: string): Promise<TaskEvent[]> {
+  Id.parse(taskId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ e: s.taskEvents, actorName: s.users.name }).from(s.taskEvents)
+      .leftJoin(s.users, eq(s.users.id, s.taskEvents.actorId))
+      .where(eq(s.taskEvents.taskId, taskId)).orderBy(desc(s.taskEvents.createdAt), desc(s.taskEvents.id)).limit(100);
+    return rows.map(({ e, actorName }) => ({
+      id: e.id, actorName, field: e.field as TaskEvent["field"], oldValue: e.oldValue, newValue: e.newValue, createdAt: e.createdAt,
+    }));
+  });
+}
+
+// ─── Checklists ────────────────────────────────────────────────────────
+
+export async function getChecklist(taskId: string): Promise<ChecklistItem[]> {
+  Id.parse(taskId);
+  return withUser((tx) => tx.select({ id: s.taskChecklistItems.id, body: s.taskChecklistItems.body, done: s.taskChecklistItems.done })
+    .from(s.taskChecklistItems).where(eq(s.taskChecklistItems.taskId, taskId))
+    .orderBy(asc(s.taskChecklistItems.position), asc(s.taskChecklistItems.createdAt)));
+}
+
+export async function addChecklistItem(taskId: string, body: string) {
+  Id.parse(taskId);
+  const text = z.string().trim().min(1).max(200).parse(body);
+  await withUser((tx) => tx.insert(s.taskChecklistItems).values({
+    taskId, body: text,
+    position: sql`(select coalesce(max(position), -1) + 1 from public.task_checklist_items where task_id = ${taskId})`,
+  }));
+}
+
+export async function setChecklistItemDone(id: string, done: boolean) {
+  Id.parse(id);
+  await withUser((tx) => tx.update(s.taskChecklistItems).set({ done: z.boolean().parse(done) }).where(eq(s.taskChecklistItems.id, id)));
+}
+
+export async function deleteChecklistItem(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.taskChecklistItems).where(eq(s.taskChecklistItems.id, id)));
 }
 
 // ─── Weekly AI recap ───────────────────────────────────────────────────
@@ -288,6 +355,31 @@ export async function saveMilestone(courseId: string, input: z.input<typeof Mile
 export async function deleteMilestone(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.courseMilestones).where(eq(s.courseMilestones.id, id)));
+}
+
+// ─── Announcements ─────────────────────────────────────────────────────
+
+export async function getAnnouncements(courseId: string): Promise<Announcement[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ a: s.courseAnnouncements, authorName: s.users.name }).from(s.courseAnnouncements)
+      .leftJoin(s.users, eq(s.users.id, s.courseAnnouncements.authorId))
+      .where(eq(s.courseAnnouncements.courseId, courseId)).orderBy(desc(s.courseAnnouncements.createdAt));
+    return rows.map(({ a, authorName }) => ({ id: a.id, title: a.title, body: a.body, authorName: authorName ?? "Instructor", createdAt: a.createdAt }));
+  });
+}
+
+const AnnouncementInput = z.object({ title: z.string().trim().min(1).max(120), body: z.string().trim().max(4000) });
+
+export async function postAnnouncement(courseId: string, input: z.input<typeof AnnouncementInput>) {
+  Id.parse(courseId);
+  const a = AnnouncementInput.parse(input);
+  await withUser((tx, uid) => tx.insert(s.courseAnnouncements).values({ ...a, courseId, authorId: uid }));
+}
+
+export async function deleteAnnouncement(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.courseAnnouncements).where(eq(s.courseAnnouncements.id, id)));
 }
 
 export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {
@@ -497,6 +589,46 @@ export async function exportCourseReport(courseId: string): Promise<{ filename: 
   });
 }
 
+// ─── My week (students): everything dated across all their teams ───────
+
+const WEEK_AHEAD_DAYS = 120; // the list shows three weeks; the month view and calendar export look further
+
+/** Unfinished tasks assigned to me and my teams' open milestones: overdue, or due in the next four months. */
+export async function getMyWeek(): Promise<WeekItem[]> {
+  return withUser(async (tx, uid) => {
+    const horizon = new Date(Date.now() + WEEK_AHEAD_DAYS * 864e5).toISOString().slice(0, 10);
+    const myTeams = await tx.select({ id: s.teams.id, name: s.teams.name, courseId: s.teams.courseId, courseCode: s.courses.code })
+      .from(s.teams)
+      .innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, uid)))
+      .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId));
+    if (!myTeams.length) return [];
+    const teamOf = (id: string) => myTeams.find((t) => t.id === id)!;
+
+    const [tasks, milestones, done] = await Promise.all([
+      tx.select().from(s.tasks).where(and(
+        eq(s.tasks.assigneeId, uid), ne(s.tasks.status, "done"), isNotNull(s.tasks.dueDate), lte(s.tasks.dueDate, horizon),
+        inArray(s.tasks.teamId, myTeams.map((t) => t.id)),
+      )),
+      tx.select().from(s.courseMilestones).where(and(
+        inArray(s.courseMilestones.courseId, myTeams.map((t) => t.courseId)), lte(s.courseMilestones.dueDate, horizon),
+      )),
+      tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.teamId, myTeams.map((t) => t.id))),
+    ]);
+
+    const items: WeekItem[] = tasks.map((k) => {
+      const t = teamOf(k.teamId);
+      return { kind: "task", id: k.id, title: k.title, date: k.dueDate!, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode, priority: k.priority, status: toUiStatus(k.status) };
+    });
+    for (const m of milestones) {
+      for (const t of myTeams.filter((x) => x.courseId === m.courseId)) {
+        if (done.some((d) => d.teamId === t.id && d.milestoneId === m.id)) continue;
+        items.push({ kind: "milestone", id: m.id, title: m.title, date: m.dueDate, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode });
+      }
+    }
+    return items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === "milestone" ? -1 : 1));
+  });
+}
+
 // ─── Notifications ─────────────────────────────────────────────────────
 
 export async function getNotifications(): Promise<Notification[]> {
@@ -589,6 +721,27 @@ export async function getMyReviews(teamId: string): Promise<MyReview[]> {
     const rows = await tx.select().from(s.peerReviews)
       .where(and(eq(s.peerReviews.teamId, teamId), eq(s.peerReviews.reviewerId, uid)));
     return rows.map((r) => ({ revieweeId: r.revieweeId, rating: r.rating, categoryRatings: r.categoryRatings, feedback: r.feedback, createdAt: r.createdAt }));
+  });
+}
+
+/** Every review in a team, with fairness flags, for the instructor. Students get [] (they read only their own). */
+export async function getTeamReviews(teamId: string): Promise<TeamReview[]> {
+  Id.parse(teamId);
+  const reviewer = alias(s.users, "reviewer");
+  const reviewee = alias(s.users, "reviewee");
+  return withUser(async (tx) => {
+    const [{ teaches }] = await tx.execute<{ teaches: boolean }>(sql`select public.teaches_team(${teamId}) as teaches`);
+    if (!teaches) return [];
+    const rows = await tx.select({ r: s.peerReviews, reviewerName: reviewer.name, revieweeName: reviewee.name })
+      .from(s.peerReviews)
+      .innerJoin(reviewer, eq(reviewer.id, s.peerReviews.reviewerId))
+      .innerJoin(reviewee, eq(reviewee.id, s.peerReviews.revieweeId))
+      .where(eq(s.peerReviews.teamId, teamId))
+      .orderBy(asc(reviewee.name), desc(s.peerReviews.rating));
+    const flags = reviewFlags(rows.map(({ r }) => r));
+    return rows.map(({ r, reviewerName, revieweeName }, i) => ({
+      id: r.id, reviewerName, revieweeId: r.revieweeId, revieweeName, rating: r.rating, feedback: r.feedback, createdAt: r.createdAt, flags: flags[i],
+    }));
   });
 }
 

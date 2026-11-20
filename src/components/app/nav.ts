@@ -1,4 +1,4 @@
-import { Bell, ChartLineUp, SquaresFour, Kanban, Sparkle, Star, UserCircle, Warning } from "@phosphor-icons/react/dist/ssr";
+import { Bell, CalendarDots, ChartLineUp, SquaresFour, Kanban, Sparkle, Star, UserCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 
 export type NavItem = { href: string; label: string; short?: string; icon: Icon; badge?: "notifications" | "conflicts" | "suggestions"; secondary?: boolean };
@@ -8,9 +8,10 @@ export type NavItem = { href: string; label: string; short?: string; icon: Icon;
 export const studentNav: NavItem[] = [
   { href: "/student/courses", label: "Dashboard", icon: SquaresFour },
   { href: "/student", label: "Workspace", icon: Kanban, badge: "suggestions" },
+  { href: "/student/week", label: "My week", short: "Week", icon: CalendarDots },
   { href: "/student/peer-review", label: "Peer review", short: "Reviews", icon: Star },
-  { href: "/student/notifications", label: "Notifications", short: "Inbox", icon: Bell, badge: "notifications" },
-  { href: "/student/profile", label: "Profile", icon: UserCircle },
+  { href: "/student/notifications", label: "Notifications", short: "Inbox", icon: Bell, badge: "notifications", secondary: true },
+  { href: "/student/profile", label: "Profile", icon: UserCircle, secondary: true },
 ];
 
 export const instructorNav: NavItem[] = [

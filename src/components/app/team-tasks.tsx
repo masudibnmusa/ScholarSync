@@ -10,6 +10,7 @@ import { useUser } from "@/components/app/user-context";
 import { HealthBadge } from "@/components/instructor/charts";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
 import { MembersButton } from "@/components/student/shared";
+import { TeamReviews } from "@/components/app/team-reviews";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -54,14 +55,14 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
     <Page>
       {back}
       <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-[1_1_16rem]">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-2xl font-extrabold sm:text-[1.75rem]">{team.name} · Tasks</h1>
             <HealthBadge score={team.healthScore} />
           </div>
           {team.description && <p className="mt-1 text-sm text-muted-foreground">{team.description}</p>}
         </div>
-        <div className="flex min-w-44 flex-col gap-1">
+        <div className="flex min-w-44 flex-1 flex-col gap-1 sm:flex-none">
           <div className="flex items-baseline justify-between gap-3 text-xs">
             <span className="font-semibold text-muted-foreground">{team._count?.tasks ?? 0} {team._count?.tasks === 1 ? "task" : "tasks"}</span>
             <span className="font-extrabold tabular-nums">{team.progress}%</span>
@@ -75,6 +76,7 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
       {selectedId === team.id
         ? <TaskBoard readOnly={instructor} onEdit={instructor ? undefined : (t) => { setEditing(t); setDialogOpen(true); }} />
         : <Skeleton className="h-80 rounded-3xl" />}
+      {instructor && <TeamReviews teamId={team.id} />}
       {!instructor && <TaskDialog open={dialogOpen} onOpenChange={setDialogOpen} task={editing} team={team} />}
     </Page>
   );

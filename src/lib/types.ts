@@ -23,6 +23,14 @@ export interface KanbanTask {
   priority: "low" | "medium" | "high";
   dueDate: string | null;
   commentCount: number;
+  checklistDone: number;
+  checklistTotal: number;
+}
+
+export interface ChecklistItem {
+  id: string;
+  body: string;
+  done: boolean;
 }
 
 export interface WeeklySummary {
@@ -80,6 +88,20 @@ export interface MyReview {
   categoryRatings: Record<string, number>;
   feedback: string;
   createdAt: string;
+}
+
+/** One dated item on a student's "My week" page. */
+export interface WeekItem {
+  kind: "task" | "milestone";
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  teamId: string;
+  teamName: string;
+  courseId: string;
+  courseCode: string;
+  priority?: KanbanTask["priority"];
+  status?: KanbanTask["status"];
 }
 
 export interface TaskComment {
@@ -141,6 +163,7 @@ export interface UserProfile {
   bio: string;
   skills: string[];
   availability: string;
+  emailDigest: boolean;
 }
 
 export interface ConflictAlert {
@@ -195,4 +218,32 @@ export interface CourseInvite {
   instructorName: string;
   enrolled: boolean;
   isMine: boolean;
+}
+
+export interface TeamReview {
+  id: string;
+  reviewerName: string;
+  revieweeId: string;
+  revieweeName: string;
+  rating: number;
+  feedback: string;
+  createdAt: string;
+  flags: ("far-from-others" | "all-lowest")[];
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface TaskEvent {
+  id: number;
+  actorName: string | null;
+  field: "created" | "status" | "assignee" | "due_date" | "priority" | "title";
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
 }
