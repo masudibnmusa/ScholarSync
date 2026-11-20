@@ -63,16 +63,17 @@ function HeroStat({ icon: I, label, value, suffix, hint }: { icon: Icon; label: 
   );
 }
 
+// Health tone as a pastel card tint, always paired with the badge text.
+const cardTint = { success: "bg-sage", warning: "bg-butter", danger: "bg-rose" } as const;
+
 /** Per-team summary card: health ring, progress and activity, linking to the team's workspace. */
 function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
   const h = healthInfo(team.healthScore);
   return (
     <Link href={`/instructor?team=${team.id}`} className="group block h-full rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-      <Card interactive className="relative h-full overflow-hidden p-5">
-        {/* Health tone as a thin top edge, always paired with the badge text */}
-        <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: toneVar[h.tone] }} aria-hidden />
+      <Card interactive className={cn("relative h-full overflow-hidden border-transparent p-5", cardTint[h.tone])}>
         <div className="flex items-start gap-4">
-          <ProgressRing value={team.healthScore} size={64} stroke={7} color={toneVar[h.tone]} label={`${team.name} health score`}>
+          <ProgressRing value={team.healthScore} size={64} stroke={7} color={toneVar[h.tone]} track="var(--glass-strong)" label={`${team.name} health score`}>
             <span className="text-base font-extrabold tabular-nums">{team.healthScore}</span>
           </ProgressRing>
           <div className="min-w-0 flex-1">
@@ -88,12 +89,12 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
         </div>
         <div className="mt-5">
           <div className="mb-1.5 flex items-baseline justify-between text-xs">
-            <span className="font-semibold text-muted-foreground">Progress</span>
+            <span className="font-semibold text-foreground/70">Progress</span>
             <span className="font-extrabold tabular-nums">{team.progress}%</span>
           </div>
-          <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5" />
+          <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5 bg-glass-strong" />
         </div>
-        <dl className="mt-4 grid grid-cols-3 divide-x rounded-xl bg-muted/60 py-2 text-center">
+        <dl className="mt-4 grid grid-cols-3 divide-x divide-foreground/10 rounded-xl bg-glass-strong py-2 text-center">
           {([["Members", team.members.length], ["Tasks", team._count?.tasks ?? 0], ["Messages", team._count?.messages ?? 0]] as const).map(([k, v]) => (
             <div key={k}>
               <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{k}</dt>
