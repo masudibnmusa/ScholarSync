@@ -77,7 +77,7 @@ export function Sidebar({ onSignOut, initialCollapsed }: { onSignOut: () => void
           <Logo label={false} />
           {!collapsed && (
             <span className="ml-2.5 min-w-0">
-              <span className="block whitespace-nowrap text-[1.0625rem] font-extrabold leading-tight tracking-tight">ScholarSync</span>
+              <span className="block whitespace-nowrap font-display text-[1.125rem] font-bold leading-tight tracking-tight">ScholarSync</span>
               <span className="block truncate text-xs text-sidebar-muted">{user.role === "instructor" ? "Your teaching hub" : "Your team workspace"}</span>
             </span>
           )}
