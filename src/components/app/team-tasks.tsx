@@ -10,6 +10,7 @@ import { useUser } from "@/components/app/user-context";
 import { HealthBadge } from "@/components/instructor/charts";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
 import { MembersButton } from "@/components/student/shared";
+import { TeamReviews } from "@/components/app/team-reviews";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -75,6 +76,7 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
       {selectedId === team.id
         ? <TaskBoard readOnly={instructor} onEdit={instructor ? undefined : (t) => { setEditing(t); setDialogOpen(true); }} />
         : <Skeleton className="h-80 rounded-3xl" />}
+      {instructor && <TeamReviews teamId={team.id} />}
       {!instructor && <TaskDialog open={dialogOpen} onOpenChange={setDialogOpen} task={editing} team={team} />}
     </Page>
   );

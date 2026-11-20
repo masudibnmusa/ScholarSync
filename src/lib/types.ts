@@ -219,3 +219,14 @@ export interface CourseInvite {
   enrolled: boolean;
   isMine: boolean;
 }
+
+export interface TeamReview {
+  id: string;
+  reviewerName: string;
+  revieweeId: string;
+  revieweeName: string;
+  rating: number;
+  feedback: string;
+  createdAt: string;
+  flags: ("far-from-others" | "all-lowest")[];
+}

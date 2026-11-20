@@ -11,10 +11,11 @@ import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { toCsv } from "@/lib/utils";
 import { sendDigestTo } from "@/lib/digest";
-import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
+import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/grading";
+import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -683,6 +684,27 @@ export async function getMyReviews(teamId: string): Promise<MyReview[]> {
     const rows = await tx.select().from(s.peerReviews)
       .where(and(eq(s.peerReviews.teamId, teamId), eq(s.peerReviews.reviewerId, uid)));
     return rows.map((r) => ({ revieweeId: r.revieweeId, rating: r.rating, categoryRatings: r.categoryRatings, feedback: r.feedback, createdAt: r.createdAt }));
+  });
+}
+
+/** Every review in a team, with fairness flags, for the instructor. Students get [] (they read only their own). */
+export async function getTeamReviews(teamId: string): Promise<TeamReview[]> {
+  Id.parse(teamId);
+  const reviewer = alias(s.users, "reviewer");
+  const reviewee = alias(s.users, "reviewee");
+  return withUser(async (tx) => {
+    const [{ teaches }] = await tx.execute<{ teaches: boolean }>(sql`select public.teaches_team(${teamId}) as teaches`);
+    if (!teaches) return [];
+    const rows = await tx.select({ r: s.peerReviews, reviewerName: reviewer.name, revieweeName: reviewee.name })
+      .from(s.peerReviews)
+      .innerJoin(reviewer, eq(reviewer.id, s.peerReviews.reviewerId))
+      .innerJoin(reviewee, eq(reviewee.id, s.peerReviews.revieweeId))
+      .where(eq(s.peerReviews.teamId, teamId))
+      .orderBy(asc(reviewee.name), desc(s.peerReviews.rating));
+    const flags = reviewFlags(rows.map(({ r }) => r));
+    return rows.map(({ r, reviewerName, revieweeName }, i) => ({
+      id: r.id, reviewerName, revieweeId: r.revieweeId, revieweeName, rating: r.rating, feedback: r.feedback, createdAt: r.createdAt, flags: flags[i],
+    }));
   });
 }
 
