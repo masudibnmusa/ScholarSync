@@ -125,12 +125,21 @@ function SectionHeading({ eyebrow, title, body }: { eyebrow: string; title: stri
   );
 }
 
-function FeatureCard({ icon: IconCmp, title, body, className, children, warm }: { icon: Icon; title: string; body: string; className?: string; children?: React.ReactNode; warm?: boolean }) {
+// Each feature gets its own pastel, like the stat cards inside the app.
+const featureTones = {
+  peach: { card: "bg-peach", tile: "bg-peach-strong" },
+  sage: { card: "bg-sage", tile: "bg-sage-strong" },
+  butter: { card: "bg-butter", tile: "bg-butter-strong" },
+  sky: { card: "bg-sky", tile: "bg-sky-strong" },
+  rose: { card: "bg-rose", tile: "bg-rose-strong" },
+} as const;
+
+function FeatureCard({ icon: IconCmp, title, body, className, children, tone }: { icon: Icon; title: string; body: string; className?: string; children?: React.ReactNode; tone: keyof typeof featureTones }) {
   return (
     <StaggerItem className={className}>
-      <Spotlight className={cn("group flex h-full flex-col overflow-hidden rounded-3xl border bg-card p-6 shadow-soft transition-[transform,box-shadow,border-color] duration-300 ease-out-expo hover:-translate-y-1 hover:shadow-lift", warm ? "hover:border-warm/50" : "hover:border-primary/40")}>
-        <span className={cn("relative flex size-11 items-center justify-center rounded-2xl transition-transform duration-300 ease-out-expo group-hover:scale-110 group-hover:-rotate-6", warm ? "bg-warm text-warm-foreground" : "bg-secondary text-primary")}>
-          <IconCmp weight="duotone" className="size-6" aria-hidden />
+      <Spotlight className={cn("group flex h-full flex-col overflow-hidden rounded-3xl p-6 shadow-soft transition-[transform,box-shadow] duration-300 ease-out-expo hover:-translate-y-1 hover:shadow-lift", featureTones[tone].card)}>
+        <span className={cn("relative flex size-11 items-center justify-center rounded-2xl text-white shadow-soft transition-transform duration-300 ease-out-expo group-hover:scale-110 group-hover:-rotate-6", featureTones[tone].tile)}>
+          <IconCmp weight="fill" className="size-6" aria-hidden />
         </span>
         <h3 className="relative mt-4 text-xl font-extrabold">{title}</h3>
         <p className="relative mt-1.5 text-muted-foreground">{body}</p>
@@ -147,18 +156,18 @@ function Features() {
         <SectionHeading eyebrow="Everything in one place" title="Stop juggling five apps for one assignment" body="Chat, tasks, files and feedback live together, so nothing falls through the cracks the night before the deadline." />
 
         <Stagger inView className="mt-12 grid gap-4 md:grid-cols-6">
-          <FeatureCard className="md:col-span-4" icon={Sparkle} warm title="AI turns talk into tasks" body={`Someone writes "I'll do the slides by Friday". ScholarSync suggests it as a task. You tap once to add it to the board.`}>
+          <FeatureCard className="md:col-span-4" icon={Sparkle} tone="peach" title="AI turns talk into tasks" body={`Someone writes "I'll do the slides by Friday". ScholarSync suggests it as a task. You tap once to add it to the board.`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="flex-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-sm"><span className="font-bold">Sara:</span> I'll do the slides by Friday.</div>
+              <div className="flex-1 rounded-2xl rounded-bl-md bg-glass-strong px-4 py-3 text-sm"><span className="font-bold">Sara:</span> I'll do the slides by Friday.</div>
               <ArrowRight className="mx-auto size-5 shrink-0 rotate-90 text-warm-text transition-transform duration-300 group-hover:translate-y-1 sm:rotate-0 sm:group-hover:translate-x-1 sm:group-hover:translate-y-0" />
-              <div className="flex flex-1 items-center gap-2.5 rounded-2xl border border-warm/50 bg-warm/10 px-4 py-3 text-sm font-bold"><Sparkle weight="fill" className="size-4 shrink-0 text-warm-text" /> Prepare slides · Fri</div>
+              <div className="flex flex-1 items-center gap-2.5 rounded-2xl bg-glass-strong px-4 py-3 text-sm font-bold"><Sparkle weight="fill" className="size-4 shrink-0 text-warm-text" /> Prepare slides · Fri</div>
             </div>
           </FeatureCard>
 
-          <FeatureCard className="md:col-span-2" icon={Kanban} title="A board everyone trusts" body="Drag a card and the whole team sees it move, live.">
+          <FeatureCard className="md:col-span-2" icon={Kanban} tone="sage" title="A board everyone trusts" body="Drag a card and the whole team sees it move, live.">
             <div className="flex gap-2">
               {["To do", "Doing", "Done"].map((c, i) => (
-                <div key={c} className="flex-1 rounded-xl bg-muted p-2">
+                <div key={c} className="flex-1 rounded-xl bg-glass p-2">
                   <p className="text-[0.625rem] font-bold text-muted-foreground">{c}</p>
                   {Array.from({ length: 3 - i }, (_, j) => <div key={j} className={cn("mt-1.5 h-4 rounded-md bg-card shadow-soft transition-transform duration-300", i === 1 && j === 0 && "group-hover:translate-x-1 group-hover:-rotate-3")} />)}
                 </div>
@@ -166,36 +175,36 @@ function Features() {
             </div>
           </FeatureCard>
 
-          <FeatureCard className="md:col-span-2" icon={ChatsCircle} title="Team chat, with files" body="Messages arrive instantly. Attach a draft and it lands in the shared files too.">
+          <FeatureCard className="md:col-span-2" icon={ChatsCircle} tone="sky" title="Team chat, with files" body="Messages arrive instantly. Attach a draft and it lands in the shared files too.">
             <div className="space-y-1.5 text-xs">
-              <div className="w-fit rounded-2xl rounded-bl-md bg-muted px-3 py-1.5">Draft is up, take a look</div>
+              <div className="w-fit rounded-2xl rounded-bl-md bg-glass-strong px-3 py-1.5">Draft is up, take a look</div>
               <div className="ml-auto w-fit rounded-2xl rounded-br-md bg-primary px-3 py-1.5 text-primary-foreground transition-transform duration-300 ease-out-expo group-hover:-translate-y-0.5">On it!</div>
             </div>
           </FeatureCard>
-          <FeatureCard className="md:col-span-2" icon={LockKey} title="Honest peer reviews" body="Rate teammates on five areas. Only your instructor reads them, so people tell the truth.">
-            <div className="flex gap-1">{[1, 2, 3, 4, 5].map((n) => <Star key={n} weight="fill" className={cn("size-6 transition-transform duration-300", n <= 4 ? "text-warm" : "text-input")} style={{ transitionDelay: `${n * 40}ms` }} />)}</div>
+          <FeatureCard className="md:col-span-2" icon={LockKey} tone="butter" title="Honest peer reviews" body="Rate teammates on five areas. Only your instructor reads them, so people tell the truth.">
+            <div className="flex gap-1">{[1, 2, 3, 4, 5].map((n) => <Star key={n} weight="fill" className={cn("size-6 transition-transform duration-300", n <= 4 ? "text-butter-strong" : "text-foreground/15")} style={{ transitionDelay: `${n * 40}ms` }} />)}</div>
           </FeatureCard>
-          <FeatureCard className="md:col-span-2" icon={FolderOpen} title="One home for files" body="The brief, the drafts, the final deck. Same version for everyone.">
+          <FeatureCard className="md:col-span-2" icon={FolderOpen} tone="rose" title="One home for files" body="The brief, the drafts, the final deck. Same version for everyone.">
             <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
               {["brief.pdf", "slides.pptx", "report.docx"].map((f, i) => (
-                <span key={f} className="rounded-lg border bg-muted/60 px-2.5 py-1.5 transition-transform duration-300 ease-out-expo group-hover:-translate-y-0.5" style={{ transitionDelay: `${i * 50}ms` }}>{f}</span>
+                <span key={f} className="rounded-lg bg-glass-strong px-2.5 py-1.5 transition-transform duration-300 ease-out-expo group-hover:-translate-y-0.5" style={{ transitionDelay: `${i * 50}ms` }}>{f}</span>
               ))}
             </div>
           </FeatureCard>
 
-          <FeatureCard className="md:col-span-3" icon={ChartLineUp} title="See who is doing the work" body="Progress and each member's share of completed tasks, calculated from the board. No self-reporting.">
+          <FeatureCard className="md:col-span-3" icon={ChartLineUp} tone="sage" title="See who is doing the work" body="Progress and each member's share of completed tasks, calculated from the board. No self-reporting.">
             <div className="space-y-2.5">
               {[["Masud", 46], ["Nazmul", 38], ["Chinmoy", 16]].map(([n, v], i) => (
                 <div key={n as string} className="flex items-center gap-2.5 text-xs font-semibold">
                   <Avatar name={n as string} size="xs" />
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full origin-left scale-x-90 rounded-full bg-chart-1 transition-transform duration-700 ease-out-expo group-hover:scale-x-100" style={{ width: `${v}%`, transitionDelay: `${i * 60}ms` }} /></div>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-glass-strong"><div className="h-full origin-left scale-x-90 rounded-full bg-chart-1 transition-transform duration-700 ease-out-expo group-hover:scale-x-100" style={{ width: `${v}%`, transitionDelay: `${i * 60}ms` }} /></div>
                   <span className="w-8 text-right tabular-nums text-muted-foreground">{v}%</span>
                 </div>
               ))}
             </div>
           </FeatureCard>
-          <FeatureCard className="md:col-span-3" icon={ShieldCheck} title="Catch trouble early" body="A nightly check reads each team's tone and flags friction or silence to the instructor, before it becomes a failed project.">
-            <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <FeatureCard className="md:col-span-3" icon={ShieldCheck} tone="peach" title="Catch trouble early" body="A nightly check reads each team's tone and flags friction or silence to the instructor, before it becomes a failed project.">
+            <div className="flex items-center gap-3 rounded-2xl bg-glass-strong px-4 py-3 text-sm">
               <Warning weight="fill" className="size-5 shrink-0 text-warning" />
               <span><strong className="font-bold">Team Orbit</strong> <span className="text-muted-foreground">· one member is waiting on requirements</span></span>
             </div>

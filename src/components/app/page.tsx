@@ -45,7 +45,7 @@ export function StatCard({
         <IconCmp weight="fill" className="size-5" aria-hidden />
       </span>
       <p className={cn("text-sm font-semibold text-foreground/80", compact ? "sm:mt-4" : "mt-4")}>{label}</p>
-      <p className="mt-1 text-3xl font-extrabold tracking-tight">
+      <p className="mt-1 font-display text-[2rem] font-semibold leading-tight tracking-tight">
         <AnimatedNumber value={value} suffix={suffix} />
       </p>
       {hint && <p className="mt-1 text-xs text-foreground/70">{hint}</p>}
@@ -79,7 +79,7 @@ export function Logo({ className, label = true }: { className?: string; label?: 
           <circle cx="20.5" cy="14.5" r="1.5" fill="#fde7b0" />
         </svg>
       </span>
-      {label && <span className="text-[1.0625rem] font-extrabold tracking-tight">ScholarSync</span>}
+      {label && <span className="font-display text-[1.125rem] font-bold tracking-tight">ScholarSync</span>}
     </span>
   );
 }

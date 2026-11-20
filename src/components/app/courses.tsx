@@ -9,7 +9,8 @@ import {
 import { toast } from "sonner";
 import { createCourse, deleteCourse, updateCourse, getCourses, joinCourse, leaveCourse } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, firstName } from "@/lib/utils";
+import { useClientValue } from "@/hooks/use-client";
 import type { Course } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
 import { EmptyState, Page, PageHeader, StatCard } from "@/components/app/page";
@@ -184,8 +185,19 @@ export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?:
 
 type Pending = { kind: "leave" | "delete"; course: Course } | null;
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// Time of day and date come from the viewer's clock, so the server renders a neutral greeting first.
+function partOfDay() {
+  const h = new Date().getHours();
+  return h >= 5 && h < 12 ? "Good morning" : h >= 12 && h < 18 ? "Good afternoon" : "Good evening";
+}
+const todayLabel = () => new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
 export function CoursesDashboard() {
   const user = useUser();
+  const greeting = useClientValue(partOfDay, "Welcome back");
+  const today = useClientValue(todayLabel, "");
   const fetchTeams = useAppStore((s) => s.fetchTeams);
   const instructor = user.role === "instructor";
   const [courses, setCourses] = React.useState<Course[] | null>(null);
@@ -230,25 +242,32 @@ export function CoursesDashboard() {
   const shown = (instructor || tab === "mine" ? mine : list)
     .filter((c) => !q || `${c.code} ${c.title} ${c.term} ${c.instructorName}`.toLowerCase().includes(q));
 
+  const unplaced = mine.reduce((n, c) => n + c.unplaced, 0);
+  const waiting = mine.filter((c) => !c.myTeam).length;
   const stats = instructor
     ? [
         { icon: Books, label: "Courses", value: mine.length, tone: "primary" as const },
         { icon: Student, label: "Students", value: mine.reduce((n, c) => n + c.studentCount, 0), tone: "info" as const },
         { icon: UsersThree, label: "Teams", value: mine.reduce((n, c) => n + c.teamCount, 0), tone: "success" as const },
-        { icon: UserPlus, label: "Need a team", value: mine.reduce((n, c) => n + c.unplaced, 0), tone: "warm" as const },
+        { icon: UserPlus, label: "Need a team", value: unplaced, tone: "warm" as const },
       ]
     : [
         { icon: Books, label: "Enrolled", value: mine.length, tone: "primary" as const },
         { icon: UsersThree, label: "On a team", value: mine.filter((c) => c.myTeam).length, tone: "success" as const },
-        { icon: UserPlus, label: "Awaiting a team", value: mine.filter((c) => !c.myTeam).length, tone: "warm" as const },
+        { icon: UserPlus, label: "Awaiting a team", value: waiting, tone: "warm" as const },
         { icon: BookOpen, label: "Open to join", value: list.length - mine.length, tone: "info" as const },
       ];
+
+  const summary = !courses ? "" : instructor
+    ? `${plural(mine.length, "course")}, ${unplaced ? `${plural(unplaced, "student")} still need${unplaced === 1 ? "s" : ""} a team` : "every student has a team"}`
+    : mine.length === 0 ? "Join a course to get started"
+    : `${plural(mine.length, "course")}, ${waiting ? `${waiting} still waiting for a team` : "on a team in each"}`;
 
   return (
     <Page>
       <PageHeader
-        title="Course dashboard"
-        description={instructor ? "Create courses, watch enrolment, and let AI match students into teams." : "Join the courses you take. Your instructor matches you into a team."}
+        title={`${greeting}, ${firstName(user.name)}`}
+        description={[today, summary].filter(Boolean).join(" · ") || "\u00a0"}
       >
         {instructor && <Button onClick={() => setCreating(true)}><Plus weight="bold" aria-hidden /> New course</Button>}
       </PageHeader>
