@@ -238,3 +238,12 @@ export interface Announcement {
   authorName: string;
   createdAt: string;
 }
+
+export interface TaskEvent {
+  id: number;
+  actorName: string | null;
+  field: "created" | "status" | "assignee" | "due_date" | "priority" | "title";
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}

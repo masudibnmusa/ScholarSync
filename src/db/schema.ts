@@ -166,6 +166,16 @@ export const courseAnnouncements = pgTable("course_announcements", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const taskEvents = pgTable("task_events", {
+  id: bigint("id", { mode: "number" }).primaryKey(),
+  taskId: uuid("task_id").notNull(),
+  actorId: uuid("actor_id"),
+  field: text("field").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
 export const teamSummaries = pgTable("team_summaries", {
   teamId: uuid("team_id").notNull(),
   weekStart: date("week_start").notNull(),

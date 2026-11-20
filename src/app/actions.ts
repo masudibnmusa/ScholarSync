@@ -15,7 +15,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -248,6 +248,18 @@ export async function addTaskComment(taskId: string, body: string) {
 export async function deleteTaskComment(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
+}
+
+export async function getTaskHistory(taskId: string): Promise<TaskEvent[]> {
+  Id.parse(taskId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ e: s.taskEvents, actorName: s.users.name }).from(s.taskEvents)
+      .leftJoin(s.users, eq(s.users.id, s.taskEvents.actorId))
+      .where(eq(s.taskEvents.taskId, taskId)).orderBy(desc(s.taskEvents.createdAt), desc(s.taskEvents.id)).limit(100);
+    return rows.map(({ e, actorName }) => ({
+      id: e.id, actorName, field: e.field as TaskEvent["field"], oldValue: e.oldValue, newValue: e.newValue, createdAt: e.createdAt,
+    }));
+  });
 }
 
 // ─── Checklists ────────────────────────────────────────────────────────

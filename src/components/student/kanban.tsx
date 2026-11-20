@@ -3,14 +3,14 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarBlank, CaretDown, ChatCircle, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Trash,
+  CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, setChecklistItemDone } from "@/app/actions";
+import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, getTaskHistory, setChecklistItemDone } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn, dueInfo, timeAgo, toneText } from "@/lib/utils";
-import type { ChecklistItem, KanbanTask, TaskComment, Team } from "@/lib/types";
+import type { ChecklistItem, KanbanTask, TaskComment, TaskEvent, Team } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/app/page";
@@ -108,6 +108,59 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
         <Input id="task-step" value={draft} maxLength={200} placeholder="Add a step…" className="h-9 flex-1" onChange={(e) => setDraft(e.target.value)} />
         <Button type="submit" variant="secondary" size="sm" className="h-9" disabled={!draft.trim()}><Plus aria-hidden />Add</Button>
       </form>
+    </section>
+  );
+}
+
+// ─── History (inside the edit dialog) ─────────────────────────────────────
+
+const statusName = (v: string | null) => ({ todo: "To do", in_progress: "In progress", done: "Done" })[v ?? ""] ?? v ?? "none";
+const dateName = (v: string | null) => (v ? new Date(`${v}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "no date");
+
+function describe(e: TaskEvent) {
+  switch (e.field) {
+    case "created": return <>created the task</>;
+    case "status": return <>moved it from <b>{statusName(e.oldValue)}</b> to <b>{statusName(e.newValue)}</b></>;
+    case "assignee": return e.newValue ? <>assigned it to <b>{e.newValue}</b></> : <>unassigned <b>{e.oldValue ?? "it"}</b></>;
+    case "due_date": return <>changed the due date from <b>{dateName(e.oldValue)}</b> to <b>{dateName(e.newValue)}</b></>;
+    case "priority": return <>set priority to <b>{e.newValue}</b></>;
+    case "title": return <>renamed it from <b>{e.oldValue}</b></>;
+  }
+}
+
+/** Who changed what, newest first. Collapsed by default: it is for "wait, who moved this?" moments. */
+function TaskHistory({ task }: { task: KanbanTask }) {
+  const [open, setOpen] = React.useState(false);
+  const [events, setEvents] = React.useState<TaskEvent[] | null>(null);
+
+  function toggle() {
+    if (!open && !events) getTaskHistory(task.id).then(setEvents).catch((err) => { console.error("Loading history failed:", err); setEvents([]); });
+    setOpen(!open);
+  }
+
+  return (
+    <section className="border-t pt-3">
+      <button type="button" onClick={toggle} aria-expanded={open} aria-controls="task-history"
+        className="flex w-full items-center gap-1.5 rounded-md text-sm font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
+        <ClockCounterClockwise weight="duotone" className="size-4 text-primary" aria-hidden /> History
+        <CaretDown className={cn("ml-auto size-4 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div id="task-history" className="mt-2">
+          {!events ? <Skeleton className="h-10" /> : (
+            <ol className="relative max-h-56 space-y-2.5 overflow-y-auto border-l pl-4 scroll-thin">
+              {events.map((e) => (
+                <li key={e.id} className="relative text-sm">
+                  <span className="absolute -left-[1.3rem] top-1.5 size-2 rounded-full bg-border ring-2 ring-card" aria-hidden />
+                  <span className="font-semibold">{e.actorName ?? "ScholarSync"}</span> {describe(e)}
+                  <time dateTime={e.createdAt} className="ml-1.5 text-xs text-muted-foreground">{timeAgo(e.createdAt)}</time>
+                </li>
+              ))}
+              {!events.some((e) => e.field === "created") && <li className="text-xs text-muted-foreground">Changes before history was switched on weren&apos;t recorded.</li>}
+            </ol>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -275,6 +328,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
         </form>
         {task && <TaskChecklist task={task} team={team} />}
         {task && <TaskComments task={task} team={team} />}
+        {task && <TaskHistory task={task} />}
     </>
   );
 }
