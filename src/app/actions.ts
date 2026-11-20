@@ -12,7 +12,7 @@ import { toCsv } from "@/lib/utils";
 import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, WeeklySummary, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseGrading, MyGrade, CriterionScore,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -580,6 +580,16 @@ const ReviewInput = z.object({
 export async function submitPeerReview(teamId: string, revieweeId: string, rating: number, feedback: string, categoryRatings: Record<string, number>) {
   const r = ReviewInput.parse({ teamId, revieweeId, rating, feedback, categoryRatings });
   await withUser((tx, uid) => tx.insert(s.peerReviews).values({ ...r, reviewerId: uid }));
+}
+
+/** Reviews the signed-in student has written for teammates in this team (RLS: reviewers read their own). */
+export async function getMyReviews(teamId: string): Promise<MyReview[]> {
+  Id.parse(teamId);
+  return withUser(async (tx, uid) => {
+    const rows = await tx.select().from(s.peerReviews)
+      .where(and(eq(s.peerReviews.teamId, teamId), eq(s.peerReviews.reviewerId, uid)));
+    return rows.map((r) => ({ revieweeId: r.revieweeId, rating: r.rating, categoryRatings: r.categoryRatings, feedback: r.feedback, createdAt: r.createdAt }));
+  });
 }
 
 // ─── Conflict alerts (instructors) ─────────────────────────────────────

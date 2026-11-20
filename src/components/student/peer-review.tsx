@@ -3,8 +3,10 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle, LockKey, PaperPlaneTilt, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { getMyReviews } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
-import { cn, firstName } from "@/lib/utils";
+import { cn, firstName, timeAgo } from "@/lib/utils";
+import type { MyReview } from "@/lib/types";
 import { EmptyState, Page, PageHeader } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { NoTeam, PanelSkeleton, useTeam } from "@/components/student/shared";
@@ -15,7 +17,6 @@ import { Card } from "@/components/ui/card";
 import { Field, Textarea } from "@/components/ui/input";
 import { EASE } from "@/components/ui/motion";
 import { Progress } from "@/components/ui/progress";
-import { useStoredValue } from "@/hooks/use-client";
 
 const categories = [
   { key: "comm", label: "Communication", hint: "Replies, shares updates, listens" },
@@ -60,7 +61,34 @@ function StarRating({ value, onChange, label, size = "md" }: { value: number; on
 
 type Draft = { rating: number; cats: Record<string, number>; feedback: string };
 const emptyDraft: Draft = { rating: 0, cats: {}, feedback: "" };
-const NONE: string[] = [];
+
+const Stars = ({ n, className }: { n: number; className?: string }) => (
+  <span className={cn("inline-flex", className)} aria-label={`${n} of 5`}>
+    {[1, 2, 3, 4, 5].map((i) => <Star key={i} weight={i <= n ? "fill" : "regular"} className={i <= n ? "text-warm" : "text-input"} aria-hidden />)}
+  </span>
+);
+
+/** What the student wrote about a teammate. Reviews can't be edited once sent. */
+function SentReview({ review }: { review: MyReview }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Stars n={review.rating} className="[&_svg]:size-6" />
+        <span className="text-sm font-semibold text-warm-text">{words[review.rating]}</span>
+        <time dateTime={review.createdAt} className="ml-auto text-xs text-muted-foreground">Sent {timeAgo(review.createdAt)}</time>
+      </div>
+      <dl className="divide-y rounded-2xl border">
+        {categories.map((c) => (
+          <div key={c.key} className="flex items-center justify-between gap-4 px-4 py-2">
+            <dt className="text-sm font-semibold">{c.label}</dt>
+            <dd><Stars n={review.categoryRatings[c.key] ?? review.rating} className="[&_svg]:size-4" /></dd>
+          </div>
+        ))}
+      </dl>
+      {review.feedback && <blockquote className="whitespace-pre-line rounded-2xl bg-muted px-4 py-3 text-sm">{review.feedback}</blockquote>}
+    </div>
+  );
+}
 
 export function PeerReviewPanel() {
   const user = useUser();
@@ -73,20 +101,24 @@ export function PeerReviewPanel() {
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // There is no "my reviews" endpoint, so remember submitted reviews in this browser.
-  // The database still rejects a second review of the same teammate.
-  const storageKey = team ? `scholarsync:reviews:${user.id}:${team.id}` : null;
-  const [done, setDone] = useStoredValue<string[]>(storageKey, NONE);
+  // Reviews already sent for this team, from the database (one per teammate, enforced there too).
+  const [sent, setSent] = React.useState<MyReview[] | null>(null);
+  const teamId = team?.id;
+  const loadSent = React.useCallback(() => {
+    if (!teamId) return Promise.resolve();
+    return getMyReviews(teamId).then(setSent).catch((err) => { console.error("Loading your reviews failed:", err); setSent((x) => x ?? []); });
+  }, [teamId]);
+  React.useEffect(() => { loadSent(); }, [loadSent]);
+  const done = React.useMemo(() => sent?.map((r) => r.revieweeId) ?? [], [sent]);
 
   const mateId = selected && mates.some((m) => m.userId === selected) ? selected : mates.find((m) => !done.includes(m.userId))?.userId ?? mates[0]?.userId ?? null;
   const mate = mates.find((m) => m.userId === mateId);
 
-  if (!loaded) return <Page><PanelSkeleton /></Page>;
+  if (!loaded || (team && !sent)) return <Page><PanelSkeleton /></Page>;
   if (!team) return <Page><Card><NoTeam /></Card></Page>;
 
   const draft = (mateId && drafts[mateId]) || emptyDraft;
   const setDraft = (patch: Partial<Draft>) => { if (mateId) setDrafts((d) => ({ ...d, [mateId]: { ...(d[mateId] ?? emptyDraft), ...patch } })); setError(null); };
-  const markDone = (id: string) => setDone([...new Set([...done, id])]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,7 +129,7 @@ export function PeerReviewPanel() {
     const cats = Object.fromEntries(categories.map((c) => [c.key, draft.cats[c.key] || draft.rating]));
     const ok = await submitPeerReview(team.id, mate.userId, draft.rating, draft.feedback.trim(), cats);
     setSubmitting(false);
-    if (ok) markDone(mate.userId);
+    if (ok) await loadSent();
   }
 
   const reviewed = mates.filter((m) => done.includes(m.userId)).length;
@@ -165,10 +197,13 @@ export function PeerReviewPanel() {
                         <CheckCircle weight="fill" className="size-9" aria-hidden />
                       </motion.span>
                       <h3 className="mt-4 text-lg font-bold">Review sent</h3>
-                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">Thanks. Your review of {mate.name} is with your instructor.</p>
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">Your review of {mate.name} is with your instructor. Here is what you wrote.</p>
                       {reviewed < mates.length && (
                         <Button className="mt-5" onClick={() => setSelected(mates.find((m) => !done.includes(m.userId))!.userId)}>Review next teammate</Button>
                       )}
+                      <div className="mt-8 w-full max-w-lg text-left">
+                        <SentReview review={sent!.find((r) => r.revieweeId === mate.userId)!} />
+                      </div>
                     </div>
                   ) : (
                     <form onSubmit={submit} className="space-y-7 p-5 sm:p-6" noValidate>

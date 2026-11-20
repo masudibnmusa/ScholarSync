@@ -74,6 +74,14 @@ export interface MyGrade {
   factor: number;
 }
 
+export interface MyReview {
+  revieweeId: string;
+  rating: number;
+  categoryRatings: Record<string, number>;
+  feedback: string;
+  createdAt: string;
+}
+
 export interface TaskComment {
   id: string;
   authorId: string | null;
