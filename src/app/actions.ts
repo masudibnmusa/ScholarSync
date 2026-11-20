@@ -579,9 +579,9 @@ export async function exportCourseReport(courseId: string): Promise<{ filename: 
 
 // ─── My week (students): everything dated across all their teams ───────
 
-const WEEK_AHEAD_DAYS = 21;
+const WEEK_AHEAD_DAYS = 120; // the list shows three weeks; the month view and calendar export look further
 
-/** Unfinished tasks assigned to me and my teams' open milestones: overdue, or due in the next three weeks. */
+/** Unfinished tasks assigned to me and my teams' open milestones: overdue, or due in the next four months. */
 export async function getMyWeek(): Promise<WeekItem[]> {
   return withUser(async (tx, uid) => {
     const horizon = new Date(Date.now() + WEEK_AHEAD_DAYS * 864e5).toISOString().slice(0, 10);
