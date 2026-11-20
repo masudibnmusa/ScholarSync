@@ -23,6 +23,14 @@ export interface KanbanTask {
   priority: "low" | "medium" | "high";
   dueDate: string | null;
   commentCount: number;
+  checklistDone: number;
+  checklistTotal: number;
+}
+
+export interface ChecklistItem {
+  id: string;
+  body: string;
+  done: boolean;
 }
 
 export interface WeeklySummary {

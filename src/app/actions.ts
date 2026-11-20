@@ -13,7 +13,7 @@ import { sendDigestTo } from "@/lib/digest";
 import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -160,14 +160,16 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
       .select({
         t: s.tasks, assigneeName: s.users.name,
         commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
+        checklist: sql<[number, number]>`(select array[count(*) filter (where i.done), count(*)]::int[] from public.task_checklist_items i where i.task_id = ${s.tasks.id})`,
       })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName, commentCount }) => ({
+    return rows.map(({ t, assigneeName, commentCount, checklist }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
       assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate, commentCount,
+      checklistDone: checklist[0], checklistTotal: checklist[1],
     }));
   });
 }
@@ -229,6 +231,34 @@ export async function addTaskComment(taskId: string, body: string) {
 export async function deleteTaskComment(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
+}
+
+// ─── Checklists ────────────────────────────────────────────────────────
+
+export async function getChecklist(taskId: string): Promise<ChecklistItem[]> {
+  Id.parse(taskId);
+  return withUser((tx) => tx.select({ id: s.taskChecklistItems.id, body: s.taskChecklistItems.body, done: s.taskChecklistItems.done })
+    .from(s.taskChecklistItems).where(eq(s.taskChecklistItems.taskId, taskId))
+    .orderBy(asc(s.taskChecklistItems.position), asc(s.taskChecklistItems.createdAt)));
+}
+
+export async function addChecklistItem(taskId: string, body: string) {
+  Id.parse(taskId);
+  const text = z.string().trim().min(1).max(200).parse(body);
+  await withUser((tx) => tx.insert(s.taskChecklistItems).values({
+    taskId, body: text,
+    position: sql`(select coalesce(max(position), -1) + 1 from public.task_checklist_items where task_id = ${taskId})`,
+  }));
+}
+
+export async function setChecklistItemDone(id: string, done: boolean) {
+  Id.parse(id);
+  await withUser((tx) => tx.update(s.taskChecklistItems).set({ done: z.boolean().parse(done) }).where(eq(s.taskChecklistItems.id, id)));
+}
+
+export async function deleteChecklistItem(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.taskChecklistItems).where(eq(s.taskChecklistItems.id, id)));
 }
 
 // ─── Weekly AI recap ───────────────────────────────────────────────────

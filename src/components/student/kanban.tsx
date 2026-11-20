@@ -7,10 +7,10 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { addTaskComment, deleteTaskComment, getTaskComments } from "@/app/actions";
+import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, setChecklistItemDone } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn, dueInfo, timeAgo, toneText } from "@/lib/utils";
-import type { KanbanTask, TaskComment, Team } from "@/lib/types";
+import type { ChecklistItem, KanbanTask, TaskComment, Team } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/app/page";
@@ -37,6 +37,80 @@ const statusOf = (id: Status) => statuses.find((x) => x.id === id)!;
 
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const UNASSIGNED = "none"; // Radix Select reserves the empty string
+
+// ─── Checklist (inside the edit dialog) ───────────────────────────────────
+
+function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
+  const fetchTasks = useAppStore((s) => s.fetchTasks);
+  const [items, setItems] = React.useState<ChecklistItem[] | null>(null);
+  const [draft, setDraft] = React.useState("");
+
+  const load = React.useCallback(() => getChecklist(task.id).then(setItems).catch((err) => {
+    console.error("Loading checklist failed:", err);
+    setItems((i) => i ?? []);
+  }), [task.id]);
+  React.useEffect(() => { load(); }, [load]);
+
+  async function run(fn: () => Promise<void>, fail: string) {
+    try {
+      await fn();
+    } catch (err) {
+      console.error(fail, err);
+      toast.error(fail);
+    }
+    await Promise.all([load(), fetchTasks(team.id)]); // the board shows "2/5"
+  }
+
+  function toggle(item: ChecklistItem) {
+    setItems((list) => list?.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)) ?? null);
+    run(() => setChecklistItemDone(item.id, !item.done), "Could not update the step");
+  }
+
+  function add(e: React.FormEvent) {
+    e.preventDefault();
+    const body = draft.trim();
+    if (!body) return;
+    setDraft("");
+    run(() => addChecklistItem(task.id, body), "Could not add the step");
+  }
+
+  const done = items?.filter((i) => i.done).length ?? 0;
+  return (
+    <section aria-labelledby="task-checklist-title" className="border-t pt-4">
+      <h3 id="task-checklist-title" className="flex items-center gap-1.5 text-sm font-bold">
+        <ListChecks weight="duotone" className="size-4 text-primary" aria-hidden /> Checklist
+        {!!items?.length && <span className="font-semibold text-muted-foreground">{done}/{items.length}</span>}
+      </h3>
+      {items && items.length > 0 && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+          <div className="h-full rounded-full bg-success transition-[width] duration-300" style={{ width: `${(done / items.length) * 100}%` }} />
+        </div>
+      )}
+      {!items ? (
+        <div className="mt-3" aria-busy="true"><Skeleton className="h-8" /></div>
+      ) : (
+        <ul className="mt-2 space-y-0.5">
+          {items.map((i) => (
+            <li key={i.id} className="group/step flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-accent/40">
+              <input type="checkbox" id={`step-${i.id}`} checked={i.done} onChange={() => toggle(i)} className="size-4 shrink-0 accent-[var(--color-success)]" />
+              <label htmlFor={`step-${i.id}`} className={cn("min-w-0 flex-1 break-words text-sm", i.done && "text-muted-foreground line-through")}>{i.body}</label>
+              <button type="button" onClick={() => run(() => deleteChecklistItem(i.id), "Could not delete the step")}
+                className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/step:opacity-100 max-md:opacity-100"
+                aria-label={`Delete step: ${i.body}`}>
+                <Trash className="size-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={add} className="mt-2 flex gap-2">
+        <label htmlFor="task-step" className="sr-only">Add a step</label>
+        <Input id="task-step" value={draft} maxLength={200} placeholder="Add a step…" className="h-9 flex-1" onChange={(e) => setDraft(e.target.value)} />
+        <Button type="submit" variant="secondary" size="sm" className="h-9" disabled={!draft.trim()}><Plus aria-hidden />Add</Button>
+      </form>
+    </section>
+  );
+}
 
 // ─── Comments (inside the edit dialog) ───────────────────────────────────
 
@@ -199,6 +273,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
             <Button type="submit" loading={saving}>{task ? "Save changes" : "Create task"}</Button>
           </DialogFooter>
         </form>
+        {task && <TaskChecklist task={task} team={team} />}
         {task && <TaskComments task={task} team={team} />}
     </>
   );
@@ -274,9 +349,18 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
     <>
       <span className={cn("block text-[0.9375rem] font-bold leading-snug md:truncate", done && "text-muted-foreground line-through decoration-muted-foreground/60")}>{task.title}</span>
       {task.description && <span className="mt-0.5 block text-sm text-muted-foreground line-clamp-2 md:line-clamp-none md:truncate">{task.description}</span>}
-      {task.commentCount > 0 && (
-        <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-          <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? "comment" : "comments"}</span>
+      {(task.commentCount > 0 || task.checklistTotal > 0) && (
+        <span className="mt-1 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+          {task.checklistTotal > 0 && (
+            <span className={cn("inline-flex items-center gap-1", task.checklistDone === task.checklistTotal && "text-success")}>
+              <ListChecks className="size-3.5" aria-hidden />{task.checklistDone}/{task.checklistTotal}<span className="sr-only"> steps done</span>
+            </span>
+          )}
+          {task.commentCount > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? "comment" : "comments"}</span>
+            </span>
+          )}
         </span>
       )}
     </>
