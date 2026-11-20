@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/lib/types";
 import { isActive, navFor } from "@/components/app/nav";
 import { CommandMenu } from "@/components/app/command-menu";
-import { NavLinks, Rail, useBadgeCounts } from "@/components/app/sidebar";
+import { NavLinks, Sidebar, useBadgeCounts } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
 import { UserProvider, useUser } from "@/components/app/user-context";
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from "@/components/ui/dialog";
@@ -104,7 +104,7 @@ export function AppShell({ user, children }: { user: UserProfile; children: Reac
         Skip to content
       </a>
       <div className="flex h-dvh overflow-hidden bg-background">
-        <Rail onSignOut={signOut} />
+        <Sidebar onSignOut={signOut} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onSignOut={signOut} />
           <main id="main" ref={mainRef} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none scroll-thin">

@@ -5,7 +5,7 @@ export function Card({ className, interactive, ...props }: React.ComponentProps<
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-card text-card-foreground shadow-soft",
+        "rounded-2xl border border-border/70 bg-card text-card-foreground shadow-soft",
         interactive && "transition-[transform,box-shadow,border-color] duration-300 ease-out-expo hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift",
         className,
       )}

@@ -23,9 +23,9 @@ import { useClientValue } from "@/hooks/use-client";
 
 type Severity = "high" | "medium" | "low";
 const SEVERITY: Record<Severity, { label: string; icon: Icon; badge: "danger" | "warning" | "info"; tile: string; bar: string; hero: string }> = {
-  high: { label: "High", icon: WarningOctagon, badge: "danger", tile: "bg-destructive/12 text-destructive", bar: "bg-destructive", hero: "#f87171" },
-  medium: { label: "Medium", icon: Warning, badge: "warning", tile: "bg-warning/14 text-warning", bar: "bg-warning", hero: "#fbbf24" },
-  low: { label: "Low", icon: WarningCircle, badge: "info", tile: "bg-info/12 text-info", bar: "bg-info", hero: "#7dd3fc" },
+  high: { label: "High", icon: WarningOctagon, badge: "danger", tile: "bg-destructive/12 text-destructive", bar: "bg-destructive", hero: "var(--rose-strong)" },
+  medium: { label: "Medium", icon: Warning, badge: "warning", tile: "bg-warning/14 text-warning", bar: "bg-warning", hero: "var(--butter-strong)" },
+  low: { label: "Low", icon: WarningCircle, badge: "info", tile: "bg-info/12 text-info", bar: "bg-info", hero: "var(--sky-strong)" },
 };
 const sevOf = (a: ConflictAlert) => SEVERITY[a.severity as Severity] ?? SEVERITY.low;
 const rank = (a: ConflictAlert) => ({ high: 0, medium: 1, low: 2 })[a.severity as Severity] ?? 3;
@@ -101,11 +101,11 @@ function AlertCard({ alert }: { alert: ConflictAlert }) {
 
 function HeroStat({ label, value, swatch }: { label: string; value: number; swatch?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3">
-      <p className="flex items-center gap-1.5 text-xs font-semibold text-sidebar-muted">
+    <div className="rounded-2xl border border-glass-border bg-glass px-4 py-3">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         {swatch && <span className="size-2 rounded-full" style={{ backgroundColor: swatch }} aria-hidden />}{label}
       </p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums text-white"><AnimatedNumber value={value} /></p>
+      <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground"><AnimatedNumber value={value} /></p>
     </div>
   );
 }
@@ -133,8 +133,8 @@ export function ConflictsPanel() {
   const teamRows = [...teams].sort((a, b) => openFor(b.id) - openFor(a.id) || a.healthScore - b.healthScore);
 
   const status = open.length === 0
-    ? { title: "All clear", text: "No open conflicts. Every team's conversation looks constructive.", icon: ShieldCheck, tile: "bg-success/25 text-[#86efac]" }
-    : { title: `${open.length} open ${open.length === 1 ? "alert" : "alerts"}`, text: counts.high ? `${counts.high} high severity. Start with ${open.filter((a) => a.severity === "high")[0]?.teamName ?? "those"}.` : "None are high severity.", icon: ShieldWarning, tile: "bg-warm/25 text-[#fdba74]" };
+    ? { title: "All clear", text: "No open conflicts. Every team's conversation looks constructive.", icon: ShieldCheck, tile: "bg-success/25 text-success" }
+    : { title: `${open.length} open ${open.length === 1 ? "alert" : "alerts"}`, text: counts.high ? `${counts.high} high severity. Start with ${open.filter((a) => a.severity === "high")[0]?.teamName ?? "those"}.` : "None are high severity.", icon: ShieldWarning, tile: "bg-warm/25 text-warm-text" };
 
   return (
     <Page className="space-y-8">
@@ -142,7 +142,7 @@ export function ConflictsPanel() {
       <motion.section
         aria-labelledby="conflicts-title"
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}
-        className="relative overflow-hidden rounded-3xl bg-sidebar p-6 text-sidebar-foreground shadow-lift sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-peach p-6 text-foreground shadow-lift sm:p-8"
       >
         <div className="pointer-events-none absolute -right-24 -top-32 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--brand)_32%,transparent),transparent_65%)]" aria-hidden />
         <div className="pointer-events-none absolute -bottom-44 left-1/4 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--destructive)_22%,transparent),transparent_65%)]" aria-hidden />
@@ -150,27 +150,27 @@ export function ConflictsPanel() {
 
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
               <Clock weight="bold" className="size-3.5" aria-hidden /> {nextCheck ? `Next AI check at ${nextCheck}` : "Nightly AI check"}
             </p>
-            <h1 id="conflicts-title" className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Conflicts</h1>
-            <p className="mt-2 max-w-xl text-sm text-sidebar-muted sm:text-[0.9375rem]">Each night the AI reads team chats for signs of friction or silence. You decide what to do about it.</p>
+            <h1 id="conflicts-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Conflicts</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">Each night the AI reads team chats for signs of friction or silence. You decide what to do about it.</p>
 
-            <div className="mt-6 flex max-w-xl items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+            <div className="mt-6 flex max-w-xl items-center gap-3 rounded-2xl border border-glass-border bg-glass p-4">
               <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", status.tile)}><status.icon weight="fill" className="size-5" aria-hidden /></span>
               <div className="min-w-0">
-                <p className="font-bold text-white">{loaded ? status.title : "Checking…"}</p>
-                <p className="text-sm text-sidebar-muted">{loaded ? status.text : "Loading alerts."}</p>
+                <p className="font-bold text-foreground">{loaded ? status.title : "Checking…"}</p>
+                <p className="text-sm text-muted-foreground">{loaded ? status.text : "Loading alerts."}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3">
             {/* Open alerts split by severity; labels below carry the numbers, not colour alone */}
-            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/10" role="img"
+            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-glass" role="img"
               aria-label={`Open alerts by severity: ${counts.high} high, ${counts.medium} medium, ${counts.low} low`}>
               {(["high", "medium", "low"] as Severity[]).map((k) => counts[k] > 0 && (
-                <motion.span key={k} className="h-full border-r-2 border-sidebar last:border-r-0" style={{ backgroundColor: SEVERITY[k].hero }}
+                <motion.span key={k} className="h-full border-r-2 border-peach last:border-r-0" style={{ backgroundColor: SEVERITY[k].hero }}
                   initial={{ width: 0 }} animate={{ width: `${(counts[k] / open.length) * 100}%` }} transition={{ duration: 0.8, ease: EASE }} />
               ))}
             </div>
@@ -179,7 +179,7 @@ export function ConflictsPanel() {
               <HeroStat label="Medium" value={counts.medium} swatch={SEVERITY.medium.hero} />
               <HeroStat label="Low" value={counts.low} swatch={SEVERITY.low.hero} />
             </div>
-            <p className="flex items-center gap-1.5 text-xs text-sidebar-muted"><CheckCircle weight="fill" className="size-3.5 text-[#86efac]" aria-hidden />{resolved} resolved so far</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle weight="fill" className="size-3.5 text-success" aria-hidden />{resolved} resolved so far</p>
           </div>
         </div>
       </motion.section>

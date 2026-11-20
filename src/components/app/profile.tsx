@@ -95,9 +95,9 @@ function Section({ icon: I, title, hint, htmlFor, children }: { icon: Icon; titl
 
 /** Theme picker as small screen mock-ups. */
 const themes = [
-  { value: "light", label: "Light", icon: Sun, bg: "#f5f7fa", card: "#ffffff", bar: "#0f1e3d", line: "#d5dde9" },
-  { value: "dark", label: "Dark", icon: Moon, bg: "#0a1120", card: "#111a2e", bar: "#0c1830", line: "#1f2d4d" },
-  { value: "system", label: "Auto", icon: Desktop, bg: "linear-gradient(90deg,#f5f7fa 50%,#0a1120 50%)", card: "linear-gradient(90deg,#ffffff 50%,#111a2e 50%)", bar: "#0f1e3d", line: "#8595b3" },
+  { value: "light", label: "Light", icon: Sun, bg: "#f7f0e6", card: "#fffbf5", bar: "#cdd9c6", line: "#ecdfcf" },
+  { value: "dark", label: "Dark", icon: Moon, bg: "#171310", card: "#211b16", bar: "#1f2a22", line: "#3a2f26" },
+  { value: "system", label: "Auto", icon: Desktop, bg: "linear-gradient(90deg,#f7f0e6 50%,#171310 50%)", card: "linear-gradient(90deg,#fffbf5 50%,#211b16 50%)", bar: "#cdd9c6", line: "#b5a594" },
 ] as const;
 
 function ThemeTiles() {

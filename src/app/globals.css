@@ -4,100 +4,129 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── Design tokens ──────────────────────────────────────────────────────
-   Navy (#0f1e3d) anchors the brand; amber/gold is for action and AI moments.
-   Every text/background pair below is checked for WCAG AA (4.5:1). */
+   Warm cream canvas, sage navigation, pastel cards (peach, sage, butter, sky, rose)
+   and terracotta for action. Every text/background pair is checked for WCAG AA (4.5:1). */
 :root {
-  --radius: 0.875rem;
+  --radius: 1rem;
 
-  --background: #f5f7fa;
-  --foreground: #0f1b2d;
-  --card: #ffffff;
-  --card-foreground: #0f1b2d;
-  --popover: #ffffff;
-  --popover-foreground: #0f1b2d;
-  --primary: #1e40af;
+  --background: #f7f0e6;
+  --foreground: #2e2620;
+  --card: #fffbf5;
+  --card-foreground: #2e2620;
+  --popover: #fffbf5;
+  --popover-foreground: #2e2620;
+  --primary: #a6482a;
   --primary-foreground: #ffffff;
-  --secondary: #e1e8f5;
-  --secondary-foreground: #1e3a8a;
-  --muted: #edf1f7;
-  --muted-foreground: #4a5872;
-  --accent: #e5ebf6;
-  --accent-foreground: #172f6e;
-  --destructive: #b91c1c;
+  --secondary: #f6e3d6;
+  --secondary-foreground: #7a3518;
+  --muted: #f1e8dc;
+  --muted-foreground: #6b5d52;
+  --accent: #f3e6d8;
+  --accent-foreground: #5c2c14;
+  --destructive: #b42318;
   --destructive-foreground: #ffffff;
-  --border: #d5dde9;
-  --input: #b8c4d8;
-  --ring: #3b6fd8;
+  --border: #ecdfcf;
+  --input: #dccab6;
+  --ring: #c9643e;
 
-  /* --brand is the gold used on the dark navy panels (sidebar, hero cards). */
-  --brand: #fcd34d;
-  --warm: #f59e0b;
-  --warm-foreground: #3b2300;
-  --warm-text: #9a4b05;
-  /* Status text is dark enough to pass AA on its own 12–15% tint (badges) as well as on cards. */
+  /* --brand is the accent used on the sage and pastel panels (sidebar, hero cards). */
+  --brand: #8f3a1c;
+  --warm: #f4a07f;
+  --warm-foreground: #3d1a0b;
+  --warm-text: #a3431f;
   --success: #166534;
   --warning: #92400e;
-  --info: #0369a1;
+  --info: #2f5f8a;
 
-  --sidebar: #0f1e3d;
-  --sidebar-foreground: #e8eef9;
-  --sidebar-muted: #a9b8d4;
-  --sidebar-accent: #1a2d55;
-  --sidebar-border: #253a66;
-  --scrim: #050b18;
-  --shadow-color: 15 27 45;
+  --sidebar: #cdd9c6;
+  --sidebar-foreground: #2a3226;
+  --sidebar-muted: #4d5a47;
+  --sidebar-accent: #fbf5ec;
+  --sidebar-border: #b6c5ae;
+  --scrim: #1c140e;
+  --shadow-color: 92 64 40;
 
-  /* Categorical chart slots, in fixed order: navy blue, amber, teal, magenta (distinct in hue and lightness). */
-  --chart-1: #1e40af;
-  --chart-2: #d97706;
-  --chart-3: #0d9488;
-  --chart-4: #c026d3;
+  /* Pastel surfaces: a soft fill for cards and a stronger step for their icon tiles. */
+  --peach: #fbdccb;
+  --peach-strong: #f0916f;
+  --sage: #dbe6d4;
+  --sage-strong: #85a98f;
+  --butter: #fbe7b5;
+  --butter-strong: #eeb042;
+  --sky: #d9e3ee;
+  --sky-strong: #8ba6c6;
+  --rose: #f8d6d3;
+  --rose-strong: #e07f7c;
+  /* Translucent layers on top of pastel panels. */
+  --glass: rgb(255 255 255 / 0.55);
+  --glass-strong: rgb(255 255 255 / 0.85);
+  --glass-border: rgb(255 255 255 / 0.75);
 
-  --shadow-soft: 0 1px 2px rgb(var(--shadow-color) / 0.05), 0 6px 20px -10px rgb(var(--shadow-color) / 0.16);
-  --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.06), 0 18px 40px -16px rgb(var(--shadow-color) / 0.3);
+  /* Categorical chart slots, in fixed order: terracotta, honey, sage, slate blue. */
+  --chart-1: #d9653f;
+  --chart-2: #d6992b;
+  --chart-3: #5f8f6f;
+  --chart-4: #6d8db5;
+
+  --shadow-soft: 0 1px 2px rgb(var(--shadow-color) / 0.04), 0 8px 24px -12px rgb(var(--shadow-color) / 0.18);
+  --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.05), 0 20px 44px -18px rgb(var(--shadow-color) / 0.32);
 }
 
 .dark {
-  --background: #0a1120;
-  --foreground: #e4eaf5;
-  --card: #111a2e;
-  --card-foreground: #e4eaf5;
-  --popover: #16213a;
-  --popover-foreground: #e4eaf5;
-  --primary: #8fb2ff;
-  --primary-foreground: #0a1a3f;
-  --secondary: #18264a;
-  --secondary-foreground: #c3d4ff;
-  --muted: #142038;
-  --muted-foreground: #97a6c2;
-  --accent: #1b2b52;
-  --accent-foreground: #dbe5ff;
+  --background: #171310;
+  --foreground: #f2e9de;
+  --card: #211b16;
+  --card-foreground: #f2e9de;
+  --popover: #261f19;
+  --popover-foreground: #f2e9de;
+  --primary: #f2a07f;
+  --primary-foreground: #2b1307;
+  --secondary: #33251c;
+  --secondary-foreground: #f5c9b1;
+  --muted: #2a221b;
+  --muted-foreground: #b5a594;
+  --accent: #33281f;
+  --accent-foreground: #f7dcc8;
   --destructive: #f87171;
   --destructive-foreground: #450a0a;
-  --border: #1f2d4d;
-  --input: #2c3d63;
-  --ring: #8fb2ff;
+  --border: #3a2f26;
+  --input: #4a3d31;
+  --ring: #f2a07f;
 
-  --brand: #fcd34d;
-  --warm: #fbbf24;
-  --warm-foreground: #3b2300;
-  --warm-text: #fcd34d;
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --info: #38bdf8;
+  --brand: #f4a383;
+  --warm: #f4a07f;
+  --warm-foreground: #2b1307;
+  --warm-text: #f7b59a;
+  --success: #86c79a;
+  --warning: #f2c46b;
+  --info: #9cbbe0;
 
-  --sidebar: #0c1830;
-  --sidebar-foreground: #e8eef9;
-  --sidebar-muted: #a3b3d1;
-  --sidebar-accent: #16274a;
-  --sidebar-border: #20345e;
+  --sidebar: #1f2a22;
+  --sidebar-foreground: #e6eee0;
+  --sidebar-muted: #a8b8a2;
+  --sidebar-accent: #2f3d32;
+  --sidebar-border: #34443a;
   --shadow-color: 0 0 0;
 
-  /* Brighter steps chosen for the dark card (#111a2e), not a flip of the light ones. */
-  --chart-1: #6b93f0;
-  --chart-2: #f59e0b;
-  --chart-3: #2dd4bf;
-  --chart-4: #e879f9;
+  --peach: #3a2620;
+  --peach-strong: #e0876a;
+  --sage: #23302a;
+  --sage-strong: #7fa58c;
+  --butter: #3a311c;
+  --butter-strong: #d9a93f;
+  --sky: #212b38;
+  --sky-strong: #7f9cc0;
+  --rose: #3a2223;
+  --rose-strong: #d97a78;
+  --glass: rgb(255 255 255 / 0.06);
+  --glass-strong: rgb(255 255 255 / 0.14);
+  --glass-border: rgb(255 255 255 / 0.1);
+
+  /* Brighter steps chosen for the dark card, not a flip of the light ones. */
+  --chart-1: #f0916f;
+  --chart-2: #eeb042;
+  --chart-3: #8cc09d;
+  --chart-4: #94b2d8;
 
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px -10px rgb(0 0 0 / 0.5);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 18px 40px -16px rgb(0 0 0 / 0.7);
@@ -138,6 +167,19 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-border: var(--sidebar-border);
   --color-scrim: var(--scrim);
+  --color-peach: var(--peach);
+  --color-peach-strong: var(--peach-strong);
+  --color-sage: var(--sage);
+  --color-sage-strong: var(--sage-strong);
+  --color-butter: var(--butter);
+  --color-butter-strong: var(--butter-strong);
+  --color-sky: var(--sky);
+  --color-sky-strong: var(--sky-strong);
+  --color-rose: var(--rose);
+  --color-rose-strong: var(--rose-strong);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-glass-border: var(--glass-border);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -222,6 +264,13 @@
       min-height: 44px;
       min-width: 44px;
     }
+  }
+
+  .highlight {
+    background: linear-gradient(transparent 58%, color-mix(in oklab, var(--peach-strong) 38%, transparent) 58%, color-mix(in oklab, var(--peach-strong) 38%, transparent) 92%, transparent 92%);
+    border-radius: 0.25em;
+    padding-inline: 0.1em;
+    box-decoration-break: clone;
   }
 
   .scroll-thin {
