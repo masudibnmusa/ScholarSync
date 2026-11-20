@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { inngest } from "./client";
 import { adminDb as db } from "@/db";
 import { conflictAlerts, messages, taskSuggestions, tasks, teams, users } from "@/db/schema";
@@ -94,4 +94,17 @@ export const assessTeamHealth = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth];
+// Every morning (server time, UTC): remind assignees of unfinished tasks due tomorrow. The SQL function
+// (migration 0007) writes the notifications and skips any task already reminded for that due date.
+export const remindDueTasks = inngest.createFunction(
+  { id: "remind-due-tasks", triggers: [{ cron: "0 7 * * *" }] },
+  async ({ step }) => {
+    const sent = await step.run("send-reminders", async () => {
+      const [row] = await db.execute<{ sent: number }>(sql`select public.send_due_reminders() as sent`);
+      return row.sent;
+    });
+    return { sent };
+  },
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks];

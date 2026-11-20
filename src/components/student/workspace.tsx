@@ -110,9 +110,22 @@ export function StudentWorkspace() {
   const [editing, setEditing] = React.useState<KanbanTask | null>(null);
 
   const openTask = (t: KanbanTask | null) => { setEditing(t); setDialogOpen(true); };
+
+  // Links from notifications: ?team=<id> selects that team, ?task=<id> then opens the task once the board has loaded.
+  const teams = useAppStore((s) => s.teams);
+  const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
+  const tasksLoaded = useAppStore((s) => s.loaded.tasks);
+  const teamParam = params.get("team");
+  const taskParam = params.get("task");
+  const linkedTeam = teams.find((t) => t.id === teamParam);
+  React.useEffect(() => {
+    if (linkedTeam && team?.id !== linkedTeam.id) setSelectedTeam(linkedTeam);
+  }, [linkedTeam, team?.id, setSelectedTeam]);
+  const linkedTask = taskParam && tasksLoaded && (!linkedTeam || team?.id === linkedTeam.id) ? tasks.find((t) => t.id === taskParam) : undefined;
+
   const closeDialog = (open: boolean) => {
     setDialogOpen(open);
-    if (!open && wantsNew) router.replace(pathname, { scroll: false }); // ?new=1 came from a link; clear it
+    if (!open && (wantsNew || taskParam)) router.replace(pathname, { scroll: false }); // ?new=1 / ?task= came from a link; clear it
   };
 
   if (!loaded) {
@@ -171,7 +184,7 @@ export function StudentWorkspace() {
 
       <ChatWidget key={team.id} team={team} />
 
-      <TaskDialog open={dialogOpen || wantsNew} onOpenChange={closeDialog} task={wantsNew && !dialogOpen ? null : editing} team={team} />
+      <TaskDialog open={dialogOpen || wantsNew || !!linkedTask} onOpenChange={closeDialog} task={linkedTask && !dialogOpen ? linkedTask : wantsNew && !dialogOpen ? null : editing} team={team} />
     </div>
   );
 }
