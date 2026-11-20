@@ -12,7 +12,7 @@ import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
-import { AiSuggestionsButton, MembersButton, NoTeam } from "@/components/student/shared";
+import { AiSuggestionsButton, MembersButton, NoTeam, WeeklyRecapButton } from "@/components/student/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -159,6 +159,7 @@ export function StudentWorkspace() {
         <MembersButton team={team} />
 
         <div className="ml-auto flex items-center gap-2">
+          <WeeklyRecapButton team={team} />
           <AiSuggestionsButton />
           <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>
         </div>

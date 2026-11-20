@@ -143,6 +143,16 @@ export const taskComments = pgTable("task_comments", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const teamSummaries = pgTable("team_summaries", {
+  teamId: uuid("team_id").notNull(),
+  weekStart: date("week_start").notNull(),
+  summary: text("summary").notNull(),
+  done: text("done").array().notNull(),
+  late: text("late").array().notNull(),
+  decisions: text("decisions").array().notNull(),
+  generatedAt: ts("generated_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
+
 export const teamProgress = pgView("team_progress", {
   teamId: uuid("team_id").notNull(),
   totalTasks: bigint("total_tasks", { mode: "number" }).notNull(),

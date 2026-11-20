@@ -25,6 +25,15 @@ export interface KanbanTask {
   commentCount: number;
 }
 
+export interface WeeklySummary {
+  weekStart: string;
+  summary: string;
+  done: string[];
+  late: string[];
+  decisions: string[];
+  generatedAt: string;
+}
+
 export interface TaskComment {
   id: string;
   authorId: string | null;

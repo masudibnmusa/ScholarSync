@@ -7,9 +7,10 @@ import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
+import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, WeeklySummary,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -218,6 +219,34 @@ export async function addTaskComment(taskId: string, body: string) {
 export async function deleteTaskComment(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
+}
+
+// ─── Weekly AI recap ───────────────────────────────────────────────────
+
+export async function getWeeklySummary(teamId: string): Promise<WeeklySummary | null> {
+  Id.parse(teamId);
+  return withUser(async (tx) => {
+    const [r] = await tx.select().from(s.teamSummaries).where(eq(s.teamSummaries.teamId, teamId))
+      .orderBy(desc(s.teamSummaries.weekStart)).limit(1);
+    return r ? { weekStart: r.weekStart, summary: r.summary, done: r.done, late: r.late, decisions: r.decisions, generatedAt: r.generatedAt } : null;
+  });
+}
+
+const RECAP_COOLDOWN_MS = 10 * 60 * 1000;
+
+/** Regenerates this week's recap on demand. "cooldown" = one was made in the last 10 minutes; "quiet" = nothing to summarise. */
+export async function refreshWeeklySummary(teamId: string): Promise<"ok" | "cooldown" | "quiet"> {
+  Id.parse(teamId);
+  // RLS decides whether this user may see the team; only then does the owner-role generator run.
+  const recent = await withUser(async (tx) => {
+    const [team] = await tx.select({ id: s.teams.id }).from(s.teams).where(eq(s.teams.id, teamId));
+    if (!team) throw new Error("Team not found");
+    const [r] = await tx.select({ at: s.teamSummaries.generatedAt }).from(s.teamSummaries)
+      .where(and(eq(s.teamSummaries.teamId, teamId), eq(s.teamSummaries.weekStart, currentWeekStart())));
+    return r?.at;
+  });
+  if (recent && Date.now() - new Date(recent).getTime() < RECAP_COOLDOWN_MS) return "cooldown";
+  return (await summarizeTeamWeek(teamId)) ? "ok" : "quiet";
 }
 
 // ─── Notifications ─────────────────────────────────────────────────────
