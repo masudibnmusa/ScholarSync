@@ -76,3 +76,21 @@ export function healthInfo(score: number): { label: string; tone: "success" | "w
 
 export const toneText = { success: "text-success", warning: "text-warning", danger: "text-destructive", muted: "text-muted-foreground" } as const;
 export const toneVar = { success: "var(--success)", warning: "var(--warning)", danger: "var(--destructive)" } as const;
+
+// ─── @mentions (same rule as public.mentions() in migration 0008) ──────
+const nameWords = (name: string) => name.toLowerCase().trim().split(/\s+/).filter((w, i) => i === 0 || w.length >= 3);
+
+/** The handle the mention picker inserts: the first name word of 3+ letters ("Md Nazmul Hasan" → "Nazmul"). */
+export function mentionHandle(name: string) {
+  const words = name.trim().split(/\s+/);
+  return words.find((w) => w.length >= 3) ?? words[0] ?? "";
+}
+
+/** Whether "@token" refers to `name`. A trailing full stop ("@Nazmul.") is ignored. */
+export function isMentionOf(token: string, name: string) {
+  const t = token.toLowerCase();
+  const words = nameWords(name);
+  return words.includes(t) || words.includes(t.replace(/\.+$/, ""));
+}
+
+export const MENTION_RE = /(^|[^\p{L}\p{N}_])@([\p{L}\p{N}_.]+)/gu;
