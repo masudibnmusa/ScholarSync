@@ -2,7 +2,7 @@
 
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
-import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
@@ -12,7 +12,7 @@ import { toCsv } from "@/lib/utils";
 import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, CourseGrading, MyGrade, CriterionScore,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -494,6 +494,46 @@ export async function exportCourseReport(courseId: string): Promise<{ filename: 
       "Avg peer rating (1-5)", "Peer reviews received", "Messages sent", "Team milestones done", "Team grade (%)", "Final grade (%)"];
     const date = new Date().toISOString().slice(0, 10);
     return { filename: `${course.code}-contribution-report-${date}.csv`, csv: toCsv([header, ...rows.map((r) => r.cells)]) };
+  });
+}
+
+// ─── My week (students): everything dated across all their teams ───────
+
+const WEEK_AHEAD_DAYS = 21;
+
+/** Unfinished tasks assigned to me and my teams' open milestones: overdue, or due in the next three weeks. */
+export async function getMyWeek(): Promise<WeekItem[]> {
+  return withUser(async (tx, uid) => {
+    const horizon = new Date(Date.now() + WEEK_AHEAD_DAYS * 864e5).toISOString().slice(0, 10);
+    const myTeams = await tx.select({ id: s.teams.id, name: s.teams.name, courseId: s.teams.courseId, courseCode: s.courses.code })
+      .from(s.teams)
+      .innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, uid)))
+      .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId));
+    if (!myTeams.length) return [];
+    const teamOf = (id: string) => myTeams.find((t) => t.id === id)!;
+
+    const [tasks, milestones, done] = await Promise.all([
+      tx.select().from(s.tasks).where(and(
+        eq(s.tasks.assigneeId, uid), ne(s.tasks.status, "done"), isNotNull(s.tasks.dueDate), lte(s.tasks.dueDate, horizon),
+        inArray(s.tasks.teamId, myTeams.map((t) => t.id)),
+      )),
+      tx.select().from(s.courseMilestones).where(and(
+        inArray(s.courseMilestones.courseId, myTeams.map((t) => t.courseId)), lte(s.courseMilestones.dueDate, horizon),
+      )),
+      tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.teamId, myTeams.map((t) => t.id))),
+    ]);
+
+    const items: WeekItem[] = tasks.map((k) => {
+      const t = teamOf(k.teamId);
+      return { kind: "task", id: k.id, title: k.title, date: k.dueDate!, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode, priority: k.priority, status: toUiStatus(k.status) };
+    });
+    for (const m of milestones) {
+      for (const t of myTeams.filter((x) => x.courseId === m.courseId)) {
+        if (done.some((d) => d.teamId === t.id && d.milestoneId === m.id)) continue;
+        items.push({ kind: "milestone", id: m.id, title: m.title, date: m.dueDate, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode });
+      }
+    }
+    return items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === "milestone" ? -1 : 1));
   });
 }
 

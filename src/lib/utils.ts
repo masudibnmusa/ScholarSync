@@ -111,3 +111,22 @@ export const toCsv = (rows: (string | number | null | undefined)[][]) => rows.ma
 export function safeNext(v: string | string[] | undefined) {
   return typeof v === "string" && /^\/(?![/\\])/.test(v) ? v : null;
 }
+
+// ─── My week grouping ───────────────────────────────────────────────────
+/** Whole days from `today` to an ISO date (YYYY-MM-DD), both read as local calendar days. */
+export function daysUntil(iso: string, today = new Date()) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((new Date(y, m - 1, d).getTime() - start.getTime()) / 864e5);
+}
+
+/** The heading a dated item is listed under: Overdue, Today, Tomorrow, a weekday this week, Next week or Later. */
+export function weekBucket(iso: string, today = new Date()) {
+  const n = daysUntil(iso, today);
+  if (n < 0) return "Overdue";
+  if (n === 0) return "Today";
+  if (n === 1) return "Tomorrow";
+  if (n < 7) return new Date(today.getFullYear(), today.getMonth(), today.getDate() + n).toLocaleDateString(undefined, { weekday: "long" });
+  if (n < 14) return "Next week";
+  return "Later";
+}

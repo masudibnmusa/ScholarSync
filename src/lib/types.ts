@@ -82,6 +82,20 @@ export interface MyReview {
   createdAt: string;
 }
 
+/** One dated item on a student's "My week" page. */
+export interface WeekItem {
+  kind: "task" | "milestone";
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  teamId: string;
+  teamName: string;
+  courseId: string;
+  courseCode: string;
+  priority?: KanbanTask["priority"];
+  status?: KanbanTask["status"];
+}
+
 export interface TaskComment {
   id: string;
   authorId: string | null;
