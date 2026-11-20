@@ -153,6 +153,22 @@ export const teamSummaries = pgTable("team_summaries", {
   generatedAt: ts("generated_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
 
+export const courseMilestones = pgTable("course_milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  dueDate: date("due_date").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const teamMilestones = pgTable("team_milestones", {
+  teamId: uuid("team_id").notNull(),
+  milestoneId: uuid("milestone_id").notNull(),
+  completedAt: ts("completed_at").notNull().defaultNow(),
+  completedBy: uuid("completed_by"),
+}, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
+
 export const teamProgress = pgView("team_progress", {
   teamId: uuid("team_id").notNull(),
   totalTasks: bigint("total_tasks", { mode: "number" }).notNull(),

@@ -10,7 +10,7 @@ import { matchTeams } from "@/lib/ai";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, WeeklySummary,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, WeeklySummary,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -247,6 +247,54 @@ export async function refreshWeeklySummary(teamId: string): Promise<"ok" | "cool
   });
   if (recent && Date.now() - new Date(recent).getTime() < RECAP_COOLDOWN_MS) return "cooldown";
   return (await summarizeTeamWeek(teamId)) ? "ok" : "quiet";
+}
+
+// ─── Milestones (instructors set them per course; teams mark them done) ─
+
+export async function getMilestones(courseId: string): Promise<Milestone[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const ms = await tx.select().from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId))
+      .orderBy(asc(s.courseMilestones.dueDate), asc(s.courseMilestones.createdAt));
+    if (!ms.length) return [];
+    // RLS shows a student only their own team's completions, and the instructor every team's.
+    const done = await tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.milestoneId, ms.map((m) => m.id)));
+    return ms.map((m) => ({
+      id: m.id, title: m.title, description: m.description, dueDate: m.dueDate,
+      completions: done.filter((d) => d.milestoneId === m.id).map((d) => ({ teamId: d.teamId, completedAt: d.completedAt })),
+    }));
+  });
+}
+
+const MilestoneInput = z.object({
+  title: z.string().trim().min(1, "Give the milestone a title").max(120),
+  description: z.string().trim().max(1000),
+  dueDate: z.iso.date(),
+});
+
+export async function saveMilestone(courseId: string, input: z.input<typeof MilestoneInput>, id?: string) {
+  Id.parse(courseId);
+  const m = MilestoneInput.parse(input);
+  await withUser(async (tx) => {
+    if (!id) return tx.insert(s.courseMilestones).values({ ...m, courseId });
+    Id.parse(id);
+    const updated = await tx.update(s.courseMilestones).set(m).where(eq(s.courseMilestones.id, id)).returning({ id: s.courseMilestones.id });
+    if (!updated.length) throw new Error("Milestone not found");
+  });
+}
+
+export async function deleteMilestone(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.courseMilestones).where(eq(s.courseMilestones.id, id)));
+}
+
+export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  await withUser(async (tx) => {
+    if (done) await tx.insert(s.teamMilestones).values({ teamId, milestoneId }).onConflictDoNothing();
+    else await tx.delete(s.teamMilestones).where(and(eq(s.teamMilestones.teamId, teamId), eq(s.teamMilestones.milestoneId, milestoneId)));
+  });
 }
 
 // ─── Notifications ─────────────────────────────────────────────────────

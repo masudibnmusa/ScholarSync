@@ -34,6 +34,15 @@ export interface WeeklySummary {
   generatedAt: string;
 }
 
+export interface Milestone {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  /** Teams (that the viewer can see) which marked this milestone done. */
+  completions: { teamId: string; completedAt: string }[];
+}
+
 export interface TaskComment {
   id: string;
   authorId: string | null;
