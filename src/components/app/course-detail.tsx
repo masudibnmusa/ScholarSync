@@ -4,11 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, CheckCircle, Info, Lightbulb, ListChecks, PencilSimple, SignIn, Sparkle, Target, UsersThree,
+  ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, CheckCircle, DownloadSimple, Info, Lightbulb, ListChecks, PencilSimple, SignIn, Sparkle, Target, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { getCourses, joinCourse } from "@/app/actions";
+import { exportCourseReport, getCourses, joinCourse } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
@@ -89,6 +89,24 @@ export function CourseDetail({ id }: { id: string }) {
   const [course, setCourse] = React.useState<Course | null | undefined>(undefined);
   const [editing, setEditing] = React.useState(false);
   const [joining, setJoining] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
+
+  async function exportReport() {
+    if (!course) return;
+    setExporting(true);
+    try {
+      const { filename, csv } = await exportCourseReport(course.id);
+      // BOM so Excel reads names as UTF-8.
+      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Could not export the report");
+    }
+    setExporting(false);
+  }
 
   // shortcut: loads every course to show one; add a getCourse(id) action if the catalog grows large.
   const load = React.useCallback(() => getCourses().then((cs) => setCourse(cs.find((c) => c.id === id) ?? null), (err) => {
@@ -167,6 +185,7 @@ export function CourseDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canEdit && <Button variant="secondary" loading={exporting} onClick={exportReport}>{!exporting && <DownloadSimple aria-hidden />} Export report</Button>}
             {canEdit && <Button variant="secondary" onClick={() => setEditing(true)}><PencilSimple aria-hidden /> Edit course</Button>}
             {canEdit && course.unplaced >= 2 && (
               <Button asChild variant="warm"><Link href={`/instructor/matching?course=${course.id}`}><Sparkle weight="fill" aria-hidden /> Match teams with AI</Link></Button>

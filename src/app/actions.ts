@@ -8,6 +8,7 @@ import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
+import { toCsv } from "@/lib/utils";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
   ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, WeeklySummary,
@@ -294,6 +295,59 @@ export async function setMilestoneDone(teamId: string, milestoneId: string, done
   await withUser(async (tx) => {
     if (done) await tx.insert(s.teamMilestones).values({ teamId, milestoneId }).onConflictDoNothing();
     else await tx.delete(s.teamMilestones).where(and(eq(s.teamMilestones.teamId, teamId), eq(s.teamMilestones.milestoneId, milestoneId)));
+  });
+}
+
+// ─── Contribution report (course instructor only) ──────────────────────
+
+/** One row per enrolled student: team, task share, peer reviews, chat activity and team milestones, as CSV. */
+export async function exportCourseReport(courseId: string): Promise<{ filename: string; csv: string }> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select().from(s.courses).where(and(eq(s.courses.id, courseId), eq(s.courses.instructorId, uid)));
+    if (!course) throw new Error("Only the course instructor can export this report");
+
+    const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId));
+    const teamIds = teams.map((t) => t.id);
+    const none = teamIds.length === 0;
+    const [students, members, contrib, progress, reviews, msgs, milestoneTotal, milestonesDone] = await Promise.all([
+      tx.select({ id: s.users.id, name: s.users.name, email: s.users.email }).from(s.courseEnrollments)
+        .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId)).where(eq(s.courseEnrollments.courseId, courseId)),
+      none ? [] : tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, teamIds)),
+      none ? [] : tx.select().from(s.memberContribution).where(inArray(s.memberContribution.teamId, teamIds)),
+      none ? [] : tx.select().from(s.teamProgress).where(inArray(s.teamProgress.teamId, teamIds)),
+      none ? [] : tx.select({ teamId: s.peerReviews.teamId, userId: s.peerReviews.revieweeId, avg: sql<number>`round(avg(${s.peerReviews.rating}), 2)::float`, n: count() })
+        .from(s.peerReviews).where(inArray(s.peerReviews.teamId, teamIds)).groupBy(s.peerReviews.teamId, s.peerReviews.revieweeId),
+      none ? [] : tx.select({ teamId: s.messages.teamId, userId: s.messages.senderId, n: count() })
+        .from(s.messages).where(inArray(s.messages.teamId, teamIds)).groupBy(s.messages.teamId, s.messages.senderId),
+      tx.select({ n: count() }).from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId)),
+      none ? [] : tx.select({ teamId: s.teamMilestones.teamId, n: count() }).from(s.teamMilestones)
+        .where(inArray(s.teamMilestones.teamId, teamIds)).groupBy(s.teamMilestones.teamId),
+    ]);
+
+    const totalMs = milestoneTotal[0]?.n ?? 0;
+    const rows = students.map((st) => {
+      const team = teams.find((t) => members.some((m) => m.teamId === t.id && m.userId === st.id));
+      if (!team) return { sort: `~${st.name}`, cells: [st.name, st.email, "No team", "", "", "", "", "", "", ""] };
+      const c = contrib.find((x) => x.teamId === team.id && x.userId === st.id);
+      const teamDone = progress.find((x) => x.teamId === team.id)?.doneTasks ?? 0;
+      const r = reviews.find((x) => x.teamId === team.id && x.userId === st.id);
+      const sent = msgs.find((x) => x.teamId === team.id && x.userId === st.id)?.n ?? 0;
+      const ms = milestonesDone.find((x) => x.teamId === team.id)?.n ?? 0;
+      return {
+        sort: `${team.name}\u0000${st.name}`,
+        cells: [
+          st.name, st.email, team.name, c?.tasksDone ?? 0, c?.tasksAssigned ?? 0,
+          teamDone ? Math.round(((c?.tasksDone ?? 0) / teamDone) * 100) : 0,
+          r ? r.avg : "", r?.n ?? 0, sent, totalMs ? `${ms}/${totalMs}` : "",
+        ],
+      };
+    }).sort((a, b) => a.sort.localeCompare(b.sort));
+
+    const header = ["Student", "Email", "Team", "Tasks done", "Tasks assigned", "Share of team's done tasks (%)",
+      "Avg peer rating (1-5)", "Peer reviews received", "Messages sent", "Team milestones done"];
+    const date = new Date().toISOString().slice(0, 10);
+    return { filename: `${course.code}-contribution-report-${date}.csv`, csv: toCsv([header, ...rows.map((r) => r.cells)]) };
   });
 }
 

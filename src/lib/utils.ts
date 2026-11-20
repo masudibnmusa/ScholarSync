@@ -94,3 +94,15 @@ export function isMentionOf(token: string, name: string) {
 }
 
 export const MENTION_RE = /(^|[^\p{L}\p{N}_])@([\p{L}\p{N}_.]+)/gu;
+
+// ─── CSV export ─────────────────────────────────────────────────────────
+/** One CSV cell: quoted when needed, and text a spreadsheet would run as a formula (=, +, -, @) is defused. */
+export function csvCell(v: string | number | null | undefined) {
+  if (v == null) return "";
+  if (typeof v === "number") return String(v);
+  const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+/** Rows to CSV text (CRLF line ends, as Excel expects). */
+export const toCsv = (rows: (string | number | null | undefined)[][]) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
