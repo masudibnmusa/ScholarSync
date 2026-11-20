@@ -12,6 +12,7 @@ import { exportCourseReport, getCourses, joinCourse } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
+import { GradingPanel, MyGradeCard } from "@/components/app/grading";
 import { Milestones } from "@/components/app/milestones";
 import { EmptyState, Page, StatCard } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
@@ -207,6 +208,8 @@ export function CourseDetail({ id }: { id: string }) {
       </Stagger>
 
       {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} />}
+      {canEdit && <GradingPanel courseId={course.id} />}
+      {!instructor && course.enrolled && <MyGradeCard courseId={course.id} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">

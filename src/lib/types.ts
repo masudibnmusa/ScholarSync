@@ -43,6 +43,37 @@ export interface Milestone {
   completions: { teamId: string; completedAt: string }[];
 }
 
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  maxPoints: number;
+}
+
+export type CriterionScore = { points: number; feedback: string };
+
+export interface GradedMember {
+  userId: string;
+  name: string;
+  peerAvg: number | null;
+  reviews: number;
+  suggestedFactor: number;
+  /** The instructor's override, if any; otherwise the suggestion applies. */
+  override: number | null;
+}
+
+export interface CourseGrading {
+  released: boolean;
+  criteria: RubricCriterion[];
+  teams: { teamId: string; teamName: string; scores: Record<string, CriterionScore>; members: GradedMember[] }[];
+}
+
+export interface MyGrade {
+  teamName: string;
+  criteria: RubricCriterion[];
+  scores: Record<string, CriterionScore>;
+  factor: number;
+}
+
 export interface TaskComment {
   id: string;
   authorId: string | null;
