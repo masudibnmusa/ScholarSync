@@ -12,7 +12,7 @@ import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
-import { AiSuggestionsButton, MembersButton, NoTeam } from "@/components/student/shared";
+import { AiSuggestionsButton, MembersButton, NoTeam, WeeklyRecapButton } from "@/components/student/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -110,9 +110,22 @@ export function StudentWorkspace() {
   const [editing, setEditing] = React.useState<KanbanTask | null>(null);
 
   const openTask = (t: KanbanTask | null) => { setEditing(t); setDialogOpen(true); };
+
+  // Links from notifications: ?team=<id> selects that team, ?task=<id> then opens the task once the board has loaded.
+  const teams = useAppStore((s) => s.teams);
+  const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
+  const tasksLoaded = useAppStore((s) => s.loaded.tasks);
+  const teamParam = params.get("team");
+  const taskParam = params.get("task");
+  const linkedTeam = teams.find((t) => t.id === teamParam);
+  React.useEffect(() => {
+    if (linkedTeam && team?.id !== linkedTeam.id) setSelectedTeam(linkedTeam);
+  }, [linkedTeam, team?.id, setSelectedTeam]);
+  const linkedTask = taskParam && tasksLoaded && (!linkedTeam || team?.id === linkedTeam.id) ? tasks.find((t) => t.id === taskParam) : undefined;
+
   const closeDialog = (open: boolean) => {
     setDialogOpen(open);
-    if (!open && wantsNew) router.replace(pathname, { scroll: false }); // ?new=1 came from a link; clear it
+    if (!open && (wantsNew || taskParam)) router.replace(pathname, { scroll: false }); // ?new=1 / ?task= came from a link; clear it
   };
 
   if (!loaded) {
@@ -146,6 +159,7 @@ export function StudentWorkspace() {
         <MembersButton team={team} />
 
         <div className="ml-auto flex items-center gap-2">
+          <WeeklyRecapButton team={team} />
           <AiSuggestionsButton />
           <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>
         </div>
@@ -171,7 +185,7 @@ export function StudentWorkspace() {
 
       <ChatWidget key={team.id} team={team} />
 
-      <TaskDialog open={dialogOpen || wantsNew} onOpenChange={closeDialog} task={wantsNew && !dialogOpen ? null : editing} team={team} />
+      <TaskDialog open={dialogOpen || wantsNew || !!linkedTask} onOpenChange={closeDialog} task={linkedTask && !dialogOpen ? linkedTask : wantsNew && !dialogOpen ? null : editing} team={team} />
     </div>
   );
 }

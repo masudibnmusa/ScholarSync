@@ -3,7 +3,7 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CloudArrowUp, DownloadSimple, File as FileIcon, FileCode, FileDoc, FileImage, FilePdf, FilePpt, FileXls, FileZip, FolderOpen, MagnifyingGlass,
+  CloudArrowUp, DownloadSimple, File as FileIcon, FileCode, FileDoc, FileImage, FilePdf, FilePpt, FileXls, FileZip, FolderOpen, MagnifyingGlass, Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -11,6 +11,8 @@ import { useAppStore } from "@/lib/store";
 import { cn, formatBytes, timeAgo } from "@/lib/utils";
 import type { FileUpload, Team } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
+import { useUser } from "@/components/app/user-context";
+import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/overlays";
@@ -32,8 +34,13 @@ export function fileMeta(f: Pick<FileUpload, "fileName" | "fileType">): { icon: 
   return { icon: FileIcon, className: "bg-muted text-muted-foreground", kind: "other" };
 }
 
-export function FileRow({ file }: { file: FileUpload }) {
+export function FileRow({ file, teamId }: { file: FileUpload; teamId: string }) {
   const download = useAppStore((s) => s.downloadFile);
+  const remove = useAppStore((s) => s.deleteFile);
+  const user = useUser();
+  const [confirming, setConfirming] = React.useState(false);
+  // Matches RLS: the uploader, or the course instructor (who only sees their own courses' teams).
+  const canDelete = file.uploaderId === user.id || user.role === "instructor";
   const meta = fileMeta(file);
   return (
     <div className="group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-accent/50">
@@ -49,6 +56,16 @@ export function FileRow({ file }: { file: FileUpload }) {
           <DownloadSimple className="size-5" />
         </Button>
       </Tooltip>
+      {canDelete && (
+        <Tooltip label="Delete">
+          <Button variant="ghost" size="icon" aria-label={`Delete ${file.fileName}`} className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming(true)}>
+            <Trash className="size-5" />
+          </Button>
+        </Tooltip>
+      )}
+      <ConfirmDialog open={confirming} onOpenChange={setConfirming} title={`Delete ${file.fileName}?`}
+        description="It is removed for the whole team. Chat messages that shared it will say it was deleted."
+        onConfirm={async () => { if (await remove(teamId, file.id)) toast.success("File deleted"); }} />
     </div>
   );
 }
@@ -141,7 +158,7 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
             <AnimatePresence initial={false}>
               {visible.map((f) => (
                 <motion.li key={f.id} layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                  <FileRow file={f} />
+                  <FileRow file={f} teamId={team.id} />
                 </motion.li>
               ))}
             </AnimatePresence>

@@ -1,24 +1,11 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { inngest } from "./client";
 import { adminDb as db } from "@/db";
-import { conflictAlerts, messages, taskSuggestions, tasks, teams, users } from "@/db/schema";
-import { assessTeam, extractTasks, type ChatLine } from "@/lib/ai";
+import { conflictAlerts, messages, notifications, taskSuggestions, tasks, teamMembers, teams } from "@/db/schema";
+import { assessTeam, extractTasks } from "@/lib/ai";
+import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
-
-async function recentChat(teamId: string, since?: Date, limit = 40): Promise<ChatLine[]> {
-  const rows = await db
-    .select({ id: messages.id, content: messages.content, at: messages.createdAt, sender: users.name })
-    .from(messages)
-    .leftJoin(users, eq(users.id, messages.senderId))
-    .where(and(eq(messages.teamId, teamId), since ? gt(messages.createdAt, since.toISOString()) : undefined))
-    .orderBy(desc(messages.createdAt))
-    .limit(limit);
-  return rows
-    .reverse()
-    .filter((r) => r.content.trim())
-    .map((r) => ({ id: r.id, content: r.content, at: r.at, sender: r.sender ?? "Unknown" }));
-}
 
 export const extractChatTasks = inngest.createFunction(
   {
@@ -94,4 +81,47 @@ export const assessTeamHealth = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth];
+// Every morning (server time, UTC): remind assignees of unfinished tasks due tomorrow. The SQL function
+// (migration 0007) writes the notifications and skips any task already reminded for that due date.
+export const remindDueTasks = inngest.createFunction(
+  { id: "remind-due-tasks", triggers: [{ cron: "0 7 * * *" }] },
+  async ({ step }) => {
+    const sent = await step.run("send-reminders", async () => {
+      const [row] = await db.execute<{ sent: number }>(sql`select public.send_due_reminders() as sent`);
+      return row.sent;
+    });
+    return { sent };
+  },
+);
+
+// Monday morning (UTC): a recap of last week for every team that chatted or touched its board,
+// and a notification to its members.
+export const weeklyRecaps = inngest.createFunction(
+  { id: "weekly-team-recaps", triggers: [{ cron: "0 6 * * 1" }] },
+  async ({ step }) => {
+    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const active = await step.run("active-teams", () =>
+      db.selectDistinct({ id: teams.id, name: teams.name }).from(teams)
+        .leftJoin(messages, eq(messages.teamId, teams.id))
+        .leftJoin(tasks, eq(tasks.teamId, teams.id))
+        .where(or(gt(messages.createdAt, since), gt(tasks.updatedAt, since))),
+    );
+    let written = 0;
+    for (const team of active) {
+      const ok = await step.run(`recap-${team.id}`, () => summarizeTeamWeek(team.id));
+      if (!ok) continue;
+      written++;
+      await step.run(`notify-${team.id}`, async () => {
+        const members = await db.select({ userId: teamMembers.userId }).from(teamMembers).where(eq(teamMembers.teamId, team.id));
+        if (!members.length) return;
+        await db.insert(notifications).values(members.map((m) => ({
+          userId: m.userId, type: "system" as const, title: `Weekly recap for ${team.name}`,
+          body: "What got done, what is late and what you decided last week.", link: `/student?team=${team.id}&recap=1`,
+        })));
+      });
+    }
+    return { teams: active.length, written };
+  },
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, weeklyRecaps];

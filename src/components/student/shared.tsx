@@ -2,11 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { getWeeklySummary, refreshWeeklySummary } from "@/app/actions";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretDown, Check, Clock, Quotes, Sparkle, UsersThree, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowClockwise, CaretDown, ChatTeardropText, Check, CheckCircle, ClipboardText, Clock, Quotes, Sparkle, UsersThree, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { useAppStore } from "@/lib/store";
-import { cn, healthInfo, toneText } from "@/lib/utils";
-import type { Team } from "@/lib/types";
+import { cn, healthInfo, timeAgo, toneText } from "@/lib/utils";
+import type { Team, WeeklySummary } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { Avatar, AvatarStack } from "@/components/ui/avatar";
@@ -96,6 +100,103 @@ export function PanelSkeleton() {
 }
 
 /** Tasks the AI job extracted from chat. A person accepts or dismisses each one. */
+function RecapList({ icon: IconCmp, title, items, tone }: { icon: Icon; title: string; items: string[]; tone: string }) {
+  if (!items.length) return null;
+  return (
+    <section>
+      <h3 className="flex items-center gap-1.5 text-sm font-bold"><IconCmp weight="fill" className={cn("size-4", tone)} aria-hidden />{title}</h3>
+      <ul className="mt-1.5 space-y-1 pl-5.5 text-sm text-muted-foreground">
+        {items.map((x) => <li key={x} className="list-disc marker:text-border">{x}</li>)}
+      </ul>
+    </section>
+  );
+}
+
+const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** The team's weekly AI recap. Opens from the header, or from a notification link with ?recap=1. */
+export function WeeklyRecapButton({ team }: { team: Team }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const fromLink = params.get("recap") === "1";
+  const [open, setOpen] = React.useState(false);
+  const [recap, setRecap] = React.useState<WeeklySummary | null | undefined>(undefined); // undefined = loading
+  const [refreshing, setRefreshing] = React.useState(false);
+  const isOpen = open || fromLink;
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    getWeeklySummary(team.id).then(setRecap).catch((err) => {
+      console.error("Loading the recap failed:", err);
+      setRecap(null);
+    });
+  }, [isOpen, team.id]);
+
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next && fromLink) {
+      const rest = new URLSearchParams(params.toString());
+      rest.delete("recap");
+      router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });
+    }
+  }
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      const result = await refreshWeeklySummary(team.id);
+      if (result === "quiet") toast.info("Not much happened this week yet. Try again after some chat or board activity.");
+      else if (result === "cooldown") toast.info("This recap was made a few minutes ago.");
+      setRecap(await getWeeklySummary(team.id));
+    } catch (err) {
+      console.error("Refreshing the recap failed:", err);
+      toast.error("Could not write the recap. The AI may be busy; try again in a minute.");
+    }
+    setRefreshing(false);
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <ClipboardText weight="duotone" aria-hidden />
+          <span className="hidden xl:inline">Weekly recap</span>
+          <span className="xl:hidden">Recap</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-sky text-info"><ClipboardText weight="fill" className="size-4" aria-hidden /></span>
+            {team.name}&apos;s weekly recap
+          </DialogTitle>
+          <DialogDescription>
+            {recap ? `Week of ${weekLabel(recap.weekStart)} · written by AI ${timeAgo(recap.generatedAt)}` : "Every Monday the AI reads the week's chat and board and sums it up."}
+          </DialogDescription>
+        </DialogHeader>
+        {recap === undefined ? (
+          <div className="space-y-3" aria-busy="true"><Skeleton className="h-16" /><Skeleton className="h-24" /></div>
+        ) : recap === null ? (
+          <EmptyState icon={ClipboardText} title="No recap yet" description="The first one arrives on Monday, or write one now from this week's activity." className="py-6" />
+        ) : (
+          <div className="space-y-4">
+            <p className="rounded-2xl bg-sky/60 px-4 py-3 text-[0.9375rem] leading-relaxed">{recap.summary}</p>
+            <RecapList icon={CheckCircle} title="Done" items={recap.done} tone="text-success" />
+            <RecapList icon={WarningCircle} title="Late or at risk" items={recap.late} tone="text-warning" />
+            <RecapList icon={ChatTeardropText} title="Decided" items={recap.decisions} tone="text-info" />
+          </div>
+        )}
+        <div className="flex justify-end">
+          <Button variant="secondary" onClick={refresh} loading={refreshing} disabled={recap === undefined}>
+            {!refreshing && <ArrowClockwise aria-hidden />} {recap ? "Refresh from this week" : "Write it now"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AiSuggestionsButton() {
   const suggestions = useAppStore((s) => s.taskSuggestions);
   const accept = useAppStore((s) => s.acceptSuggestion);

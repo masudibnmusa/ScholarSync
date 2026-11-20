@@ -22,6 +22,72 @@ export interface KanbanTask {
   assigneeName: string;
   priority: "low" | "medium" | "high";
   dueDate: string | null;
+  commentCount: number;
+}
+
+export interface WeeklySummary {
+  weekStart: string;
+  summary: string;
+  done: string[];
+  late: string[];
+  decisions: string[];
+  generatedAt: string;
+}
+
+export interface Milestone {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  /** Teams (that the viewer can see) which marked this milestone done. */
+  completions: { teamId: string; completedAt: string }[];
+}
+
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  maxPoints: number;
+}
+
+export type CriterionScore = { points: number; feedback: string };
+
+export interface GradedMember {
+  userId: string;
+  name: string;
+  peerAvg: number | null;
+  reviews: number;
+  suggestedFactor: number;
+  /** The instructor's override, if any; otherwise the suggestion applies. */
+  override: number | null;
+}
+
+export interface CourseGrading {
+  released: boolean;
+  criteria: RubricCriterion[];
+  teams: { teamId: string; teamName: string; scores: Record<string, CriterionScore>; members: GradedMember[] }[];
+}
+
+export interface MyGrade {
+  teamName: string;
+  criteria: RubricCriterion[];
+  scores: Record<string, CriterionScore>;
+  factor: number;
+}
+
+export interface MyReview {
+  revieweeId: string;
+  rating: number;
+  categoryRatings: Record<string, number>;
+  feedback: string;
+  createdAt: string;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface TeamMember {
@@ -62,6 +128,7 @@ export interface FileUpload {
   fileSize: number;
   fileType: string;
   uploadedBy: string;
+  uploaderId: string | null;
   createdAt: string;
   storagePath: string;
 }
@@ -117,4 +184,15 @@ export interface Course {
   unplaced: number; // instructor only: enrolled students not on a team yet
   myTeam: string | null; // student only
   students: string[]; // instructor only: names, for the roster preview
+  joinCode: string | null; // instructor only: the invite code (/join/<code>)
+}
+
+export interface CourseInvite {
+  id: string;
+  code: string;
+  title: string;
+  term: string;
+  instructorName: string;
+  enrolled: boolean;
+  isMine: boolean;
 }

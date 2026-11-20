@@ -16,7 +16,7 @@ import { HealthBadge, severityBadge } from "@/components/instructor/charts";
 import { EditTeamButton } from "@/components/instructor/edit-team";
 import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard } from "@/components/student/kanban";
-import { MembersButton } from "@/components/student/shared";
+import { MembersButton, WeeklyRecapButton } from "@/components/student/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +228,7 @@ export function InstructorWorkspace() {
                 </div>
                 <Progress value={current.progress} label={`${current.name} progress`} className="h-1.5" />
               </div>
-              <div className="ml-auto flex items-center gap-2"><EditTeamButton team={current} /><MembersButton team={current} align="end" /></div>
+              <div className="ml-auto flex items-center gap-2"><WeeklyRecapButton team={current} /><EditTeamButton team={current} /><MembersButton team={current} align="end" /></div>
             </div>
           </header>
 

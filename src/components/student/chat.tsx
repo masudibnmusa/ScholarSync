@@ -6,7 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, CaretDown, ChatsCircle, DownloadSimple, FileArrowUp, FileText, FolderOpen, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";
-import { clockTime, cn, dayLabel, formatBytes } from "@/lib/utils";
+import { clockTime, cn, dayLabel, formatBytes, isMentionOf, MENTION_RE, mentionHandle } from "@/lib/utils";
+import { useUser } from "@/components/app/user-context";
 import type { ChatMessage, Team } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { FilesView } from "@/components/student/files";
@@ -64,7 +65,28 @@ function FileChip({ msg }: { msg: ChatMessage }) {
   );
 }
 
-function Bubble({ row }: { row: Extract<Row, { kind: "msg" }> }) {
+/** Message text with @mentions of team members highlighted; a mention of the reader stands out more. */
+function MessageText({ content, names, me, onPrimary }: { content: string; names: string[]; me: string; onPrimary: boolean }) {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of content.matchAll(MENTION_RE)) {
+    const name = names.find((n) => isMentionOf(m[2], n));
+    if (!name) continue;
+    const start = m.index + m[1].length;
+    parts.push(content.slice(last, start));
+    const mine = name === me;
+    parts.push(
+      <span key={start} className={cn("rounded px-0.5 font-semibold", onPrimary ? "bg-white/20" : mine ? "bg-warm/35" : "bg-primary/10 text-primary")}>
+        {content.slice(start, start + 1 + m[2].length)}
+      </span>,
+    );
+    last = start + 1 + m[2].length;
+  }
+  parts.push(content.slice(last));
+  return <p className="whitespace-pre-wrap break-words">{parts}</p>;
+}
+
+function Bubble({ row, names, me }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string }) {
   const { msg, head, tail } = row;
   return (
     <motion.li
@@ -88,7 +110,7 @@ function Bubble({ row }: { row: Extract<Row, { kind: "msg" }> }) {
             tail && (msg.isMe ? "rounded-br-md" : "rounded-bl-md"),
           )}
         >
-          {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
+          {msg.content && <MessageText content={msg.content} names={names} me={me} onPrimary={msg.isMe} />}
           <FileChip msg={msg} />
         </div>
         {tail && <time dateTime={msg.timestamp} className="mx-1 mt-1 text-[0.6875rem] text-muted-foreground">{clockTime(msg.timestamp)}</time>}
@@ -114,6 +136,34 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
   const fileRef = React.useRef<HTMLInputElement>(null);
   const count = messages?.length ?? 0;
   const rows = React.useMemo(() => toRows(messages ?? []), [messages]);
+
+  // @mentions: the word being typed right before the caret, and the teammates it could mean.
+  const user = useUser();
+  const memberNames = React.useMemo(() => team.members.map((m) => m.name), [team.members]);
+  const [caret, setCaret] = React.useState(0);
+  const [mentionIndex, setMentionIndex] = React.useState(0);
+  const [mentionClosedAt, setMentionClosedAt] = React.useState<number | null>(null);
+  const mentionQuery = /(?:^|\s)@([\p{L}\p{N}_.]*)$/u.exec(text.slice(0, caret))?.[1] ?? null;
+  const candidates = mentionQuery === null ? [] : team.members
+    .filter((m) => m.userId !== user.id && m.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(mentionQuery.toLowerCase())))
+    .slice(0, 6);
+  const mentionOpen = candidates.length > 0 && mentionClosedAt !== caret;
+  const activeMention = Math.min(mentionIndex, candidates.length - 1);
+
+  function pickMention(name: string) {
+    const before = text.slice(0, caret).replace(/@[\p{L}\p{N}_.]*$/u, `@${mentionHandle(name)} `);
+    const next = before + text.slice(caret);
+    setText(next);
+    setCaret(before.length);
+    setMentionIndex(0);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(before.length, before.length);
+      grow();
+    });
+  }
 
   const scrollToBottom = React.useCallback((smooth = true) => {
     const el = listRef.current;
@@ -221,7 +271,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
                   <span className="rounded-full border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">{row.label}</span>
                   <span className="h-px flex-1 bg-border" aria-hidden />
                 </li>
-              ) : <Bubble key={row.key} row={row} />)}
+              ) : <Bubble key={row.key} row={row} names={memberNames} me={user.name} />)}
             </ul>
           )}
         </div>
@@ -242,6 +292,20 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
             <button type="button" onClick={() => setFile(null)} aria-label={`Remove ${file.name}`} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
           </div>
         )}
+        {mentionOpen && (
+          <ul id={`mention-list-${team.id}`} role="listbox" aria-label="Mention a teammate" className="mb-2 max-w-xs overflow-hidden rounded-2xl border bg-popover p-1 shadow-lift">
+            {candidates.map((m, i) => (
+              <li key={m.userId} id={`mention-${team.id}-${m.userId}`} role="option" aria-selected={i === activeMention}
+                onMouseDown={(e) => { e.preventDefault(); pickMention(m.name); }}
+                onMouseEnter={() => setMentionIndex(i)}
+                className={cn("flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm", i === activeMention && "bg-accent")}>
+                <Avatar name={m.name} size="xs" />
+                <span className="min-w-0 flex-1 truncate font-semibold">{m.name}</span>
+                <span className="text-xs text-muted-foreground">@{mentionHandle(m.name)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-end gap-1.5 rounded-2xl border border-input bg-background p-1.5 transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/25">
           <input ref={fileRef} type="file" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { attach(e.target.files); e.target.value = ""; }} />
           <Tooltip label="Attach a file, or drop it here" side="top">
@@ -254,8 +318,26 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
             rows={1}
             value={text}
             maxLength={4000}
-            onChange={(e) => { setText(e.target.value); grow(); }}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
+            role="combobox"
+            aria-expanded={mentionOpen}
+            aria-autocomplete="list"
+            aria-controls={mentionOpen ? `mention-list-${team.id}` : undefined}
+            aria-activedescendant={mentionOpen ? `mention-${team.id}-${candidates[activeMention].userId}` : undefined}
+            onChange={(e) => { setText(e.target.value); setCaret(e.target.selectionStart); setMentionClosedAt(null); grow(); }}
+            onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
+            onKeyDown={(e) => {
+              if (mentionOpen) {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const step = e.key === "ArrowDown" ? 1 : -1;
+                  setMentionIndex((activeMention + step + candidates.length) % candidates.length);
+                  return;
+                }
+                if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) { e.preventDefault(); pickMention(candidates[activeMention].name); return; }
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMentionClosedAt(caret); return; }
+              }
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
+            }}
             placeholder={`Message ${team.name}…`}
             className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-snug outline-none placeholder:text-muted-foreground md:text-[0.9375rem]"
           />
@@ -264,7 +346,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
           </Button>
         </div>
         <p className="mt-1.5 hidden px-1 text-[0.6875rem] text-muted-foreground sm:block">
-          {instructor ? "Every team member is notified. " : null}<kbd className="font-sans font-semibold">Enter</kbd> to send · <kbd className="font-sans font-semibold">Shift + Enter</kbd> for a new line
+          {instructor ? "Every team member is notified. " : null}<kbd className="font-sans font-semibold">Enter</kbd> to send · <kbd className="font-sans font-semibold">Shift + Enter</kbd> for a new line · <kbd className="font-sans font-semibold">@</kbd> to mention
         </p>
       </form>
     </div>

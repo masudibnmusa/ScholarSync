@@ -76,3 +76,38 @@ export function healthInfo(score: number): { label: string; tone: "success" | "w
 
 export const toneText = { success: "text-success", warning: "text-warning", danger: "text-destructive", muted: "text-muted-foreground" } as const;
 export const toneVar = { success: "var(--success)", warning: "var(--warning)", danger: "var(--destructive)" } as const;
+
+// ─── @mentions (same rule as public.mentions() in migration 0008) ──────
+const nameWords = (name: string) => name.toLowerCase().trim().split(/\s+/).filter((w, i) => i === 0 || w.length >= 3);
+
+/** The handle the mention picker inserts: the first name word of 3+ letters ("Md Nazmul Hasan" → "Nazmul"). */
+export function mentionHandle(name: string) {
+  const words = name.trim().split(/\s+/);
+  return words.find((w) => w.length >= 3) ?? words[0] ?? "";
+}
+
+/** Whether "@token" refers to `name`. A trailing full stop ("@Nazmul.") is ignored. */
+export function isMentionOf(token: string, name: string) {
+  const t = token.toLowerCase();
+  const words = nameWords(name);
+  return words.includes(t) || words.includes(t.replace(/\.+$/, ""));
+}
+
+export const MENTION_RE = /(^|[^\p{L}\p{N}_])@([\p{L}\p{N}_.]+)/gu;
+
+// ─── CSV export ─────────────────────────────────────────────────────────
+/** One CSV cell: quoted when needed, and text a spreadsheet would run as a formula (=, +, -, @) is defused. */
+export function csvCell(v: string | number | null | undefined) {
+  if (v == null) return "";
+  if (typeof v === "number") return String(v);
+  const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+/** Rows to CSV text (CRLF line ends, as Excel expects). */
+export const toCsv = (rows: (string | number | null | undefined)[][]) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+
+/** A same-site path to return to after signing in, or null. Rejects "//host" and "/\\host", which browsers treat as other sites. */
+export function safeNext(v: string | string[] | undefined) {
+  return typeof v === "string" && /^\/(?![/\\])/.test(v) ? v : null;
+}

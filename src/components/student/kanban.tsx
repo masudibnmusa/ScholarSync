@@ -3,12 +3,14 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarBlank, CaretDown, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Trash,
+  CalendarBlank, CaretDown, ChatCircle, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { addTaskComment, deleteTaskComment, getTaskComments } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
-import { cn, dueInfo, toneText } from "@/lib/utils";
-import type { KanbanTask, Team } from "@/lib/types";
+import { cn, dueInfo, timeAgo, toneText } from "@/lib/utils";
+import type { KanbanTask, TaskComment, Team } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/app/page";
@@ -35,6 +37,85 @@ const statusOf = (id: Status) => statuses.find((x) => x.id === id)!;
 
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const UNASSIGNED = "none"; // Radix Select reserves the empty string
+
+// ─── Comments (inside the edit dialog) ───────────────────────────────────
+
+function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
+  const user = useUser();
+  const fetchTasks = useAppStore((s) => s.fetchTasks);
+  const [comments, setComments] = React.useState<TaskComment[] | null>(null);
+  const [draft, setDraft] = React.useState("");
+  const [posting, setPosting] = React.useState(false);
+
+  const load = React.useCallback(() => getTaskComments(task.id).then(setComments).catch((err) => {
+    console.error("Loading comments failed:", err);
+    setComments((c) => c ?? []);
+  }), [task.id]);
+  React.useEffect(() => { load(); }, [load]);
+
+  async function run(fn: () => Promise<void>, fail: string) {
+    try {
+      await fn();
+      await Promise.all([load(), fetchTasks(team.id)]); // the board shows the comment count
+      return true;
+    } catch (err) {
+      console.error(fail, err);
+      toast.error(fail);
+      return false;
+    }
+  }
+
+  async function post(e: React.FormEvent) {
+    e.preventDefault();
+    if (!draft.trim() || posting) return;
+    setPosting(true);
+    if (await run(() => addTaskComment(task.id, draft), "Could not post the comment")) setDraft("");
+    setPosting(false);
+  }
+
+  return (
+    <section aria-labelledby="task-comments-title" className="border-t pt-4">
+      <h3 id="task-comments-title" className="flex items-center gap-1.5 text-sm font-bold">
+        <ChatCircle weight="duotone" className="size-4 text-primary" aria-hidden /> Comments
+        {comments && comments.length > 0 && <span className="font-semibold text-muted-foreground">{comments.length}</span>}
+      </h3>
+      {!comments ? (
+        <div className="mt-3 space-y-2" aria-busy="true"><Skeleton className="h-12" /></div>
+      ) : comments.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">No comments yet. Ask a question or leave an update for the team.</p>
+      ) : (
+        <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1 scroll-thin">
+          {comments.map((c) => (
+            <li key={c.id} className="group/comment flex gap-2.5">
+              <Avatar name={c.authorName} size="xs" className="mt-0.5" />
+              <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-muted px-3 py-2">
+                <p className="flex items-baseline gap-2 text-xs">
+                  <span className="font-bold">{c.authorId === user.id ? "You" : c.authorName}</span>
+                  <time dateTime={c.createdAt} className="text-muted-foreground">{timeAgo(c.createdAt)}</time>
+                  {c.authorId === user.id && (
+                    <button type="button" onClick={() => run(() => deleteTaskComment(c.id), "Could not delete the comment")}
+                      className="ml-auto rounded text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/comment:opacity-100"
+                      aria-label="Delete your comment">
+                      <Trash className="size-3.5" aria-hidden />
+                    </button>
+                  )}
+                </p>
+                <p className="mt-0.5 whitespace-pre-wrap break-words text-sm">{c.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={post} className="mt-3 flex items-end gap-2">
+        <label htmlFor="task-comment" className="sr-only">Add a comment</label>
+        <Textarea id="task-comment" value={draft} maxLength={2000} rows={1} placeholder="Add a comment…" className="min-h-10 flex-1 resize-none"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post(e); }} />
+        <Button type="submit" variant="secondary" loading={posting} disabled={!draft.trim()}>Comment</Button>
+      </form>
+    </section>
+  );
+}
 
 // ─── Task dialog (create + edit) ─────────────────────────────────────────
 
@@ -118,6 +199,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
             <Button type="submit" loading={saving}>{task ? "Save changes" : "Create task"}</Button>
           </DialogFooter>
         </form>
+        {task && <TaskComments task={task} team={team} />}
     </>
   );
 }
@@ -192,6 +274,11 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
     <>
       <span className={cn("block text-[0.9375rem] font-bold leading-snug md:truncate", done && "text-muted-foreground line-through decoration-muted-foreground/60")}>{task.title}</span>
       {task.description && <span className="mt-0.5 block text-sm text-muted-foreground line-clamp-2 md:line-clamp-none md:truncate">{task.description}</span>}
+      {task.commentCount > 0 && (
+        <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+          <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? "comment" : "comments"}</span>
+        </span>
+      )}
     </>
   );
   return (

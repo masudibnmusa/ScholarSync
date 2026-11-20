@@ -7,9 +7,12 @@ import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
+import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
+import { toCsv } from "@/lib/utils";
+import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, CourseGrading, MyGrade, CriterionScore,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -146,14 +149,17 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
   Id.parse(teamId);
   return withUser(async (tx) => {
     const rows = await tx
-      .select({ t: s.tasks, assigneeName: s.users.name })
+      .select({
+        t: s.tasks, assigneeName: s.users.name,
+        commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
+      })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName }) => ({
+    return rows.map(({ t, assigneeName, commentCount }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
-      assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate,
+      assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate, commentCount,
     }));
   });
 }
@@ -187,6 +193,308 @@ export async function updateTask(taskId: string, patch: Partial<KanbanTask>) {
 export async function deleteTask(taskId: string) {
   Id.parse(taskId);
   await withUser((tx) => tx.delete(s.tasks).where(eq(s.tasks.id, taskId)));
+}
+
+// ─── Task comments (RLS: team members and the course instructor) ───────
+
+export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
+  Id.parse(taskId);
+  return withUser(async (tx) => {
+    const rows = await tx
+      .select({ c: s.taskComments, authorName: s.users.name })
+      .from(s.taskComments)
+      .leftJoin(s.users, eq(s.users.id, s.taskComments.authorId))
+      .where(eq(s.taskComments.taskId, taskId))
+      .orderBy(asc(s.taskComments.createdAt));
+    return rows.map(({ c, authorName }) => ({ id: c.id, authorId: c.authorId, authorName: authorName ?? "Former member", body: c.body, createdAt: c.createdAt }));
+  });
+}
+
+const CommentBody = z.string().trim().min(1, "Write something first").max(2000);
+
+export async function addTaskComment(taskId: string, body: string) {
+  Id.parse(taskId);
+  const text = CommentBody.parse(body);
+  await withUser((tx) => tx.insert(s.taskComments).values({ taskId, body: text }));
+}
+
+export async function deleteTaskComment(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
+}
+
+// ─── Weekly AI recap ───────────────────────────────────────────────────
+
+export async function getWeeklySummary(teamId: string): Promise<WeeklySummary | null> {
+  Id.parse(teamId);
+  return withUser(async (tx) => {
+    const [r] = await tx.select().from(s.teamSummaries).where(eq(s.teamSummaries.teamId, teamId))
+      .orderBy(desc(s.teamSummaries.weekStart)).limit(1);
+    return r ? { weekStart: r.weekStart, summary: r.summary, done: r.done, late: r.late, decisions: r.decisions, generatedAt: r.generatedAt } : null;
+  });
+}
+
+const RECAP_COOLDOWN_MS = 10 * 60 * 1000;
+
+/** Regenerates this week's recap on demand. "cooldown" = one was made in the last 10 minutes; "quiet" = nothing to summarise. */
+export async function refreshWeeklySummary(teamId: string): Promise<"ok" | "cooldown" | "quiet"> {
+  Id.parse(teamId);
+  // RLS decides whether this user may see the team; only then does the owner-role generator run.
+  const recent = await withUser(async (tx) => {
+    const [team] = await tx.select({ id: s.teams.id }).from(s.teams).where(eq(s.teams.id, teamId));
+    if (!team) throw new Error("Team not found");
+    const [r] = await tx.select({ at: s.teamSummaries.generatedAt }).from(s.teamSummaries)
+      .where(and(eq(s.teamSummaries.teamId, teamId), eq(s.teamSummaries.weekStart, currentWeekStart())));
+    return r?.at;
+  });
+  if (recent && Date.now() - new Date(recent).getTime() < RECAP_COOLDOWN_MS) return "cooldown";
+  return (await summarizeTeamWeek(teamId)) ? "ok" : "quiet";
+}
+
+// ─── Milestones (instructors set them per course; teams mark them done) ─
+
+export async function getMilestones(courseId: string): Promise<Milestone[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const ms = await tx.select().from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId))
+      .orderBy(asc(s.courseMilestones.dueDate), asc(s.courseMilestones.createdAt));
+    if (!ms.length) return [];
+    // RLS shows a student only their own team's completions, and the instructor every team's.
+    const done = await tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.milestoneId, ms.map((m) => m.id)));
+    return ms.map((m) => ({
+      id: m.id, title: m.title, description: m.description, dueDate: m.dueDate,
+      completions: done.filter((d) => d.milestoneId === m.id).map((d) => ({ teamId: d.teamId, completedAt: d.completedAt })),
+    }));
+  });
+}
+
+const MilestoneInput = z.object({
+  title: z.string().trim().min(1, "Give the milestone a title").max(120),
+  description: z.string().trim().max(1000),
+  dueDate: z.iso.date(),
+});
+
+export async function saveMilestone(courseId: string, input: z.input<typeof MilestoneInput>, id?: string) {
+  Id.parse(courseId);
+  const m = MilestoneInput.parse(input);
+  await withUser(async (tx) => {
+    if (!id) return tx.insert(s.courseMilestones).values({ ...m, courseId });
+    Id.parse(id);
+    const updated = await tx.update(s.courseMilestones).set(m).where(eq(s.courseMilestones.id, id)).returning({ id: s.courseMilestones.id });
+    if (!updated.length) throw new Error("Milestone not found");
+  });
+}
+
+export async function deleteMilestone(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.courseMilestones).where(eq(s.courseMilestones.id, id)));
+}
+
+export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  await withUser(async (tx) => {
+    if (done) await tx.insert(s.teamMilestones).values({ teamId, milestoneId }).onConflictDoNothing();
+    else await tx.delete(s.teamMilestones).where(and(eq(s.teamMilestones.teamId, teamId), eq(s.teamMilestones.milestoneId, milestoneId)));
+  });
+}
+
+// ─── Grading (rubric per course; team marks; per-student contribution factor) ─
+
+type Tx = Parameters<Parameters<typeof withUser>[0]>[0];
+
+/** The course, if the signed-in user is its instructor; throws otherwise. */
+async function ownCourse(tx: Tx, uid: string, courseId: string) {
+  const [course] = await tx.select().from(s.courses).where(and(eq(s.courses.id, courseId), eq(s.courses.instructorId, uid)));
+  if (!course) throw new Error("Only the course instructor can do this");
+  return course;
+}
+
+const loadCriteria = (tx: Tx, courseId: string) =>
+  tx.select({ id: s.rubricCriteria.id, name: s.rubricCriteria.name, maxPoints: s.rubricCriteria.maxPoints }).from(s.rubricCriteria)
+    .where(eq(s.rubricCriteria.courseId, courseId)).orderBy(asc(s.rubricCriteria.position), asc(s.rubricCriteria.createdAt));
+
+/** Each member's peer average and review count, plus the factor suggested from them (instructor only: RLS). */
+async function peerFactors(tx: Tx, teamIds: string[]) {
+  if (!teamIds.length) return [];
+  const [members, reviews] = await Promise.all([
+    tx.select({ teamId: s.teamMembers.teamId, userId: s.users.id, name: s.users.name }).from(s.teamMembers)
+      .innerJoin(s.users, eq(s.users.id, s.teamMembers.userId)).where(inArray(s.teamMembers.teamId, teamIds)).orderBy(asc(s.users.name)),
+    tx.select({ teamId: s.peerReviews.teamId, userId: s.peerReviews.revieweeId, avg: sql<number>`avg(${s.peerReviews.rating})::float`, n: count() })
+      .from(s.peerReviews).where(inArray(s.peerReviews.teamId, teamIds)).groupBy(s.peerReviews.teamId, s.peerReviews.revieweeId),
+  ]);
+  return members.map((m) => {
+    const mine = reviews.find((r) => r.teamId === m.teamId && r.userId === m.userId);
+    const teamAvgs = members.filter((x) => x.teamId === m.teamId)
+      .map((x) => reviews.find((r) => r.teamId === m.teamId && r.userId === x.userId)?.avg ?? null);
+    const peerAvg = mine ? Math.round(mine.avg * 100) / 100 : null;
+    return { ...m, peerAvg, reviews: mine?.n ?? 0, suggestedFactor: suggestedFactor(peerAvg, teamAvgs) };
+  });
+}
+
+export async function getCourseGrading(courseId: string): Promise<CourseGrading> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const course = await ownCourse(tx, uid, courseId);
+    const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId)).orderBy(asc(s.teams.name));
+    const ids = teams.map((t) => t.id);
+    const [criteria, grades, factors, members] = await Promise.all([
+      loadCriteria(tx, courseId),
+      ids.length ? tx.select().from(s.teamGrades).where(inArray(s.teamGrades.teamId, ids)) : [],
+      ids.length ? tx.select().from(s.studentGradeFactors).where(inArray(s.studentGradeFactors.teamId, ids)) : [],
+      peerFactors(tx, ids),
+    ]);
+    return {
+      released: course.gradesReleased,
+      criteria,
+      teams: teams.map((t) => ({
+        teamId: t.id,
+        teamName: t.name,
+        scores: Object.fromEntries(grades.filter((g) => g.teamId === t.id).map((g) => [g.criterionId, { points: g.points, feedback: g.feedback }])),
+        members: members.filter((m) => m.teamId === t.id).map((m) => {
+          const saved = factors.find((f) => f.teamId === t.id && f.userId === m.userId);
+          return { userId: m.userId, name: m.name, peerAvg: m.peerAvg, reviews: m.reviews, suggestedFactor: m.suggestedFactor, override: saved?.overridden ? saved.factor : null };
+        }),
+      })),
+    };
+  });
+}
+
+const RubricInput = z.array(z.object({
+  id: Id.optional(),
+  name: z.string().trim().min(1, "Every criterion needs a name").max(80),
+  maxPoints: z.number().int().min(1).max(1000),
+})).max(20);
+
+/** Replaces the course rubric: updates kept criteria, adds new ones, deletes removed ones (and their marks). */
+export async function saveRubric(courseId: string, input: z.input<typeof RubricInput>) {
+  Id.parse(courseId);
+  const criteria = RubricInput.parse(input);
+  await withUser(async (tx, uid) => {
+    await ownCourse(tx, uid, courseId);
+    const keep = criteria.flatMap((c) => (c.id ? [c.id] : []));
+    await tx.delete(s.rubricCriteria).where(and(eq(s.rubricCriteria.courseId, courseId), keep.length ? notInArray(s.rubricCriteria.id, keep) : undefined));
+    for (const [position, c] of criteria.entries()) {
+      if (c.id) await tx.update(s.rubricCriteria).set({ name: c.name, maxPoints: c.maxPoints, position }).where(and(eq(s.rubricCriteria.id, c.id), eq(s.rubricCriteria.courseId, courseId)));
+      else await tx.insert(s.rubricCriteria).values({ courseId, name: c.name, maxPoints: c.maxPoints, position });
+    }
+  });
+}
+
+const TeamGradeInput = z.object({
+  scores: z.array(z.object({ criterionId: Id, points: z.number().min(0).max(1000), feedback: z.string().max(2000) })).max(20),
+  overrides: z.array(z.object({ userId: Id, factor: z.number().min(0.5).max(1.5).nullable() })).max(50),
+});
+
+/** Saves a team's marks and stores every member's factor (their override, else the current suggestion). */
+export async function saveTeamGrade(teamId: string, input: z.input<typeof TeamGradeInput>) {
+  Id.parse(teamId);
+  const g = TeamGradeInput.parse(input);
+  await withUser(async (tx, uid) => {
+    const [team] = await tx.select({ courseId: s.teams.courseId }).from(s.teams).where(eq(s.teams.id, teamId));
+    if (!team) throw new Error("Team not found");
+    await ownCourse(tx, uid, team.courseId);
+    for (const sc of g.scores) {
+      // The database trigger rejects points above the criterion's maximum or criteria from another course.
+      await tx.insert(s.teamGrades).values({ teamId, criterionId: sc.criterionId, points: sc.points, feedback: sc.feedback })
+        .onConflictDoUpdate({ target: [s.teamGrades.teamId, s.teamGrades.criterionId], set: { points: sc.points, feedback: sc.feedback } });
+    }
+    for (const m of await peerFactors(tx, [teamId])) {
+      const override = g.overrides.find((o) => o.userId === m.userId)?.factor ?? null;
+      const row = { factor: override ?? m.suggestedFactor, overridden: override != null };
+      await tx.insert(s.studentGradeFactors).values({ teamId, userId: m.userId, ...row })
+        .onConflictDoUpdate({ target: [s.studentGradeFactors.teamId, s.studentGradeFactors.userId], set: row });
+    }
+  });
+}
+
+export async function setGradesReleased(courseId: string, released: boolean) {
+  Id.parse(courseId);
+  await withUser(async (tx, uid) => {
+    await ownCourse(tx, uid, courseId);
+    await tx.update(s.courses).set({ gradesReleased: released }).where(eq(s.courses.id, courseId));
+  });
+}
+
+/** The signed-in student's released grade for a course, or null (no team, not graded, or not released yet). */
+export async function getMyGrade(courseId: string): Promise<MyGrade | null> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const [team] = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams)
+      .innerJoin(s.teamMembers, eq(s.teamMembers.teamId, s.teams.id))
+      .where(and(eq(s.teams.courseId, courseId), eq(s.teamMembers.userId, uid)));
+    if (!team) return null;
+    // RLS returns marks and the factor only once the instructor has released grades.
+    const [criteria, grades, [factor]] = await Promise.all([
+      loadCriteria(tx, courseId),
+      tx.select().from(s.teamGrades).where(eq(s.teamGrades.teamId, team.id)),
+      tx.select().from(s.studentGradeFactors).where(and(eq(s.studentGradeFactors.teamId, team.id), eq(s.studentGradeFactors.userId, uid))),
+    ]);
+    if (!grades.length) return null;
+    const scores: Record<string, CriterionScore> = Object.fromEntries(grades.map((g) => [g.criterionId, { points: g.points, feedback: g.feedback }]));
+    return { teamName: team.name, criteria, scores, factor: factor?.factor ?? 1 };
+  });
+}
+
+// ─── Contribution report (course instructor only) ──────────────────────
+
+/** One row per enrolled student: team, task share, peer reviews, chat activity and team milestones, as CSV. */
+export async function exportCourseReport(courseId: string): Promise<{ filename: string; csv: string }> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select().from(s.courses).where(and(eq(s.courses.id, courseId), eq(s.courses.instructorId, uid)));
+    if (!course) throw new Error("Only the course instructor can export this report");
+
+    const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId));
+    const teamIds = teams.map((t) => t.id);
+    const none = teamIds.length === 0;
+    const [students, members, contrib, progress, reviews, msgs, milestoneTotal, milestonesDone, criteria, grades, factors] = await Promise.all([
+      tx.select({ id: s.users.id, name: s.users.name, email: s.users.email }).from(s.courseEnrollments)
+        .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId)).where(eq(s.courseEnrollments.courseId, courseId)),
+      none ? [] : tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, teamIds)),
+      none ? [] : tx.select().from(s.memberContribution).where(inArray(s.memberContribution.teamId, teamIds)),
+      none ? [] : tx.select().from(s.teamProgress).where(inArray(s.teamProgress.teamId, teamIds)),
+      none ? [] : tx.select({ teamId: s.peerReviews.teamId, userId: s.peerReviews.revieweeId, avg: sql<number>`round(avg(${s.peerReviews.rating}), 2)::float`, n: count() })
+        .from(s.peerReviews).where(inArray(s.peerReviews.teamId, teamIds)).groupBy(s.peerReviews.teamId, s.peerReviews.revieweeId),
+      none ? [] : tx.select({ teamId: s.messages.teamId, userId: s.messages.senderId, n: count() })
+        .from(s.messages).where(inArray(s.messages.teamId, teamIds)).groupBy(s.messages.teamId, s.messages.senderId),
+      tx.select({ n: count() }).from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId)),
+      none ? [] : tx.select({ teamId: s.teamMilestones.teamId, n: count() }).from(s.teamMilestones)
+        .where(inArray(s.teamMilestones.teamId, teamIds)).groupBy(s.teamMilestones.teamId),
+      loadCriteria(tx, courseId),
+      none ? [] : tx.select().from(s.teamGrades).where(inArray(s.teamGrades.teamId, teamIds)),
+      none ? [] : tx.select().from(s.studentGradeFactors).where(inArray(s.studentGradeFactors.teamId, teamIds)),
+    ]);
+    const teamGrade = (teamId: string) =>
+      teamPercent(criteria, Object.fromEntries(grades.filter((g) => g.teamId === teamId).map((g) => [g.criterionId, g.points])));
+
+    const totalMs = milestoneTotal[0]?.n ?? 0;
+    const rows = students.map((st) => {
+      const team = teams.find((t) => members.some((m) => m.teamId === t.id && m.userId === st.id));
+      if (!team) return { sort: `~${st.name}`, cells: [st.name, st.email, "No team", "", "", "", "", "", "", "", "", ""] };
+      const c = contrib.find((x) => x.teamId === team.id && x.userId === st.id);
+      const teamDone = progress.find((x) => x.teamId === team.id)?.doneTasks ?? 0;
+      const r = reviews.find((x) => x.teamId === team.id && x.userId === st.id);
+      const sent = msgs.find((x) => x.teamId === team.id && x.userId === st.id)?.n ?? 0;
+      const ms = milestonesDone.find((x) => x.teamId === team.id)?.n ?? 0;
+      const tg = teamGrade(team.id);
+      const factor = factors.find((f) => f.teamId === team.id && f.userId === st.id)?.factor ?? 1;
+      return {
+        sort: `${team.name}\u0000${st.name}`,
+        cells: [
+          st.name, st.email, team.name, c?.tasksDone ?? 0, c?.tasksAssigned ?? 0,
+          teamDone ? Math.round(((c?.tasksDone ?? 0) / teamDone) * 100) : 0,
+          r ? r.avg : "", r?.n ?? 0, sent, totalMs ? `${ms}/${totalMs}` : "",
+          tg ?? "", finalPercent(tg, factor) ?? "",
+        ],
+      };
+    }).sort((a, b) => a.sort.localeCompare(b.sort));
+
+    const header = ["Student", "Email", "Team", "Tasks done", "Tasks assigned", "Share of team's done tasks (%)",
+      "Avg peer rating (1-5)", "Peer reviews received", "Messages sent", "Team milestones done", "Team grade (%)", "Final grade (%)"];
+    const date = new Date().toISOString().slice(0, 10);
+    return { filename: `${course.code}-contribution-report-${date}.csv`, csv: toCsv([header, ...rows.map((r) => r.cells)]) };
+  });
 }
 
 // ─── Notifications ─────────────────────────────────────────────────────
@@ -224,7 +532,7 @@ export async function getFiles(teamId: string): Promise<FileUpload[]> {
       .orderBy(desc(s.files.createdAt));
     return rows.map(({ f, uploader }) => ({
       id: f.id, fileName: f.name, fileSize: f.sizeBytes, fileType: f.mimeType,
-      uploadedBy: uploader ?? "Former member", createdAt: f.createdAt, storagePath: f.storagePath,
+      uploadedBy: uploader ?? "Former member", uploaderId: f.uploaderId, createdAt: f.createdAt, storagePath: f.storagePath,
     }));
   });
 }
@@ -247,6 +555,21 @@ export async function recordFile(input: z.infer<typeof FileInput>) {
   return row.id;
 }
 
+/**
+ * Deletes a file: RLS lets the uploader or the course instructor remove the row, then the stored object goes.
+ * Both happen in one transaction, so a storage failure keeps the row. Chat messages keep a "(deleted)" note.
+ */
+export async function deleteFile(fileId: string) {
+  Id.parse(fileId);
+  await withUser(async (tx) => {
+    const [row] = await tx.delete(s.files).where(eq(s.files.id, fileId)).returning({ path: s.files.storagePath });
+    if (!row) throw new Error("File not found, or you can't delete it");
+    const sb = await supabaseServer();
+    const { error } = await sb.storage.from("team-files").remove([row.path]);
+    if (error) throw error;
+  });
+}
+
 // ─── Peer review ───────────────────────────────────────────────────────
 
 const Rating = z.number().int().min(1).max(5);
@@ -257,6 +580,16 @@ const ReviewInput = z.object({
 export async function submitPeerReview(teamId: string, revieweeId: string, rating: number, feedback: string, categoryRatings: Record<string, number>) {
   const r = ReviewInput.parse({ teamId, revieweeId, rating, feedback, categoryRatings });
   await withUser((tx, uid) => tx.insert(s.peerReviews).values({ ...r, reviewerId: uid }));
+}
+
+/** Reviews the signed-in student has written for teammates in this team (RLS: reviewers read their own). */
+export async function getMyReviews(teamId: string): Promise<MyReview[]> {
+  Id.parse(teamId);
+  return withUser(async (tx, uid) => {
+    const rows = await tx.select().from(s.peerReviews)
+      .where(and(eq(s.peerReviews.teamId, teamId), eq(s.peerReviews.reviewerId, uid)));
+    return rows.map((r) => ({ revieweeId: r.revieweeId, rating: r.rating, categoryRatings: r.categoryRatings, feedback: r.feedback, createdAt: r.createdAt }));
+  });
 }
 
 // ─── Conflict alerts (instructors) ─────────────────────────────────────
@@ -348,6 +681,7 @@ export async function getCourses(): Promise<Course[]> {
         unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
         students: isMine ? roster.map((e) => e.name) : [],
+        joinCode: isMine ? c.joinCode : null,
       };
     });
   });
@@ -418,6 +752,37 @@ export async function deleteTeam(id: string) {
 export async function joinCourse(id: string) {
   Id.parse(id);
   await withUser((tx, uid) => tx.insert(s.courseEnrollments).values({ courseId: id, userId: uid }).onConflictDoNothing());
+}
+
+// Invite codes are typed by hand too: ignore case, spaces and dashes.
+const JoinCode = z.string().transform((v) => v.toUpperCase().replace(/[\s-]/g, "")).pipe(z.string().regex(/^[A-Z0-9]{6}$/, "Invite codes are 6 letters and digits"));
+
+/** The course behind an invite code, or null when no course has it. */
+export async function getInvite(code: string): Promise<CourseInvite | null> {
+  const parsed = JoinCode.safeParse(code);
+  if (!parsed.success) return null;
+  return withUser(async (tx, uid) => {
+    const [row] = await tx.select({ c: s.courses, instructorName: s.users.name }).from(s.courses)
+      .leftJoin(s.users, eq(s.users.id, s.courses.instructorId)).where(eq(s.courses.joinCode, parsed.data));
+    if (!row) return null;
+    const [enrolled] = await tx.select({ id: s.courseEnrollments.userId }).from(s.courseEnrollments)
+      .where(and(eq(s.courseEnrollments.courseId, row.c.id), eq(s.courseEnrollments.userId, uid)));
+    return {
+      id: row.c.id, code: row.c.code, title: row.c.title, term: row.c.term, instructorName: row.instructorName ?? "Instructor",
+      enrolled: !!enrolled, isMine: row.c.instructorId === uid,
+    };
+  });
+}
+
+/** Joins the course behind an invite code and returns its id. RLS (enroll_self_insert) still applies: students only. */
+export async function joinCourseByCode(code: string): Promise<string> {
+  const joinCode = JoinCode.parse(code);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select({ id: s.courses.id }).from(s.courses).where(eq(s.courses.joinCode, joinCode));
+    if (!course) throw new Error("No course has that invite code");
+    await tx.insert(s.courseEnrollments).values({ courseId: course.id, userId: uid }).onConflictDoNothing();
+    return course.id;
+  });
 }
 
 export async function leaveCourse(id: string) {

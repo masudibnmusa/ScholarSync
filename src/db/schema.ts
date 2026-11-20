@@ -1,7 +1,8 @@
 // Mirrors supabase/migrations/0001_init.sql. The SQL migrations are the source of truth; keep this in sync.
 import {
-  pgTable, pgEnum, pgView, uuid, text, timestamp, smallint, doublePrecision, date, bigint, jsonb, numeric, integer, primaryKey,
+  pgTable, pgEnum, pgView, uuid, text, timestamp, smallint, doublePrecision, date, bigint, jsonb, numeric, integer, primaryKey, boolean,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const userRole = pgEnum("user_role", ["student", "instructor"]);
 export const taskStatus = pgEnum("task_status", ["todo", "in_progress", "done"]);
@@ -32,6 +33,8 @@ export const courses = pgTable("courses", {
   description: text("description").notNull().default(""),
   goals: text("goals").notNull().default(""),
   rationale: text("rationale").notNull().default(""),
+  gradesReleased: boolean("grades_released").notNull().default(false),
+  joinCode: text("join_code").notNull().default(sql`public.new_join_code()`),
   instructorId: uuid("instructor_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
@@ -134,6 +137,64 @@ export const taskSuggestions = pgTable("task_suggestions", {
   status: suggestionStatus("status").notNull().default("pending"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+export const taskComments = pgTable("task_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull(),
+  authorId: uuid("author_id"),
+  body: text("body").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const teamSummaries = pgTable("team_summaries", {
+  teamId: uuid("team_id").notNull(),
+  weekStart: date("week_start").notNull(),
+  summary: text("summary").notNull(),
+  done: text("done").array().notNull(),
+  late: text("late").array().notNull(),
+  decisions: text("decisions").array().notNull(),
+  generatedAt: ts("generated_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
+
+export const courseMilestones = pgTable("course_milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  dueDate: date("due_date").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const teamMilestones = pgTable("team_milestones", {
+  teamId: uuid("team_id").notNull(),
+  milestoneId: uuid("milestone_id").notNull(),
+  completedAt: ts("completed_at").notNull().defaultNow(),
+  completedBy: uuid("completed_by"),
+}, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
+
+export const rubricCriteria = pgTable("rubric_criteria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  name: text("name").notNull(),
+  maxPoints: integer("max_points").notNull(),
+  position: integer("position").notNull().default(0),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const teamGrades = pgTable("team_grades", {
+  teamId: uuid("team_id").notNull(),
+  criterionId: uuid("criterion_id").notNull(),
+  points: numeric("points", { precision: 6, scale: 1, mode: "number" }).notNull(),
+  feedback: text("feedback").notNull().default(""),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.criterionId] })]);
+
+export const studentGradeFactors = pgTable("student_grade_factors", {
+  teamId: uuid("team_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  factor: numeric("factor", { precision: 4, scale: 2, mode: "number" }).notNull(),
+  overridden: boolean("overridden").notNull().default(false),
+}, (t) => [primaryKey({ columns: [t.teamId, t.userId] })]);
 
 export const teamProgress = pgView("team_progress", {
   teamId: uuid("team_id").notNull(),

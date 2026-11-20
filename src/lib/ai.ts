@@ -129,3 +129,27 @@ export async function matchTeams(students: Student[], teamSize: number) {
   // The model doesn't reliably keep to the sizes it was given, so enforce them.
   return fitToSizes(drafts, sizes, students.map((s) => s.id));
 }
+
+const Recap = z.object({
+  summary: z.string().describe("Two or three plain sentences on how the week went, addressed to the team"),
+  done: z.array(z.string()).describe("What got finished, short phrases, at most 5"),
+  late: z.array(z.string()).describe("What is late or at risk and who owns it, at most 5"),
+  decisions: z.array(z.string()).describe("Decisions or agreements made in chat, at most 5"),
+});
+
+export type WeekActivity = { done: string[]; created: string[]; overdue: string[] };
+
+/** A short weekly recap for one team from its chat and board activity. */
+export async function summarizeWeek(teamName: string, lines: ChatLine[], activity: WeekActivity) {
+  const list = (xs: string[]) => xs.map((x) => `- ${x}`).join("\n") || "(none)";
+  const out = await ask(
+    Recap,
+    "You write a short weekly recap for a university project team. Be concrete and neutral, name owners where known, " +
+      "and never invent work that is not in the board activity or chat. Leave a list empty when there is nothing for it.",
+    `Team: ${teamName}\n\nFinished this week:\n${list(activity.done)}\n\nAdded this week:\n${list(activity.created)}\n\n` +
+      `Open and overdue:\n${list(activity.overdue)}\n\n${chatBlock(lines)}`,
+  );
+  if (!out) return null;
+  const cap = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean).slice(0, 5);
+  return { summary: out.summary.trim(), done: cap(out.done), late: cap(out.late), decisions: cap(out.decisions) };
+}
