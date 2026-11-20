@@ -532,7 +532,7 @@ export async function getFiles(teamId: string): Promise<FileUpload[]> {
       .orderBy(desc(s.files.createdAt));
     return rows.map(({ f, uploader }) => ({
       id: f.id, fileName: f.name, fileSize: f.sizeBytes, fileType: f.mimeType,
-      uploadedBy: uploader ?? "Former member", createdAt: f.createdAt, storagePath: f.storagePath,
+      uploadedBy: uploader ?? "Former member", uploaderId: f.uploaderId, createdAt: f.createdAt, storagePath: f.storagePath,
     }));
   });
 }
@@ -553,6 +553,21 @@ export async function recordFile(input: z.infer<typeof FileInput>) {
     }).returning({ id: s.files.id }),
   );
   return row.id;
+}
+
+/**
+ * Deletes a file: RLS lets the uploader or the course instructor remove the row, then the stored object goes.
+ * Both happen in one transaction, so a storage failure keeps the row. Chat messages keep a "(deleted)" note.
+ */
+export async function deleteFile(fileId: string) {
+  Id.parse(fileId);
+  await withUser(async (tx) => {
+    const [row] = await tx.delete(s.files).where(eq(s.files.id, fileId)).returning({ path: s.files.storagePath });
+    if (!row) throw new Error("File not found, or you can't delete it");
+    const sb = await supabaseServer();
+    const { error } = await sb.storage.from("team-files").remove([row.path]);
+    if (error) throw error;
+  });
 }
 
 // ─── Peer review ───────────────────────────────────────────────────────

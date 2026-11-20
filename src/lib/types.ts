@@ -120,6 +120,7 @@ export interface FileUpload {
   fileSize: number;
   fileType: string;
   uploadedBy: string;
+  uploaderId: string | null;
   createdAt: string;
   storagePath: string;
 }

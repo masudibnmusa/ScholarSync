@@ -47,6 +47,7 @@ export interface AppState {
   markAllNotificationsRead: () => Promise<void>;
   uploadFile: (teamId: string, file: File) => Promise<string | null>;
   downloadFile: (storagePath: string) => Promise<void>;
+  deleteFile: (teamId: string, fileId: string) => Promise<boolean>;
   submitPeerReview: (teamId: string, targetId: string, overallRating: number, feedback: string, categoryRatings: Record<string, number>) => Promise<boolean>;
   updateProfile: (data: { bio?: string; skills?: string[]; availability?: string }) => Promise<boolean>;
   resolveConflict: (id: string) => Promise<void>;
@@ -309,6 +310,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       return null;
     } finally {
       set({ uploading: false });
+    }
+  },
+
+  deleteFile: async (teamId, fileId) => {
+    try {
+      await actions.deleteFile(fileId);
+      await Promise.all([get().fetchFiles(teamId), get().fetchChatMessages(teamId)]);
+      return true;
+    } catch (err) {
+      fail("delete the file", err);
+      return false;
     }
   },
 
