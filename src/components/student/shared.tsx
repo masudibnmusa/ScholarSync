@@ -160,10 +160,10 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" aria-label="Weekly recap">
           <ClipboardText weight="duotone" aria-hidden />
           <span className="hidden xl:inline">Weekly recap</span>
-          <span className="xl:hidden">Recap</span>
+          <span className="hidden sm:inline xl:hidden">Recap</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
@@ -234,10 +234,10 @@ export function MeetingButton({ team }: { team: Team }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" aria-label="Find a meeting time">
           <CalendarPlus weight="duotone" aria-hidden />
           <span className="hidden xl:inline">Find a time</span>
-          <span className="xl:hidden">Meet</span>
+          <span className="hidden sm:inline xl:hidden">Meet</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
