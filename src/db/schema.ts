@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   bio: text("bio").notNull(),
   skills: text("skills").array().notNull(),
   availability: text("availability").notNull(),
+  emailDigest: boolean("email_digest").notNull().default(true),
   createdAt: ts("created_at").notNull(),
   updatedAt: ts("updated_at").notNull(),
 });
@@ -103,6 +104,7 @@ export const notifications = pgTable("notifications", {
   body: text("body").notNull().default(""),
   link: text("link"),
   readAt: ts("read_at"),
+  emailedAt: ts("emailed_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

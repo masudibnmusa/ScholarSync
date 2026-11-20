@@ -155,6 +155,7 @@ export interface UserProfile {
   bio: string;
   skills: string[];
   availability: string;
+  emailDigest: boolean;
 }
 
 export interface ConflictAlert {

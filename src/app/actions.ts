@@ -9,6 +9,7 @@ import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { toCsv } from "@/lib/utils";
+import { sendDigestTo } from "@/lib/digest";
 import { finalPercent, suggestedFactor, teamPercent } from "@/lib/grading";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
@@ -31,7 +32,7 @@ export async function getProfile(): Promise<UserProfile> {
   return withUser(async (tx, uid) => {
     const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
     if (!u) throw new Error("Profile not found");
-    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest };
   });
 }
 
@@ -39,11 +40,18 @@ const ProfileInput = z.object({
   bio: z.string().max(2000).optional(),
   skills: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   availability: z.string().max(200).optional(),
+  emailDigest: z.boolean().optional(),
 });
 
 export async function updateProfile(input: z.infer<typeof ProfileInput>) {
   const data = ProfileInput.parse(input);
   await withUser((tx, uid) => tx.update(s.users).set(data).where(eq(s.users.id, uid)));
+}
+
+/** Emails me my current digest without marking anything as emailed, so I can see what it looks like. */
+export async function sendSampleDigest(): Promise<number> {
+  const uid = await withUser(async (_tx, uid) => uid);
+  return sendDigestTo(uid, { sample: true });
 }
 
 // ─── Teams ─────────────────────────────────────────────────────────────

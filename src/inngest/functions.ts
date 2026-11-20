@@ -4,6 +4,7 @@ import { adminDb as db } from "@/db";
 import { conflictAlerts, messages, notifications, taskSuggestions, tasks, teamMembers, teams } from "@/db/schema";
 import { assessTeam, extractTasks } from "@/lib/ai";
 import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
+import { digestRecipients, sendDigestTo } from "@/lib/digest";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
 
@@ -124,4 +125,16 @@ export const weeklyRecaps = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, weeklyRecaps];
+// Every morning (UTC), after the due reminders: one email per person with what they have not read yet.
+// Each notification is emailed at most once (notifications.emailed_at).
+export const dailyDigests = inngest.createFunction(
+  { id: "daily-email-digests", triggers: [{ cron: "30 7 * * *" }] },
+  async ({ step }) => {
+    const ids = await step.run("recipients", () => digestRecipients());
+    let emailed = 0;
+    for (const id of ids) emailed += (await step.run(`digest-${id}`, () => sendDigestTo(id))) ? 1 : 0;
+    return { recipients: ids.length, emailed };
+  },
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, weeklyRecaps, dailyDigests];

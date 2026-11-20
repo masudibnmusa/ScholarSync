@@ -10,6 +10,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { sendSampleDigest } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
@@ -99,6 +100,48 @@ const themes = [
   { value: "dark", label: "Dark", icon: Moon, bg: "#171310", card: "#211b16", bar: "#1f2a22", line: "#3a2f26" },
   { value: "system", label: "Auto", icon: Desktop, bg: "linear-gradient(90deg,#f7f0e6 50%,#171310 50%)", card: "linear-gradient(90deg,#fffbf5 50%,#211b16 50%)", bar: "#cdd9c6", line: "#b5a594" },
 ] as const;
+
+/** Daily email digest: on/off, plus a sample so people see what they would get. */
+function EmailCard() {
+  const user = useUser();
+  const updateProfile = useAppStore((s) => s.updateProfile);
+  const [on, setOn] = React.useState(user.emailDigest);
+  const [sending, setSending] = React.useState(false);
+
+  async function toggle() {
+    setOn(!on);
+    if (!(await updateProfile({ emailDigest: !on }))) setOn(on);
+  }
+  async function sample() {
+    setSending(true);
+    try {
+      const n = await sendSampleDigest();
+      if (n) toast.success(`Sent ${n} update${n === 1 ? "" : "s"} to ${user.email}`);
+      else toast("Nothing unread from the last day, so there is nothing to send.");
+    } catch {
+      toast.error("Couldn't send the email. Try again.");
+    }
+    setSending(false);
+  }
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p id="digest-label" className="flex items-center gap-2 text-sm font-bold"><EnvelopeSimple weight="duotone" className="size-4 text-primary" aria-hidden />Daily email</p>
+          <p className="text-xs text-muted-foreground">Once a morning, anything you haven&apos;t read yet.</p>
+        </div>
+        <button type="button" role="switch" aria-checked={on} aria-labelledby="digest-label" onClick={toggle}
+          className={cn("relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-primary" : "bg-muted-foreground/30")}>
+          <span className={cn("absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform", on && "translate-x-5")} />
+        </button>
+      </div>
+      <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={sample} disabled={sending}>
+        {sending ? "Sending…" : "Send me a sample"}
+      </Button>
+    </Card>
+  );
+}
 
 function ThemeTiles() {
   const { theme, setTheme } = useTheme();
@@ -307,6 +350,8 @@ export function ProfilePanel() {
             <p className="mb-3 text-xs text-muted-foreground">Saved on this device.</p>
             <ThemeTiles />
           </Card>
+
+          <EmailCard />
         </aside>
       </div>
 
