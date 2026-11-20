@@ -135,6 +135,14 @@ export const taskSuggestions = pgTable("task_suggestions", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const taskComments = pgTable("task_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull(),
+  authorId: uuid("author_id"),
+  body: text("body").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
 export const teamProgress = pgView("team_progress", {
   teamId: uuid("team_id").notNull(),
   totalTasks: bigint("total_tasks", { mode: "number" }).notNull(),

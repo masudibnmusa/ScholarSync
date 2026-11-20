@@ -9,7 +9,7 @@ import { inngest } from "@/inngest/client";
 import { matchTeams } from "@/lib/ai";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskSuggestion, MatchProposal,
+  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal,
 } from "@/lib/types";
 
 const Id = z.uuid();
@@ -146,14 +146,17 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
   Id.parse(teamId);
   return withUser(async (tx) => {
     const rows = await tx
-      .select({ t: s.tasks, assigneeName: s.users.name })
+      .select({
+        t: s.tasks, assigneeName: s.users.name,
+        commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
+      })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName }) => ({
+    return rows.map(({ t, assigneeName, commentCount }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
-      assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate,
+      assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate, commentCount,
     }));
   });
 }
@@ -187,6 +190,34 @@ export async function updateTask(taskId: string, patch: Partial<KanbanTask>) {
 export async function deleteTask(taskId: string) {
   Id.parse(taskId);
   await withUser((tx) => tx.delete(s.tasks).where(eq(s.tasks.id, taskId)));
+}
+
+// ─── Task comments (RLS: team members and the course instructor) ───────
+
+export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
+  Id.parse(taskId);
+  return withUser(async (tx) => {
+    const rows = await tx
+      .select({ c: s.taskComments, authorName: s.users.name })
+      .from(s.taskComments)
+      .leftJoin(s.users, eq(s.users.id, s.taskComments.authorId))
+      .where(eq(s.taskComments.taskId, taskId))
+      .orderBy(asc(s.taskComments.createdAt));
+    return rows.map(({ c, authorName }) => ({ id: c.id, authorId: c.authorId, authorName: authorName ?? "Former member", body: c.body, createdAt: c.createdAt }));
+  });
+}
+
+const CommentBody = z.string().trim().min(1, "Write something first").max(2000);
+
+export async function addTaskComment(taskId: string, body: string) {
+  Id.parse(taskId);
+  const text = CommentBody.parse(body);
+  await withUser((tx) => tx.insert(s.taskComments).values({ taskId, body: text }));
+}
+
+export async function deleteTaskComment(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.taskComments).where(eq(s.taskComments.id, id)));
 }
 
 // ─── Notifications ─────────────────────────────────────────────────────

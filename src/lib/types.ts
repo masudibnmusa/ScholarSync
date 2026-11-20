@@ -22,6 +22,15 @@ export interface KanbanTask {
   assigneeName: string;
   priority: "low" | "medium" | "high";
   dueDate: string | null;
+  commentCount: number;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface TeamMember {
