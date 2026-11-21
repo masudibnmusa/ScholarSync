@@ -103,6 +103,96 @@ function MonthView({ items }: { items: WeekItem[] }) {
   );
 }
 
+const subscribeSecond = (tick: () => void) => { const t = setInterval(tick, 1000); return () => clearInterval(t); };
+/** The current time, updated every second; 0 during server render so hydration matches. */
+const useNowSecond = () => React.useSyncExternalStore(subscribeSecond, () => Math.floor(Date.now() / 1000) * 1000, () => 0);
+
+/** Analog watch face: hour, minute and second hands. */
+function Watch({ now }: { now: Date }) {
+  const s = now.getSeconds(), m = now.getMinutes() + s / 60, h = (now.getHours() % 12) + m / 60;
+  const hand = (deg: number, len: number, cls: string, width: number) => (
+    <line x1="50" y1="56" x2="50" y2={50 - len} transform={`rotate(${deg} 50 50)`} strokeWidth={width} strokeLinecap="round" className={cls} />
+  );
+  return (
+    <svg viewBox="0 0 100 100" className="size-28 shrink-0 drop-shadow-sm" aria-hidden>
+      <circle cx="50" cy="50" r="47" className="fill-card stroke-border" strokeWidth="2" />
+      <circle cx="50" cy="50" r="41" className="fill-sage/60" />
+      {Array.from({ length: 12 }, (_, i) => (
+        <line key={i} x1="50" y1={i % 3 ? 13 : 11} x2="50" y2="17" transform={`rotate(${i * 30} 50 50)`} strokeWidth={i % 3 ? 1.5 : 2.5} strokeLinecap="round" className="stroke-sidebar-muted" />
+      ))}
+      {hand(h * 30, 22, "stroke-foreground", 4)}
+      {hand(m * 6, 31, "stroke-foreground", 3)}
+      {hand(s * 6, 34, "stroke-primary", 1.5)}
+      <circle cx="50" cy="50" r="3.5" className="fill-primary" />
+      <circle cx="50" cy="50" r="1.5" className="fill-card" />
+    </svg>
+  );
+}
+
+/** Live clock and this month at a glance: today highlighted, a dot on each day something is due. */
+function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () => void }) {
+  const ms = useNowSecond();
+  if (!ms) return <Card className="h-[26rem] p-5" aria-hidden><Skeleton className="size-full" /></Card>;
+  const now = new Date(ms);
+  const today = isoOf(now);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).formatToParts(now).map((p) => [p.type, p.value]));
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " ");
+
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const due = new Map<string, WeekItem[]>();
+  for (const i of items) due.set(i.date, [...(due.get(i.date) ?? []), i]);
+
+  return (
+    <Card className="overflow-hidden lg:sticky lg:top-6">
+      <section aria-label="Current time" className="flex items-center gap-4 bg-gradient-to-br from-sage/70 to-peach/50 p-5">
+        <Watch now={now} />
+        <div className="min-w-0">
+          <time dateTime={now.toISOString()} className="block font-display font-bold leading-none tracking-tight tabular-nums">
+            <span className="text-[2.25rem]">{parts.hour}:{parts.minute}</span>
+            <span className="ml-0.5 text-base text-muted-foreground">:{parts.second}</span>
+            {parts.dayPeriod && <span className="ml-1 text-sm font-semibold text-muted-foreground">{parts.dayPeriod}</span>}
+          </time>
+          <p className="mt-2 text-sm font-bold">{now.toLocaleDateString(undefined, { weekday: "long" })}</p>
+          <p className="text-sm text-muted-foreground">{now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</p>
+          <p className="mt-1 truncate text-[0.6875rem] font-semibold text-muted-foreground" title="Your time zone">{zone}</p>
+        </div>
+      </section>
+
+      <section aria-label="This month" className="p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-bold">{now.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
+          <button type="button" onClick={onOpenMonth} className="tap inline-flex items-center gap-0.5 rounded-lg px-1.5 py-1 text-xs font-semibold text-primary hover:bg-accent">
+            Month view<CaretRight className="size-3" aria-hidden />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 text-center text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
+          {WEEKDAYS.map((d) => <span key={d} className="py-1">{d.slice(0, 2)}</span>)}
+        </div>
+        <ol className="grid grid-cols-7 gap-y-0.5 text-center">
+          {Array.from({ length: lead }, (_, i) => <li key={`pad-${i}`} aria-hidden />)}
+          {Array.from({ length: days }, (_, i) => {
+            const date = isoOf(new Date(now.getFullYear(), now.getMonth(), i + 1));
+            const list = due.get(date) ?? [];
+            const isToday = date === today;
+            return (
+              <li key={date} aria-current={isToday ? "date" : undefined}
+                aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}${isToday ? ", today" : ""}${list.length ? `, ${list.length} due` : ""}`}
+                title={list.map((x) => x.title).join("\n") || undefined}
+                className="relative grid h-9 place-items-center">
+                <span className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold tabular-nums",
+                  isToday ? "bg-primary text-primary-foreground shadow-soft" : date < today ? "text-muted-foreground/70" : "text-foreground")}>{i + 1}</span>
+                {list.length > 0 && <span className={cn("absolute bottom-0.5 size-1.5 rounded-full", isToday ? "bg-warm" : date < today ? "bg-destructive" : "bg-primary")} aria-hidden />}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </Card>
+  );
+}
+
 /** Every dated thing a student owes, across all their teams, grouped by when it is due. */
 export function MyWeek() {
   const [all, setAll] = React.useState<WeekItem[] | null>(null);
@@ -138,7 +228,10 @@ export function MyWeek() {
       </PageHeader>
       {all && view === "month" ? (
         <MonthView items={all} />
-      ) : !items ? (
+      ) : (
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0">
+      {!items ? (
         <Card className="space-y-3 p-5" aria-busy="true"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></Card>
       ) : items.length === 0 ? (
         <Card><EmptyState icon={CalendarCheck} title="You're all caught up" description="Tasks assigned to you with a due date, and your teams' milestones, show up here." /></Card>
@@ -155,6 +248,10 @@ export function MyWeek() {
             </section>
           ))}
         </div>
+      )}
+      </div>
+      <TodayCard items={all ?? []} onOpenMonth={() => setView("month")} />
+      </div>
       )}
     </Page>
   );
