@@ -13,6 +13,7 @@ import { useAppStore } from "@/lib/store";
 import { sendSampleDigest } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { Page } from "@/components/app/page";
+import { PhotoCropDialog } from "@/components/app/photo-crop";
 import { useUser } from "@/components/app/user-context";
 import { Avatar } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -184,19 +185,27 @@ function AvatarEditor() {
   const setAvatar = useAppStore((s) => s.setAvatar);
   const input = React.useRef<HTMLInputElement>(null);
   const [busy, setBusy] = React.useState(false);
+  const [picked, setPicked] = React.useState<File | null>(null); // waiting in the crop dialog
   const run = async (file: File | null) => {
     setBusy(true);
-    if (await setAvatar(file)) toast.success(file ? "Photo updated" : "Photo removed");
+    const ok = await setAvatar(file);
+    if (ok) toast.success(file ? "Photo updated" : "Photo removed");
     setBusy(false);
+    return ok;
   };
   const pick = () => input.current?.click();
+  const choose = (f: File) => {
+    if (!AVATAR_TYPES.includes(f.type)) toast.error("Use a PNG, JPG, WebP or GIF image");
+    else setPicked(f);
+  };
 
   return (
     <>
+      <PhotoCropDialog file={picked} onCancel={() => setPicked(null)} onSave={run} />
       <Avatar name={user.name} id={user.id} size="xl" className="relative size-24 text-2xl ring-4 ring-background" />
       {busy && <span className="absolute inset-0 grid place-items-center rounded-full bg-scrim/45" aria-hidden><CircleNotch className="size-7 animate-spin text-white" /></span>}
       <input ref={input} type="file" accept={AVATAR_TYPES.join(",")} className="sr-only" tabIndex={-1} aria-hidden
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) run(f); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) choose(f); }} />
       {hasPhoto ? (
         <DropdownMenu>
           <DropdownMenuTrigger disabled={busy} aria-label="Change profile photo"
