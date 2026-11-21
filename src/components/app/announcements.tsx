@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 const SHOWN = 3;
 
@@ -26,7 +27,8 @@ export function Announcements({ courseId, canPost }: { courseId: string; canPost
     console.error("Loading announcements failed:", err);
     setItems((x) => x ?? []);
   }), [courseId]);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("course_announcements");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function post(e: React.FormEvent) {
     e.preventDefault();

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const hrefOf = (i: WeekItem) => (i.kind === "task" ? `/student?team=${i.teamId}&task=${i.id}` : `/student/courses/${i.courseId}`);
@@ -197,10 +198,11 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
 export function MyWeek() {
   const [all, setAll] = React.useState<WeekItem[] | null>(null);
   const [view, setView] = React.useState<"list" | "month">("list");
+  const live = useLive("tasks", "course_milestones", "team_milestones", "submissions", "team_members");
   const items = React.useMemo(() => all?.filter((i) => daysUntil(i.date) <= LIST_DAYS) ?? null, [all]);
   React.useEffect(() => {
     getMyWeek().then(setAll).catch((err) => { console.error("Loading your week failed:", err); setAll([]); });
-  }, []);
+  }, [live]);
 
   const groups = React.useMemo(() => {
     const out: { label: string; items: WeekItem[] }[] = [];

@@ -8,7 +8,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, getTaskHistory, setChecklistItemDone } from "@/app/actions";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import { cn, dueInfo, timeAgo, toneText } from "@/lib/utils";
 import type { ChecklistItem, KanbanTask, TaskComment, TaskEvent, Team } from "@/lib/types";
 import { useUser } from "@/components/app/user-context";
@@ -49,7 +49,8 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
     console.error("Loading checklist failed:", err);
     setItems((i) => i ?? []);
   }), [task.id]);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("task_checklist_items");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function run(fn: () => Promise<void>, fail: string) {
     try {
@@ -178,7 +179,8 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
     console.error("Loading comments failed:", err);
     setComments((c) => c ?? []);
   }), [task.id]);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("task_comments");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function run(fn: () => Promise<void>, fail: string) {
     try {

@@ -4,7 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle, LockKey, PaperPlaneTilt, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { getMyReviews } from "@/app/actions";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import { cn, firstName, timeAgo } from "@/lib/utils";
 import type { MyReview } from "@/lib/types";
 import { EmptyState, Page, PageHeader } from "@/components/app/page";
@@ -108,7 +108,8 @@ export function PeerReviewPanel() {
     if (!teamId) return Promise.resolve();
     return getMyReviews(teamId).then(setSent).catch((err) => { console.error("Loading your reviews failed:", err); setSent((x) => x ?? []); });
   }, [teamId]);
-  React.useEffect(() => { loadSent(); }, [loadSent]);
+  const live = useLive("peer_reviews");
+  React.useEffect(() => { loadSent(); }, [loadSent, live]);
   const done = React.useMemo(() => sent?.map((r) => r.revieweeId) ?? [], [sent]);
 
   const mateId = selected && mates.some((m) => m.userId === selected) ? selected : mates.find((m) => !done.includes(m.userId))?.userId ?? mates[0]?.userId ?? null;

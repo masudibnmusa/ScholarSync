@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 const flagText: Record<TeamReview["flags"][number], string> = {
   "far-from-others": "Far from other ratings",
@@ -27,12 +28,13 @@ function Stars({ n }: { n: number }) {
 /** What teammates said about each other, with reviews that may be unfair flagged for a second look. */
 export function TeamReviews({ teamId }: { teamId: string }) {
   const [reviews, setReviews] = React.useState<TeamReview[] | null>(null);
+  const live = useLive("peer_reviews");
   React.useEffect(() => {
     getTeamReviews(teamId).then(setReviews).catch((err) => {
       console.error("Loading peer reviews failed:", err);
       setReviews([]);
     });
-  }, [teamId]);
+  }, [teamId, live]);
 
   const groups = React.useMemo(() => {
     const by = new Map<string, TeamReview[]>();

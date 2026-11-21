@@ -9,7 +9,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { exportCourseReport, getCourses, joinCourse, setCourseArchived } from "@/app/actions";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
 import { CourseStudents } from "@/components/app/course-students";
@@ -136,7 +136,8 @@ export function CourseDetail({ id }: { id: string }) {
   }), [id]);
   // Team edits elsewhere on the page (new team, edit, delete) change the counts and roster: reload when they do.
   const teamsSignature = useAppStore((s) => s.teams.filter((t) => t.courseId === id).map((t) => `${t.id}:${t.name}:${t.members.map((m) => m.userId).join(",")}`).join("|"));
-  React.useEffect(() => { load(); }, [load, teamsSignature]);
+  const live = useLive("courses", "course_enrollments");
+  React.useEffect(() => { load(); }, [load, teamsSignature, live]);
 
   async function join() {
     if (!course) return;

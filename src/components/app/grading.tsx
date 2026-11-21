@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 type GradedTeam = CourseGrading["teams"][number];
 const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
@@ -221,7 +222,8 @@ export function GradingPanel({ courseId }: { courseId: string }) {
   const [busy, setBusy] = React.useState(false);
 
   const load = React.useCallback(() => getCourseGrading(courseId).then(setData).catch((err) => console.error("Loading grading failed:", err)), [courseId]);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("courses", "rubric_criteria", "team_grades", "student_grade_factors", "teams", "team_members", "peer_reviews");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function release(next: boolean) {
     setBusy(true);
@@ -302,9 +304,10 @@ export function GradingPanel({ courseId }: { courseId: string }) {
 /** The student's released grade; renders nothing until the instructor releases grades. */
 export function MyGradeCard({ courseId }: { courseId: string }) {
   const [grade, setGrade] = React.useState<MyGrade | null>(null);
+  const live = useLive("courses", "rubric_criteria", "team_grades", "student_grade_factors");
   React.useEffect(() => {
     getMyGrade(courseId).then(setGrade).catch((err) => console.error("Loading grade failed:", err));
-  }, [courseId]);
+  }, [courseId, live]);
   if (!grade) return null;
 
   const team100 = teamPercent(grade.criteria, Object.fromEntries(Object.entries(grade.scores).map(([k, v]) => [k, v.points])));

@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/overlays";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 type Status = "done" | "late" | "upcoming";
 
@@ -116,7 +117,8 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
     console.error("Loading milestones failed:", err);
     setItems((x) => x ?? []);
   }), [courseId]);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("course_milestones", "team_milestones", "submissions");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function toggle(m: Milestone, done: boolean) {
     if (!myTeam) return;

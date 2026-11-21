@@ -9,7 +9,7 @@ import { proposalMessage, slotLabel, type MeetingSlot } from "@/lib/meeting";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowClockwise, CalendarPlus, CaretDown, ChatTeardropText, Check, CheckCircle, ClipboardText, Clock, Quotes, Sparkle, UsersThree, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import { cn, firstName, healthInfo, timeAgo, toneText } from "@/lib/utils";
 import type { Team, WeeklySummary } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
@@ -125,6 +125,7 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
   const [recap, setRecap] = React.useState<WeeklySummary | null | undefined>(undefined); // undefined = loading
   const [refreshing, setRefreshing] = React.useState(false);
   const isOpen = open || fromLink;
+  const live = useLive("team_summaries");
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -132,7 +133,7 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
       console.error("Loading the recap failed:", err);
       setRecap(null);
     });
-  }, [isOpen, team.id]);
+  }, [isOpen, team.id, live]);
 
   function onOpenChange(next: boolean) {
     setOpen(next);

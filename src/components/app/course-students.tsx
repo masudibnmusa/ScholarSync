@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLive } from "@/lib/store";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX = 200; // same cap as the database function
@@ -118,7 +119,8 @@ export function CourseStudents({ course, readOnly, onChanged }: { course: Course
     toast.error("Could not load the students");
     setRoster((r) => r ?? []);
   }), [course.id]);
-  React.useEffect(() => { load(); }, [load, course]); // the page reloads `course` after any student or team change
+  const live = useLive("course_enrollments", "team_members", "teams", "users");
+  React.useEffect(() => { load(); }, [load, course, live]); // the page reloads `course` after any student or team change
 
   async function remove(st: RosterStudent) {
     try {

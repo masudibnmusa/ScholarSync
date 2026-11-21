@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { createCourse, deleteCourse, updateCourse, getCourses, joinCourse, leaveCourse, setCourseArchived } from "@/app/actions";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import { cn, firstName } from "@/lib/utils";
 import { useClientValue } from "@/hooks/use-client";
 import type { Course } from "@/lib/types";
@@ -226,7 +226,8 @@ export function CoursesDashboard() {
     toast.error("Could not load courses");
     setCourses((c) => c ?? []);
   }), []);
-  React.useEffect(() => { load(); }, [load]);
+  const live = useLive("courses", "course_enrollments", "teams", "team_members");
+  React.useEffect(() => { load(); }, [load, live]);
 
   async function run(id: string, fn: () => Promise<void>, ok: string, fail: string) {
     setBusyId(id);

@@ -27,6 +27,8 @@ export interface AppState {
   commandOpen: boolean;
   /** Profile photo URLs by user id, for everyone this user can see. Missing = show initials. */
   avatars: Record<string, string>;
+  /** Bumped when another tab or person changes a table; pages add `useLive(...)` to their reload effect. */
+  live: Partial<Record<LiveTable, number>>;
   setCommandOpen: (open: boolean) => void;
 
   boot: (user: UserProfile) => Promise<void>;
@@ -72,7 +74,19 @@ function fail(what: string, err: unknown) {
   toast.error(`Could not ${what}`, { description: err instanceof Error ? err.message : undefined });
 }
 
-// Realtime channels: one for the selected team (chat + board), one for the user's notifications.
+/**
+ * Tables every page hears about live. Realtime applies RLS, so each person only gets rows they can read (a delete
+ * carries just the row's id). Chat, the board and notifications have their own filtered channels below.
+ */
+const LIVE_TABLES = [
+  "users", "courses", "course_enrollments", "teams", "team_members", "tasks", "files", "task_comments",
+  "task_checklist_items", "course_announcements", "course_milestones", "team_milestones", "submissions",
+  "peer_reviews", "team_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions",
+] as const;
+export type LiveTable = (typeof LIVE_TABLES)[number];
+const TEAM_TABLES: LiveTable[] = ["courses", "course_enrollments", "teams", "team_members", "tasks"]; // team cards show task progress
+
+// Realtime channels: one for the selected team (chat + board), one for the user (notifications and live tables).
 // Names are unique per subscription: supabase.channel(name) returns an existing channel with the same
 // name, and adding listeners to an already-subscribed channel throws.
 let teamChannel: RealtimeChannel | null = null;
@@ -102,6 +116,7 @@ const empty = {
   uploading: false,
   commandOpen: false,
   avatars: {},
+  live: {},
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -113,7 +128,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().currentUser?.id === user.id && get().loaded.teams) return;
     closeChannels();
     set({ ...empty, currentUser: user, avatars: user.avatarPath ? { [user.id]: avatarUrl(user.avatarPath) } : {} });
-    userChannel = supabaseBrowser()
+    // Load the session token first, or the channel joins as anon and RLS hides every row from it.
+    const sb = supabaseBrowser();
+    await sb.realtime.setAuth().catch((err) => console.error("Realtime auth failed:", err));
+    const channel = sb
       .channel(channelName(`user-${user.id}`))
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         () => {
@@ -121,8 +139,29 @@ export const useAppStore = create<AppState>((set, get) => ({
           // "AI suggested a task" arrives as a notification: refresh the suggestions it refers to.
           const team = get().selectedTeam;
           if (team && user.role === "student") get().fetchSuggestions(team.id);
-        })
-      .subscribe();
+        });
+    // One change often touches several rows (a new team and its members): refresh once per burst.
+    const pending = new Set<LiveTable>();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const flush = () => {
+      timer = undefined;
+      const tables = [...pending];
+      pending.clear();
+      set((s) => ({ live: { ...s.live, ...Object.fromEntries(tables.map((t) => [t, (s.live[t] ?? 0) + 1])) } }));
+      const team = get().selectedTeam;
+      if (tables.includes("users")) get().fetchAvatars();
+      if (tables.some((t) => TEAM_TABLES.includes(t))) get().fetchTeams();
+      if (team && tables.includes("files")) get().fetchFiles(team.id);
+      if (team && tables.includes("task_suggestions") && user.role === "student") get().fetchSuggestions(team.id);
+      if (tables.includes("conflict_alerts") && user.role === "instructor") get().fetchConflicts();
+    };
+    for (const table of LIVE_TABLES) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        pending.add(table);
+        timer ??= setTimeout(flush, 250);
+      });
+    }
+    userChannel = channel.subscribe();
     await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null, get().fetchAvatars()]);
   })().finally(() => { bootRun = null; })),
 
@@ -152,7 +191,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions", filter: `team_id=eq.${team.id}` },
         () => get().fetchChatMessages(team.id))
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `team_id=eq.${team.id}` },
-        () => { get().fetchTasks(team.id); get().fetchTeams(); })
+        () => get().fetchTasks(team.id)) // team progress refreshes through the live tables
       .subscribe();
   },
 
@@ -160,8 +199,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const teams = await actions.getTeams();
       const selected = get().selectedTeam;
-      set((s) => ({ teams, selectedTeam: teams.find((t) => t.id === selected?.id) ?? selected, loaded: { ...s.loaded, teams: true } }));
-      if (teams.length > 0 && !selected) get().setSelectedTeam(teams[0]);
+      const still = teams.find((t) => t.id === selected?.id);
+      set((s) => ({ teams, selectedTeam: still ?? selected, loaded: { ...s.loaded, teams: true } }));
+      // No team yet, or the selected one is gone (deleted, or I was moved out of it): pick another.
+      if (!still && (teams.length > 0 || selected)) get().setSelectedTeam(teams[0] ?? null);
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, teams: true } }));
       fail("load teams", err);
@@ -445,3 +486,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 }));
+
+/** A number that changes whenever any of these tables changes anywhere; add it to a reload effect's dependencies. */
+export const useLive = (...tables: LiveTable[]) => useAppStore((s) => tables.reduce((n, t) => n + (s.live[t] ?? 0), 0));
