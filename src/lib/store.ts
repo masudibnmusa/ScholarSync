@@ -25,6 +25,8 @@ export interface AppState {
   loaded: { teams: boolean; tasks: boolean; files: boolean; notifications: boolean; conflicts: boolean };
   uploading: boolean;
   commandOpen: boolean;
+  /** Profile photo URLs by user id, for everyone this user can see. Missing = show initials. */
+  avatars: Record<string, string>;
   setCommandOpen: (open: boolean) => void;
 
   boot: (user: UserProfile) => Promise<void>;
@@ -50,6 +52,9 @@ export interface AppState {
   deleteFile: (teamId: string, fileId: string) => Promise<boolean>;
   submitPeerReview: (teamId: string, targetId: string, overallRating: number, feedback: string, categoryRatings: Record<string, number>) => Promise<boolean>;
   updateProfile: (data: { bio?: string; skills?: string[]; availability?: string; emailDigest?: boolean }) => Promise<boolean>;
+  /** Uploads a new profile photo, or removes it with null. */
+  setAvatar: (file: File | null) => Promise<boolean>;
+  fetchAvatars: () => Promise<void>;
   resolveConflict: (id: string) => Promise<void>;
   acceptSuggestion: (id: string) => Promise<void>;
   dismissSuggestion: (id: string) => Promise<void>;
@@ -57,6 +62,9 @@ export interface AppState {
 
 const BUCKET = "team-files";
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+export const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"]; // same list as the avatars bucket
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const avatarUrl = (path: string) => supabaseBrowser().storage.from("avatars").getPublicUrl(path).data.publicUrl;
 
 function fail(what: string, err: unknown) {
   console.error(`Failed to ${what}:`, err);
@@ -92,6 +100,7 @@ const empty = {
   loaded: { teams: false, tasks: false, files: false, notifications: false, conflicts: false },
   uploading: false,
   commandOpen: false,
+  avatars: {},
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -102,7 +111,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   boot: (user) => (bootRun ??= (async () => {
     if (get().currentUser?.id === user.id && get().loaded.teams) return;
     closeChannels();
-    set({ ...empty, currentUser: user });
+    set({ ...empty, currentUser: user, avatars: user.avatarPath ? { [user.id]: avatarUrl(user.avatarPath) } : {} });
     userChannel = supabaseBrowser()
       .channel(channelName(`user-${user.id}`))
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
@@ -113,7 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           if (team && user.role === "student") get().fetchSuggestions(team.id);
         })
       .subscribe();
-    await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null]);
+    await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null, get().fetchAvatars()]);
   })().finally(() => { bootRun = null; })),
 
   logout: async () => {
@@ -349,6 +358,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       return true;
     } catch (err) {
       fail("save your profile", err);
+      return false;
+    }
+  },
+
+  // shortcut: loaded once per session, so a teammate's new photo shows after a reload; add a Realtime listener on users if that matters.
+  fetchAvatars: async () => {
+    try {
+      const paths = await actions.getAvatars();
+      set({ avatars: Object.fromEntries(Object.entries(paths).map(([id, path]) => [id, avatarUrl(path)])) });
+    } catch (err) {
+      console.error("Failed to load profile photos:", err); // initials still show
+    }
+  },
+
+  setAvatar: async (file) => {
+    const me = get().currentUser;
+    if (!me) return false;
+    if (file && !AVATAR_TYPES.includes(file.type)) { toast.error("Use a PNG, JPG, WebP or GIF image"); return false; }
+    if (file && file.size > MAX_AVATAR_BYTES) { toast.error("Photo is too large", { description: "Choose an image under 2 MB." }); return false; }
+    const sb = supabaseBrowser().storage.from("avatars");
+    const path = file ? `${me.id}/${crypto.randomUUID()}.${file.type.split("/")[1]}` : null;
+    try {
+      if (file && path) {
+        const { error } = await sb.upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+        if (error) throw error;
+      }
+      let old: string | null;
+      try {
+        old = await actions.setAvatar(path);
+      } catch (err) {
+        if (path) await sb.remove([path]); // don't leave an orphaned object behind
+        throw err;
+      }
+      if (old) await sb.remove([old]); // best effort: an old file left behind is only wasted space
+      set((s) => {
+        const avatars = { ...s.avatars };
+        if (path) avatars[me.id] = avatarUrl(path); else delete avatars[me.id];
+        return { avatars, currentUser: { ...me, avatarPath: path } };
+      });
+      return true;
+    } catch (err) {
+      fail(file ? "update your photo" : "remove your photo", err);
       return false;
     }
   },

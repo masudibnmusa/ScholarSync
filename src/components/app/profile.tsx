@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowCounterClockwise, ArrowRight, Check, CheckCircle, Circle, Clock, Desktop, EnvelopeSimple, Eye, FloppyDisk, Heartbeat, IdentificationBadge, Lightning, Moon, Palette, Plus, Student, Sun, TextAlignLeft, UsersThree, Warning, X,
+  ArrowCounterClockwise, ArrowRight, Camera, Check, CircleNotch, Trash, UploadSimple, CheckCircle, Circle, Clock, Desktop, EnvelopeSimple, Eye, FloppyDisk, Heartbeat, IdentificationBadge, Lightning, Moon, Palette, Plus, Student, Sun, TextAlignLeft, UsersThree, Warning, X,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { Avatar } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AVATAR_TYPES } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -175,6 +177,47 @@ function ThemeTiles() {
   );
 }
 
+/** The profile photo with a camera button to upload, replace or remove it. */
+function AvatarEditor() {
+  const user = useUser();
+  const hasPhoto = useAppStore((s) => !!s.avatars[user.id]);
+  const setAvatar = useAppStore((s) => s.setAvatar);
+  const input = React.useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = React.useState(false);
+  const run = async (file: File | null) => {
+    setBusy(true);
+    if (await setAvatar(file)) toast.success(file ? "Photo updated" : "Photo removed");
+    setBusy(false);
+  };
+  const pick = () => input.current?.click();
+
+  return (
+    <>
+      <Avatar name={user.name} id={user.id} size="xl" className="relative size-24 text-2xl ring-4 ring-background" />
+      {busy && <span className="absolute inset-0 grid place-items-center rounded-full bg-scrim/45" aria-hidden><CircleNotch className="size-7 animate-spin text-white" /></span>}
+      <input ref={input} type="file" accept={AVATAR_TYPES.join(",")} className="sr-only" tabIndex={-1} aria-hidden
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) run(f); }} />
+      {hasPhoto ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger disabled={busy} aria-label="Change profile photo"
+            className="tap absolute -bottom-0.5 -right-0.5 grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-lift ring-4 ring-background transition-transform hover:scale-105 disabled:opacity-60">
+            <Camera weight="fill" className="size-4" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onSelect={pick}><UploadSimple className="size-4" aria-hidden />Upload new photo</DropdownMenuItem>
+            <DropdownMenuItem destructive onSelect={() => run(null)}><Trash className="size-4" aria-hidden />Remove photo</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <button type="button" onClick={pick} disabled={busy} aria-label="Upload profile photo"
+          className="tap absolute -bottom-0.5 -right-0.5 grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-lift ring-4 ring-background transition-transform hover:scale-105 disabled:opacity-60">
+          <Camera weight="fill" className="size-4" aria-hidden />
+        </button>
+      )}
+    </>
+  );
+}
+
 export function ProfilePanel() {
   const user = useUser();
   const teams = useAppStore((s) => s.teams);
@@ -227,7 +270,7 @@ export function ProfilePanel() {
           <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
             <div className="relative flex w-fit shrink-0">
               <span className="absolute -inset-1.5 rounded-full bg-gradient-to-br from-brand to-warm opacity-80" aria-hidden />
-              <Avatar name={user.name} size="xl" className="relative size-24 text-2xl ring-4 ring-background" />
+              <AvatarEditor />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Your profile</p>
@@ -328,7 +371,7 @@ export function ProfilePanel() {
             <div className="p-4">
               <div className="rounded-2xl border bg-background/60 p-4">
                 <div className="flex items-center gap-3">
-                  <Avatar name={user.name} size="md" />
+                  <Avatar name={user.name} id={user.id} size="md" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{user.name}</p>
                     <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Clock className="size-3 shrink-0" aria-hidden />{availability.trim() || "Availability not set"}</p>

@@ -36,7 +36,7 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
   return (
     <Popover>
       <PopoverTrigger className="flex items-center gap-2 rounded-full p-1 pr-2.5 transition-colors hover:bg-accent data-[state=open]:bg-accent" aria-label={`${n} team ${n === 1 ? "member" : "members"}. Show all`}>
-        <AvatarStack names={team.members.map((m) => m.name)} />
+        <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} />
         <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">{n}</span>
         <CaretDown weight="bold" className="size-3 text-muted-foreground" aria-hidden />
       </PopoverTrigger>
@@ -54,7 +54,7 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
               return (
                 <li key={m.userId} className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <Avatar name={m.name} size="sm" />
+                    <Avatar name={m.name} id={m.userId} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{m.name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</p>
                       {m.availability && <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Clock className="size-3 shrink-0" aria-hidden />{m.availability}</p>}
@@ -251,7 +251,7 @@ export function MeetingButton({ team }: { team: Team }) {
         <ul className="flex flex-wrap gap-1.5" aria-label="Member availability">
           {team.members.map((m) => (
             <li key={m.userId} className="flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2.5 text-xs">
-              <Avatar name={m.name} size="xs" /><span className="font-semibold">{firstName(m.name)}</span>
+              <Avatar name={m.name} id={m.userId} size="xs" /><span className="font-semibold">{firstName(m.name)}</span>
               <span className="text-muted-foreground">{m.availability.trim() || "not set"}</span>
             </li>
           ))}

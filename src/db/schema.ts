@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   skills: text("skills").array().notNull(),
   availability: text("availability").notNull(),
   emailDigest: boolean("email_digest").notNull().default(true),
+  avatarPath: text("avatar_path"), // in the public "avatars" bucket; null = initials
   createdAt: ts("created_at").notNull(),
   updatedAt: ts("updated_at").notNull(),
 });

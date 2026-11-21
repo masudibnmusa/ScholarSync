@@ -34,7 +34,7 @@ export async function getProfile(): Promise<UserProfile> {
   return withUser(async (tx, uid) => {
     const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
     if (!u) throw new Error("Profile not found");
-    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest, avatarPath: u.avatarPath };
   });
 }
 
@@ -48,6 +48,25 @@ const ProfileInput = z.object({
 export async function updateProfile(input: z.infer<typeof ProfileInput>) {
   const data = ProfileInput.parse(input);
   await withUser((tx, uid) => tx.update(s.users).set(data).where(eq(s.users.id, uid)));
+}
+
+/** Profile photos of everyone I can see (RLS decides who), as user id → path in the avatars bucket. */
+export async function getAvatars(): Promise<Record<string, string>> {
+  return withUser(async (tx) => {
+    const rows = await tx.select({ id: s.users.id, path: s.users.avatarPath }).from(s.users).where(isNotNull(s.users.avatarPath));
+    return Object.fromEntries(rows.map((r) => [r.id, r.path as string]));
+  });
+}
+
+/** Points my profile at a photo I just uploaded, or removes it (null). Returns the previous path so its file can be deleted. */
+export async function setAvatar(path: string | null): Promise<string | null> {
+  return withUser(async (tx, uid) => {
+    // Only a file in my own folder; the table's check constraint enforces the same.
+    if (path !== null && !new RegExp(`^${uid}/[0-9a-f-]{36}\\.(png|jpe?g|webp|gif)$`).test(path)) throw new Error("Invalid photo");
+    const [old] = await tx.select({ path: s.users.avatarPath }).from(s.users).where(eq(s.users.id, uid));
+    await tx.update(s.users).set({ avatarPath: path }).where(eq(s.users.id, uid));
+    return old?.path ?? null;
+  });
 }
 
 /** Emails me my current digest without marking anything as emailed, so I can see what it looks like. */
@@ -833,7 +852,7 @@ export async function getCourses(): Promise<Course[]> {
         teamCount: teamTotal,
         unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
-        students: isMine ? roster.map((e) => e.name) : [],
+        students: isMine ? roster.map((e) => ({ id: e.userId, name: e.name })) : [],
         joinCode: isMine ? c.joinCode : null,
       };
     });

@@ -89,7 +89,7 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
           {instructor ? (
             <>
               <div className="mb-3 flex min-h-8 items-center justify-between gap-2">
-                {course.students.length ? <AvatarStack names={course.students} max={5} /> : <span className="text-xs text-muted-foreground">No students yet</span>}
+                {course.students.length ? <AvatarStack people={course.students} max={5} /> : <span className="text-xs text-muted-foreground">No students yet</span>}
                 {course.unplaced > 0 && <Badge variant="warm">{course.unplaced} without a team</Badge>}
               </div>
               {course.unplaced >= 2 ? (

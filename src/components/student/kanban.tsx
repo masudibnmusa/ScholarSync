@@ -214,7 +214,7 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
         <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1 scroll-thin">
           {comments.map((c) => (
             <li key={c.id} className="group/comment flex gap-2.5">
-              <Avatar name={c.authorName} size="xs" className="mt-0.5" />
+              <Avatar name={c.authorName} id={c.authorId} size="xs" className="mt-0.5" />
               <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-muted px-3 py-2">
                 <p className="flex items-baseline gap-2 text-xs">
                   <span className="font-bold">{c.authorId === user.id ? "You" : c.authorName}</span>
@@ -378,7 +378,7 @@ function StatusPill({ task, onChange }: { task: KanbanTask; onChange?: (s: Statu
 function Assignee({ task }: { task: KanbanTask }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      {task.assigneeId ? <Avatar name={task.assigneeName} size="xs" /> : <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-input" aria-hidden />}
+      {task.assigneeId ? <Avatar name={task.assigneeName} id={task.assigneeId} size="xs" /> : <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-input" aria-hidden />}
       <span className="truncate text-xs font-medium text-muted-foreground">{task.assigneeName}</span>
     </span>
   );

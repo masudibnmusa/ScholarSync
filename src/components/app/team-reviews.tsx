@@ -59,7 +59,7 @@ export function TeamReviews({ teamId }: { teamId: string }) {
             return (
               <section key={g[0].revieweeId} aria-label={`Reviews of ${g[0].revieweeName}`} className="rounded-2xl bg-muted/50 p-3">
                 <header className="mb-2 flex items-center gap-2">
-                  <Avatar name={g[0].revieweeName} size="sm" />
+                  <Avatar name={g[0].revieweeName} id={g[0].revieweeId} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-sm font-bold">{g[0].revieweeName}</p>
                   <span className="text-sm font-extrabold tabular-nums">{avg.toFixed(1)}<span className="font-semibold text-muted-foreground"> avg</span></span>
                 </header>

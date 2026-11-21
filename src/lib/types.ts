@@ -164,6 +164,7 @@ export interface UserProfile {
   skills: string[];
   availability: string;
   emailDigest: boolean;
+  avatarPath: string | null;
 }
 
 export interface ConflictAlert {
@@ -206,7 +207,7 @@ export interface Course {
   teamCount: number; // every team in the course
   unplaced: number; // instructor only: enrolled students not on a team yet
   myTeam: string | null; // student only
-  students: string[]; // instructor only: names, for the roster preview
+  students: { id: string; name: string }[]; // instructor only: for the roster preview
   joinCode: string | null; // instructor only: the invite code (/join/<code>)
 }
 

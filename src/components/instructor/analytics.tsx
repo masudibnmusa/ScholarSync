@@ -294,7 +294,7 @@ export function AnalyticsPanel() {
               {members.map((m, i) => (
                 <li key={m.userId} className="flex items-center gap-3 rounded-2xl border bg-background/60 p-3">
                   <span className="relative">
-                    <Avatar name={m.name} size="sm" />
+                    <Avatar name={m.name} id={m.userId} size="sm" />
                     <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-card" style={{ backgroundColor: memberColor(i) }} aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">

@@ -73,7 +73,7 @@ function TeamCard({ team, href, editable }: { team: Team; href: string; editable
         <span className="w-9 text-right text-xs font-bold tabular-nums">{team.progress}%</span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-2 pt-1">
-        <AvatarStack names={team.members.map((m) => m.name)} max={4} />
+        <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} max={4} />
         <div className="flex gap-1.5">
           {editable && <EditTeamButton team={team} />}
           <Button asChild size="sm" variant="outline"><Link href={href}><ListChecks aria-hidden /> Open tasks <ArrowRight aria-hidden /></Link></Button>

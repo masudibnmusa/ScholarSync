@@ -164,7 +164,7 @@ export function PeerReviewPanel() {
                     <button type="button" onClick={() => { setSelected(m.userId); setError(null); }} aria-pressed={active}
                       className={cn("tap flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-soft",
                         active ? "border-primary shadow-[0_0_0_3px_color-mix(in_oklab,var(--ring)_18%,transparent)]" : "hover:border-primary/40")}>
-                      <Avatar name={m.name} />
+                      <Avatar name={m.name} id={m.userId} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold">{m.name}</span>
                         <span className={cn("block text-xs", isDone ? "font-semibold text-success" : "text-muted-foreground")}>{isDone ? "Reviewed" : "Not reviewed yet"}</span>
@@ -182,7 +182,7 @@ export function PeerReviewPanel() {
               <motion.div key={mate.userId + (done.includes(mate.userId) ? "-done" : "")} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25, ease: EASE }}>
                 <Card className="overflow-hidden">
                   <div className="flex flex-wrap items-center gap-4 border-b bg-muted/40 p-5 sm:p-6">
-                    <Avatar name={mate.name} size="lg" />
+                    <Avatar name={mate.name} id={mate.userId} size="lg" />
                     <div className="min-w-0 flex-1">
                       <h2 className="text-xl font-extrabold">{mate.name}</h2>
                       {mate.bio && <p className="text-sm text-muted-foreground">{mate.bio}</p>}

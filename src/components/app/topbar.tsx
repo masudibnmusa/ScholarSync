@@ -118,7 +118,7 @@ export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sideba
     <DropdownMenu>
       {sidebar === "wide" ? (
         <DropdownMenuTrigger className="tap flex w-full items-center gap-3 rounded-2xl bg-sidebar-accent/70 p-2.5 text-left shadow-soft transition-colors hover:bg-sidebar-accent" aria-label={`Account menu for ${user.name}`}>
-          <Avatar name={user.name} size="sm" className="size-9" />
+          <Avatar name={user.name} id={user.id} size="sm" className="size-9" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-bold">{user.name}</span>
             <span className="block truncate text-xs text-sidebar-muted">{user.email}</span>
@@ -127,12 +127,12 @@ export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sideba
         </DropdownMenuTrigger>
       ) : (
         <DropdownMenuTrigger className={cn("tap flex items-center rounded-full p-0.5 transition-shadow hover:ring-4", sidebar ? "hover:ring-sidebar-accent" : "ml-1 hover:ring-primary/15")} aria-label={`Account menu for ${user.name}`}>
-          <Avatar name={user.name} size="sm" className="size-9" />
+          <Avatar name={user.name} id={user.id} size="sm" className="size-9" />
         </DropdownMenuTrigger>
       )}
       <DropdownMenuContent side={sidebar === "wide" ? "top" : sidebar ? "right" : "bottom"} align="end" className="w-64">
         <div className="flex items-center gap-3 px-2.5 py-2">
-          <Avatar name={user.name} />
+          <Avatar name={user.name} id={user.id} />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>

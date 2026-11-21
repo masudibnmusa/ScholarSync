@@ -95,7 +95,7 @@ function Bubble({ row, names, me }: { row: Extract<Row, { kind: "msg" }>; names:
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       className={cn("flex items-end gap-2.5", msg.isMe && "flex-row-reverse", head ? "mt-4" : "mt-1")}
     >
-      <div className="w-8 shrink-0">{!msg.isMe && tail && <Avatar name={msg.senderName} size="sm" />}</div>
+      <div className="w-8 shrink-0">{!msg.isMe && tail && <Avatar name={msg.senderName} id={msg.senderId} size="sm" />}</div>
       <div className={cn("flex min-w-0 max-w-[82%] flex-col sm:max-w-[68%]", msg.isMe ? "items-end" : "items-start")}>
         {head && !msg.isMe && (
           <p className="mb-1 ml-1 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
@@ -299,7 +299,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
                 onMouseDown={(e) => { e.preventDefault(); pickMention(m.name); }}
                 onMouseEnter={() => setMentionIndex(i)}
                 className={cn("flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm", i === activeMention && "bg-accent")}>
-                <Avatar name={m.name} size="xs" />
+                <Avatar name={m.name} id={m.userId} size="xs" />
                 <span className="min-w-0 flex-1 truncate font-semibold">{m.name}</span>
                 <span className="text-xs text-muted-foreground">@{mentionHandle(m.name)}</span>
               </li>

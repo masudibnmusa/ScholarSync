@@ -131,7 +131,7 @@ function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; 
       <ul className="space-y-3 px-5 pt-1">
         {p.members.map((m) => (
           <li key={m.id} className="flex items-start gap-2.5">
-            <Avatar name={m.name} size="sm" />
+            <Avatar name={m.name} id={m.id} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{m.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1">
@@ -342,7 +342,7 @@ export function MatchingPanel() {
               {/* Sticky action bar: the decision stays in reach on long lists */}
               <div className="sticky bottom-4 z-30">
                 <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-2xl border bg-card/95 p-2.5 shadow-lift backdrop-blur sm:gap-3 sm:p-3 sm:pl-4">
-                  <span className="hidden sm:block"><AvatarStack names={ready.proposals.flatMap((p) => p.members.map((m) => m.name))} max={5} /></span>
+                  <span className="hidden sm:block"><AvatarStack people={ready.proposals.flatMap((p) => p.members)} max={5} /></span>
                   <p className="hidden min-w-0 flex-1 text-sm sm:block"><span className="font-bold">{placed} students</span> <span className="text-muted-foreground">into {ready.proposals.length} {ready.proposals.length === 1 ? "team" : "teams"}</span></p>
                   <Button variant="outline" className="flex-1 sm:flex-none" onClick={generate}><ArrowsClockwise aria-hidden /> Regenerate</Button>
                   <Button className="flex-1 sm:flex-none" onClick={() => setConfirm(true)} loading={creating}>{!creating && <CheckCircle weight="fill" aria-hidden />} Create {ready.proposals.length === 1 ? "team" : "teams"}</Button>
