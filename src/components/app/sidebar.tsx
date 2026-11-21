@@ -54,24 +54,46 @@ export function NavLinks({ onNavigate, pillId, items, collapsed }: { onNavigate?
 export function Sidebar({ onSignOut, initialCollapsed }: { onSignOut: () => void; initialCollapsed: boolean }) {
   const user = useUser();
   const setCommandOpen = useAppStore((s) => s.setCommandOpen);
-  const [collapsed, setCollapsedState] = React.useState(initialCollapsed);
-  const setCollapsed = (next: boolean) => {
-    setCollapsedState(next);
+  // auto: an icon rail that opens over the page while the pointer (or keyboard focus) is on it. Off: pinned open.
+  const [auto, setAutoState] = React.useState(initialCollapsed);
+  const [hover, setHover] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
+  const asideRef = React.useRef<HTMLElement>(null);
+  const collapsed = auto && !hover;
+  const setAuto = (next: boolean) => {
+    setAutoState(next);
+    setHover(false);
     document.cookie = `${SIDEBAR_COOKIE}=${next ? 1 : 0}; path=/; max-age=31536000; samesite=lax`;
   };
+  // Short delays so a pointer just passing by doesn't flick it open or shut.
+  const hoverAfter = (next: boolean, ms: number) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      // Keep it open while its account menu is open, or the menu would lose its anchor.
+      if (!next && asideRef.current?.querySelector('[aria-expanded="true"]')) return;
+      setHover(next);
+    }, ms);
+  };
+  React.useEffect(() => () => clearTimeout(timer.current), []);
 
   const toggle = (
-    <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
-      <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}
+    <Tooltip label={auto ? "Keep sidebar open" : "Auto-hide sidebar"} side="right">
+      <button type="button" onClick={() => setAuto(!auto)} aria-label="Keep sidebar open" aria-pressed={!auto}
         className="tap flex size-9 shrink-0 items-center justify-center rounded-xl text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground">
-        <SidebarSimple className="size-5" aria-hidden />
+        <SidebarSimple weight={auto ? "regular" : "fill"} className="size-5" aria-hidden />
       </button>
     </Tooltip>
   );
 
   return (
-    <aside className={cn("relative my-3 ml-3 hidden h-[calc(100dvh-1.5rem)] shrink-0 flex-col overflow-hidden rounded-3xl bg-sidebar p-3 text-sidebar-foreground shadow-soft transition-[width] duration-300 ease-out-expo lg:flex",
-      collapsed ? "w-[4.25rem] items-center" : "w-64")}>
+    // The wrapper holds the rail's space in the layout; in auto mode the panel widens over the page instead of pushing it.
+    <div className={cn("relative my-3 ml-3 hidden h-[calc(100dvh-1.5rem)] shrink-0 transition-[width] duration-300 ease-out-expo lg:block", auto ? "w-[4.25rem]" : "w-64")}>
+    <aside ref={asideRef}
+      onMouseEnter={() => auto && hoverAfter(true, 120)} onMouseLeave={() => auto && hoverAfter(false, 250)}
+      onFocus={() => auto && hoverAfter(true, 0)}
+      onBlur={(e) => auto && !e.currentTarget.contains(e.relatedTarget) && hoverAfter(false, 0)}
+      className={cn("absolute inset-y-0 left-0 z-40 flex flex-col overflow-hidden rounded-3xl bg-sidebar p-3 text-sidebar-foreground transition-[width,box-shadow] duration-300 ease-out-expo",
+      collapsed ? "w-[4.25rem] items-center" : "w-64", auto && hover ? "shadow-lift" : "shadow-soft")}>
       <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "gap-1")}>
         <Link href={`${homeFor(user.role)}/courses`} className="flex min-w-0 flex-1 items-center rounded-2xl p-1.5" aria-label="Course dashboard">
           <Logo label={false} />
@@ -110,5 +132,6 @@ export function Sidebar({ onSignOut, initialCollapsed }: { onSignOut: () => void
         <UserMenu sidebar={collapsed ? "collapsed" : "wide"} onSignOut={onSignOut} />
       </div>
     </aside>
+    </div>
   );
 }

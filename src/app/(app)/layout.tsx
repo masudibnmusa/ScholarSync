@@ -8,7 +8,7 @@ import { SIDEBAR_COOKIE } from "@/components/app/nav";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionProfile();
   if (!user) redirect("/login");
-  // Read on the server so a collapsed sidebar renders collapsed from the first paint.
-  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
+  // Read on the server so the sidebar renders in the right mode from the first paint. Auto-hide unless pinned open ("0").
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value !== "0";
   return <AppShell user={user} sidebarCollapsed={collapsed}>{children}</AppShell>;
 }
