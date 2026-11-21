@@ -172,6 +172,16 @@ export const riskAlerts = inngest.createFunction(
   },
 );
 
+// Every morning (UTC), before the digests: students with two of overdue tasks, chat silence and low peer scores get a
+// private nudge; if it still holds 3 days later the instructor is told. The rules live in SQL (migration 0027).
+export const fallingBehind = inngest.createFunction(
+  { id: "falling-behind-check", triggers: [{ cron: "20 7 * * *" }] },
+  async ({ step }) => step.run("check", async () => {
+    const [row] = await db.execute<{ nudged: number; escalated: number; resolved: number }>(sql`select * from public.check_falling_behind()`);
+    return row;
+  }),
+);
+
 // Every morning (UTC), after the due reminders and risk alerts: one email per person with what they have not read yet.
 // Each notification is emailed at most once (notifications.emailed_at).
 export const dailyDigests = inngest.createFunction(
@@ -190,4 +200,4 @@ export const pushNotifications = inngest.createFunction(
   async ({ step }) => step.run("send-pushes", () => sendPendingPushes()),
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications];
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications];

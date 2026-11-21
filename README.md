@@ -252,6 +252,12 @@ All seed accounts use the password `password123`.
 | | Notifications page opens | ✅ Pass |
 | | The course dashboard lists the seeded course | ✅ Pass |
 
+**Database check.** The falling-behind rules run on days of history, which a browser test can't wait for, so they have their own SQL test with made-up people, run in one transaction that is rolled back. It covers the private nudge, no repeat the same day, instructor alert after 3 days (once), recovery, slipping back within a week, a new episode later, low peer scores, and archived courses. Latest run: 8 of 8 passed (2026-11-22).
+
+```bash
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/falling_behind.sql
+```
+
 Not covered yet: sending chat messages (it would notify the seeded teammates and start AI task extraction), the AI features themselves, and phone-sized screens.
 
 ### Testing the AI features
@@ -286,6 +292,7 @@ Where the code differs from the diagram, and why:
 - **Install and alerts** (`0024_push.sql`): `src/app/manifest.ts` and `public/sw.js` make the app installable; the service worker only shows alerts and opens the page they point to (no offline cache). Each browser that turns alerts on stores one `push_subscriptions` row. An Inngest job runs every minute, claims new notifications (`pushed_at`) so none is sent twice, and pushes all except routine chat messages (@mentions still go) that are under an hour old. Subscriptions a push service reports gone (404/410) are deleted. On iPhone and iPad, alerts work only from the Home Screen app (iOS 16.4+).
 - **Live updates everywhere** (`0025_live_updates.sql`): besides the filtered chat, board and notification feeds, one Realtime channel per signed-in user listens to the other tables (profile photos, courses, rosters, teams, files, task comments and checklists, milestones and hand-ins, announcements, reviews, recaps, grading). Realtime checks RLS per row, so people only hear about what they can read; a delete carries only the row id. Changes are batched for 250 ms, then the store refreshes avatars, teams and files, and pages that load their own data reload through `useLive(...tables)`. The channel loads the session token before joining; without it the channel joined as anonymous and RLS dropped every row.
 - **Weekly stand-up** (`0026_standups.sql`): at 06:05 UTC each Monday, right after the recaps, every student in an active course is asked what they finished, what is next and what blocks them. The team and the instructor see the answers. Each answer queues an Inngest event; once a team's answers have been quiet for 10 minutes (at most an hour), Gemini writes a summary with a list of blockers, reading last week's recap as background. Only the instructor can read it (`standup_summaries` RLS). The instructor is notified the first time and again when more blockers appear, and can also ask for the summary from the dialog.
+- **Who's falling behind** (`0027_falling_behind.sql`): every morning at 07:20 UTC, `check_falling_behind()` checks each student in each team of an active course for three signals: 2+ overdue tasks (or one 3+ days late), 7+ days silent in team chat while teammates talk, and peer reviews averaging 2.5/5 or lower (from 2+ reviews). Two signals together start an episode: the student gets a private "quick check-in" naming them. If two signals still hold 3 days later, the instructor is told once. Slipping back within 7 days of recovering continues the episode without another nudge. This complements `send_risk_alerts()` (0017), which flags whole teams.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -301,6 +308,7 @@ Where the code differs from the diagram, and why:
 8. ✅ Install on phone with push alerts
 9. ✅ Live updates for every page
 10. ✅ AI weekly stand-up
+11. ✅ Early warning for students falling behind
 
 ## License
 
