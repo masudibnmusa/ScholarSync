@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: { default: "ScholarSync: group projects that actually work", template: "%s · ScholarSync" },
   description:
     "One workspace for university group projects. Students chat, plan tasks and share files; faculty match teams by skills, track contribution and spot struggling teams early.",
-  icons: { icon: "/favicon.svg", apple: "/favicon.svg" },
+  icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "ScholarSync", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

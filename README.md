@@ -189,6 +189,8 @@ Stop with `Ctrl+C` for the dev server and `npx supabase stop` for Supabase. Loca
 
 `.env.local` needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable key), `DATABASE_URL` (the DB URL; use the transaction pooler in production) and `GEMINI_API_KEY` (from Google AI Studio). `DATABASE_URL` and `GEMINI_API_KEY` are server-only. Optional: `GEMINI_MODEL` (overrides the default model) and `INNGEST_DEV=1` (use the local Inngest dev server). In production also set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`.
 
+Phone and desktop alerts need a VAPID key pair: run `npx web-push generate-vapid-keys` once and set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (server-only) and `VAPID_SUBJECT` (a `mailto:` address push services can contact). Without them the app works and the Alerts switch says alerts aren't set up. Alerts are sent by an Inngest job, so `npm run dev:inngest` must be running locally.
+
 **Demo accounts** (seed, password `password123`): instructor `selim.reja@university.edu`; students `masud@`, `nazmul@`, `chinmoy@` (Team Nova) and `sara@`, `rahim@`, `fatima@` (Team Orbit), all `@university.edu`.
 
 ### End-to-end tests
@@ -217,7 +219,7 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 24 of 24 passed in 53 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
+**Latest run:** 26 of 26 passed in 58 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
 
 | Area | Test | Result |
 |---|---|---|
@@ -239,6 +241,8 @@ All seed accounts use the password `password123`.
 | | A file that isn't an image is refused | ✅ Pass |
 | Course management | Create a course, add students by email (added / no account / not a student / typo caught), create a team by hand, turn joining off and reset the code, archive (read-only for instructor and team), restore, remove a student, delete | ✅ Pass |
 | Assignment submissions | Add a hand-in milestone due yesterday; empty and invalid-link hand-ins refused; hand in a file + link + note (marked late); instructor reviews and leaves feedback; student sees it, hands in a new version (feedback marked as on an earlier version); both notified | ✅ Pass |
+| Install and alerts | The manifest is served with its icons and the service worker controls the whole site | ✅ Pass |
+| | Turn alerts on (saved on the server, still on after a reload) and off again; the browser's push service is faked, since test browsers have none | ✅ Pass |
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
@@ -276,6 +280,7 @@ Where the code differs from the diagram, and why:
 - **Archived courses are read-only in the database.** One trigger on the tables of team work and membership (`0021_course_management.sql`) rejects changes from signed-in users once a course is archived; grading, announcements and the course itself stay editable, and admin work and background jobs pass. Self-join checks `joining_open`, and instructors add students by email through `enroll_students()`, which only reports per address whether it worked.
 - **Assignment submissions hang off milestones** (`0022_submissions.sql`). A milestone marked "Teams hand in work" takes one submission per team (a file in the `team-files` bucket under `<team>/submissions/`, a link, or both, plus a note); handing in again replaces it and marks the milestone done. A trigger lets the team change only the hand-in and the instructor only the feedback. Late means after the end of the due day in the viewer's time zone. Marks still go in the rubric grading.
 - **Chat replies and reactions** (`0023_chat_replies_reactions.sql`): `messages.reply_to` quotes the answered message (RLS keeps it in the same team), and `message_reactions` holds one row per person per emoji from a fixed set of six, live over Realtime. Search matches message text and file names in the open team (case-insensitive, newest first).
+- **Install and alerts** (`0024_push.sql`): `src/app/manifest.ts` and `public/sw.js` make the app installable; the service worker only shows alerts and opens the page they point to (no offline cache). Each browser that turns alerts on stores one `push_subscriptions` row. An Inngest job runs every minute, claims new notifications (`pushed_at`) so none is sent twice, and pushes all except routine chat messages (@mentions still go) that are under an hour old. Subscriptions a push service reports gone (404/410) are deleted. On iPhone and iPad, alerts work only from the Home Screen app (iOS 16.4+).
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -288,6 +293,7 @@ Where the code differs from the diagram, and why:
 5. ✅ AI jobs: task extraction, team health, team matching
 6. ✅ `/student/*` and `/instructor/*` routes (next: move first-load data into Server Components)
 7. ✅ Course management: create and edit courses, invite link with joining on/off and code reset, add students by email, remove students, create teams by hand, archive (read-only) and restore
+8. ✅ Install on phone with push alerts
 
 ## License
 

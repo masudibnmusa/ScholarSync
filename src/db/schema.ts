@@ -117,6 +117,16 @@ export const notifications = pgTable("notifications", {
   link: text("link"),
   readAt: ts("read_at"),
   emailedAt: ts("emailed_at"),
+  pushedAt: ts("pushed_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  endpoint: text("endpoint").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent").notNull().default(""),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 

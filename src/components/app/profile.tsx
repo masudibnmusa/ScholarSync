@@ -14,6 +14,7 @@ import { sendSampleDigest } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { Page } from "@/components/app/page";
 import { PhotoCropDialog } from "@/components/app/photo-crop";
+import { AlertsCard } from "@/components/app/push";
 import { useUser } from "@/components/app/user-context";
 import { Avatar } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -404,6 +405,7 @@ export function ProfilePanel() {
           </Card>
 
           <EmailCard />
+          <AlertsCard />
         </aside>
       </div>
 

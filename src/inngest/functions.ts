@@ -5,6 +5,7 @@ import { conflictAlerts, messages, notifications, taskSuggestions, tasks, teamMe
 import { assessTeam, extractTasks } from "@/lib/ai";
 import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
 import { digestRecipients, sendDigestTo } from "@/lib/digest";
+import { sendPendingPushes } from "@/lib/push";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
 
@@ -150,4 +151,10 @@ export const dailyDigests = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, dailyDigests];
+// Every minute: new notifications to the phones and desktops that turned alerts on.
+export const pushNotifications = inngest.createFunction(
+  { id: "push-notifications", triggers: [{ cron: "* * * * *" }] },
+  async ({ step }) => step.run("send-pushes", () => sendPendingPushes()),
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, dailyDigests, pushNotifications];

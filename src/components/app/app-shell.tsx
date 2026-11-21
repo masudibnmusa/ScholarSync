@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/lib/types";
 import { isActive, navFor } from "@/components/app/nav";
 import { CommandMenu } from "@/components/app/command-menu";
+import { useAppInstallSetup } from "@/components/app/push";
 import { NavLinks, Sidebar, useBadgeCounts } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
 import { UserProvider, useUser } from "@/components/app/user-context";
@@ -73,6 +74,7 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
   const router = useRouter();
   const pathname = usePathname();
   const mainRef = React.useRef<HTMLElement>(null);
+  useAppInstallSetup();
 
   // Load this user's data and live updates once the shell is in the browser.
   React.useEffect(() => {

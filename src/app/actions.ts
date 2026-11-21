@@ -3,7 +3,7 @@
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
-import { withUser } from "@/db";
+import { adminDb, withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { matchTeams, suggestMeetings } from "@/lib/ai";
@@ -72,6 +72,29 @@ export async function setAvatar(path: string | null): Promise<string | null> {
     await tx.update(s.users).set({ avatarPath: path }).where(eq(s.users.id, uid));
     return old?.path ?? null;
   });
+}
+
+const PushSubscriptionInput = z.object({
+  endpoint: z.url({ protocol: /^https$/ }).max(1000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+  userAgent: z.string().max(300).default(""),
+});
+
+/** Saves this browser's push subscription for me (one row per browser; re-saving moves it to me). */
+export async function savePushSubscription(input: z.input<typeof PushSubscriptionInput>) {
+  const p = PushSubscriptionInput.parse(input);
+  await withUser(async (tx, uid) => {
+    // A browser shared by two accounts: the endpoint belongs to whoever turned alerts on last. RLS hides the other
+    // account's row, so the owner role removes it; holding the endpoint (only this browser has it) is the proof.
+    await adminDb.delete(s.pushSubscriptions).where(and(eq(s.pushSubscriptions.endpoint, p.endpoint), ne(s.pushSubscriptions.userId, uid)));
+    await tx.insert(s.pushSubscriptions).values({ endpoint: p.endpoint, userId: uid, p256dh: p.keys.p256dh, auth: p.keys.auth, userAgent: p.userAgent })
+      .onConflictDoUpdate({ target: s.pushSubscriptions.endpoint, set: { p256dh: p.keys.p256dh, auth: p.keys.auth, userAgent: p.userAgent } });
+  });
+}
+
+export async function removePushSubscription(endpoint: string) {
+  const e = z.string().max(1000).parse(endpoint);
+  await withUser((tx) => tx.delete(s.pushSubscriptions).where(eq(s.pushSubscriptions.endpoint, e)));
 }
 
 /** Emails me my current digest without marking anything as emailed, so I can see what it looks like. */
