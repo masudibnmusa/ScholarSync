@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { CalendarCheck, CaretLeft, CaretRight, CheckSquare, DownloadSimple, Flag } from "@phosphor-icons/react/dist/ssr";
 import { getMyWeek } from "@/app/actions";
+import { withSnapshot } from "@/lib/offline";
+import { useUser } from "@/components/app/user-context";
 import { cn, daysUntil, dueInfo, toneText, weekBucket } from "@/lib/utils";
 import type { WeekItem } from "@/lib/types";
 import { EmptyState, Page, PageHeader } from "@/components/app/page";
@@ -196,13 +198,14 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
 
 /** Every dated thing a student owes, across all their teams, grouped by when it is due. */
 export function MyWeek() {
+  const user = useUser();
   const [all, setAll] = React.useState<WeekItem[] | null>(null);
   const [view, setView] = React.useState<"list" | "month">("list");
   const live = useLive("tasks", "course_milestones", "team_milestones", "submissions", "team_members");
   const items = React.useMemo(() => all?.filter((i) => daysUntil(i.date) <= LIST_DAYS) ?? null, [all]);
   React.useEffect(() => {
-    getMyWeek().then(setAll).catch((err) => { console.error("Loading your week failed:", err); setAll([]); });
-  }, [live]);
+    withSnapshot(user.id, "week", getMyWeek).then(setAll).catch((err) => { console.error("Loading your week failed:", err); setAll([]); });
+  }, [live, user.id]);
 
   const groups = React.useMemo(() => {
     const out: { label: string; items: WeekItem[] }[] = [];

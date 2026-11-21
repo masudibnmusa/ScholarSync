@@ -90,8 +90,9 @@ function MessageText({ content, names, me, onPrimary }: { content: string; names
 
 type BubbleActions = { onReply: (m: ChatMessage) => void; onReact: (m: ChatMessage, emoji: string) => void; onJump: (id: string) => void } | null;
 
-function Bubble({ row, names, me, actions, highlighted }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string; actions: BubbleActions; highlighted: boolean }) {
+function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string; actions: BubbleActions; highlighted: boolean }) {
   const { msg, head, tail } = row;
+  const actions = msg.pending ? null : allActions; // not on the server yet: nothing to reply to or react to
   const reactions = msg.reactions ?? [];
   return (
     <motion.li
@@ -113,6 +114,7 @@ function Bubble({ row, names, me, actions, highlighted }: { row: Extract<Row, { 
           <div
             className={cn(
               "min-w-0 rounded-2xl px-4 py-2.5 text-[0.9375rem] leading-relaxed",
+              msg.pending && "opacity-60",
               msg.isMe ? "bg-primary text-primary-foreground" : msg.fromInstructor ? "bg-warm/10 text-foreground ring-1 ring-warm/30" : "bg-muted text-foreground",
               tail && (msg.isMe ? "rounded-br-md" : "rounded-bl-md"),
             )}
@@ -160,7 +162,9 @@ function Bubble({ row, names, me, actions, highlighted }: { row: Extract<Row, { 
             ))}
           </div>
         )}
-        {tail && <time dateTime={msg.timestamp} className="mx-1 mt-1 text-[0.6875rem] text-muted-foreground">{clockTime(msg.timestamp)}</time>}
+        {msg.pending
+          ? <span className="mx-1 mt-1 text-[0.6875rem] font-semibold text-muted-foreground">Waiting to send</span>
+          : tail && <time dateTime={msg.timestamp} className="mx-1 mt-1 text-[0.6875rem] text-muted-foreground">{clockTime(msg.timestamp)}</time>}
       </div>
     </motion.li>
   );

@@ -16,6 +16,13 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
-  webServer: { command: "npm run dev", url: "http://localhost:3000/login", reuseExistingServer: true, timeout: 120_000 },
+  projects: [
+    { name: "desktop", testIgnore: /offline\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // Offline mode needs a production build: the dev server's hot-reload client won't start without its websocket.
+    { name: "production", testMatch: /offline\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, baseURL: "http://localhost:3100" } },
+  ],
+  webServer: [
+    { command: "npm run dev", url: "http://localhost:3000/login", reuseExistingServer: true, timeout: 120_000 },
+    { command: "npm run build && npm start -- -p 3100", url: "http://localhost:3100/login", reuseExistingServer: true, timeout: 600_000 },
+  ],
 });

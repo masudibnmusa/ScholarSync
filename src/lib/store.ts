@@ -5,6 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import * as actions from "@/app/actions";
+import { clearOffline, flushOutbox, isOffline, outbox, queueMessage, withSnapshot, type QueuedMessage } from "@/lib/offline";
 import type {
   ChatMessage, ConflictAlert, FileUpload, KanbanTask, Notification, Team, TaskSuggestion, UserProfile,
 } from "@/lib/types";
@@ -44,6 +45,8 @@ export interface AppState {
   fetchSuggestions: (teamId: string) => Promise<void>;
 
   sendMessage: (teamId: string, content: string, fileId?: string, replyTo?: string) => Promise<boolean>;
+  /** Sends chat messages typed while offline. */
+  sendQueued: () => Promise<void>;
   toggleReaction: (teamId: string, messageId: string, emoji: string) => Promise<void>;
   createTask: (teamId: string, data: { title: string; description: string; priority: string; dueDate: string; assigneeId: string }) => Promise<boolean>;
   updateTask: (taskId: string, data: Partial<KanbanTask>) => Promise<void>;
@@ -71,8 +74,18 @@ const avatarUrl = (path: string) => supabaseBrowser().storage.from("avatars").ge
 
 function fail(what: string, err: unknown) {
   console.error(`Failed to ${what}:`, err);
-  toast.error(`Could not ${what}`, { description: err instanceof Error ? err.message : undefined });
+  toast.error(`Could not ${what}`, { description: isOffline(err) ? "You're offline." : err instanceof Error ? err.message : undefined });
 }
+// Loads with no saved copy while offline stay quiet: the offline banner already says why.
+const loadFail = (what: string, err: unknown) => (isOffline(err) ? console.warn(`Offline, could not ${what}`) : fail(what, err));
+
+/** Messages typed offline, shown at the end of their team's thread until they're sent. */
+const pendingFor = (q: QueuedMessage[], teamId: string, user: UserProfile): ChatMessage[] =>
+  q.filter((m) => m.teamId === teamId).map((m) => ({
+    id: `pending-${m.key}`, senderId: user.id, senderName: user.name, content: m.content, timestamp: m.at, isMe: true, pending: true,
+  }));
+
+let onlineListener = false;
 
 /**
  * Tables every page hears about live. Realtime applies RLS, so each person only gets rows they can read (a delete
@@ -163,10 +176,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     userChannel = channel.subscribe();
     await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null, get().fetchAvatars()]);
+    if (!onlineListener) {
+      onlineListener = true;
+      // Back online: send what was typed offline, then reload what may have changed meanwhile.
+      window.addEventListener("online", () => {
+        get().sendQueued();
+        get().fetchTeams();
+        get().fetchNotifications();
+        const team = get().selectedTeam;
+        if (team) { get().fetchTasks(team.id); get().fetchFiles(team.id); }
+      });
+    }
+    get().sendQueued();
   })().finally(() => { bootRun = null; })),
+
+  sendQueued: async () => {
+    const user = get().currentUser;
+    if (!user || !outbox(user.id).length || !navigator.onLine) return;
+    const { teams, refused } = await flushOutbox(user.id, (m) => actions.sendMessage(m.teamId, m.content, undefined, m.replyTo));
+    for (const m of refused) toast.error("A message you wrote offline couldn't be sent", { description: m.content.slice(0, 200), duration: Infinity });
+    for (const id of new Set([...teams, ...refused.map((m) => m.teamId)])) await get().fetchChatMessages(id);
+    if (teams.length) toast.success("Messages you wrote offline were sent");
+  },
 
   logout: async () => {
     await supabaseBrowser().auth.signOut();
+    await clearOffline();
     closeChannels();
     set(empty);
   },
@@ -197,7 +232,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   fetchTeams: async () => {
     try {
-      const teams = await actions.getTeams();
+      const teams = await withSnapshot(get().currentUser?.id, "teams", actions.getTeams);
       const selected = get().selectedTeam;
       const still = teams.find((t) => t.id === selected?.id);
       set((s) => ({ teams, selectedTeam: still ?? selected, loaded: { ...s.loaded, teams: true } }));
@@ -205,48 +240,50 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!still && (teams.length > 0 || selected)) get().setSelectedTeam(teams[0] ?? null);
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, teams: true } }));
-      fail("load teams", err);
+      loadFail("load teams", err);
     }
   },
 
   fetchChatMessages: async (teamId) => {
     try {
-      const messages = await actions.getMessages(teamId);
-      const me = get().currentUser?.id;
-      set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: messages.map((m) => ({ ...m, isMe: m.senderId === me })) } }));
+      const user = get().currentUser;
+      // The offline copy keeps the latest 100 messages per team.
+      const messages = await withSnapshot(user?.id, `messages:${teamId}`, () => actions.getMessages(teamId), (m) => m.slice(-100));
+      const mine = messages.map((m) => ({ ...m, isMe: m.senderId === user?.id }));
+      set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: [...mine, ...(user ? pendingFor(outbox(user.id), teamId, user) : [])] } }));
     } catch (err) {
       set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: s.chatMessages[teamId] ?? [] } }));
-      fail("load messages", err);
+      loadFail("load messages", err);
     }
   },
 
   fetchTasks: async (teamId) => {
     try {
-      const kanbanTasks = await actions.getTasks(teamId);
+      const kanbanTasks = await withSnapshot(get().currentUser?.id, `tasks:${teamId}`, () => actions.getTasks(teamId));
       if (get().selectedTeam?.id === teamId) set((s) => ({ kanbanTasks, loaded: { ...s.loaded, tasks: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, tasks: true } }));
-      fail("load tasks", err);
+      loadFail("load tasks", err);
     }
   },
 
   fetchNotifications: async () => {
     try {
-      const notifications = await actions.getNotifications();
+      const notifications = await withSnapshot(get().currentUser?.id, "notifications", actions.getNotifications);
       set((s) => ({ notifications, unreadNotifCount: notifications.filter((n) => !n.read).length, loaded: { ...s.loaded, notifications: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, notifications: true } }));
-      fail("load notifications", err);
+      loadFail("load notifications", err);
     }
   },
 
   fetchFiles: async (teamId) => {
     try {
-      const files = await actions.getFiles(teamId);
+      const files = await withSnapshot(get().currentUser?.id, `files:${teamId}`, () => actions.getFiles(teamId));
       if (get().selectedTeam?.id === teamId) set((s) => ({ files, loaded: { ...s.loaded, files: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, files: true } }));
-      fail("load files", err);
+      loadFail("load files", err);
     }
   },
 
@@ -256,7 +293,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({ conflictAlerts, loaded: { ...s.loaded, conflicts: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, conflicts: true } }));
-      fail("load conflict alerts", err);
+      loadFail("load conflict alerts", err);
     }
   },
 
@@ -271,11 +308,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Chat: the Realtime subscription refreshes every open client, including this one.
   sendMessage: async (teamId, content, fileId, replyTo) => {
+    const user = get().currentUser;
     try {
       await actions.sendMessage(teamId, content, fileId, replyTo);
       await get().fetchChatMessages(teamId);
       return true;
     } catch (err) {
+      // Offline: queue text messages (files need the connection to upload) and show them as waiting.
+      if (isOffline(err) && user && !fileId) {
+        const q = queueMessage(user.id, { teamId, content, replyTo });
+        set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: [...(s.chatMessages[teamId] ?? []), ...pendingFor([q], teamId, user)] } }));
+        toast.info("You're offline", { description: "Your message will be sent when you're back online." });
+        return true;
+      }
       fail("send the message", err);
       return false;
     }

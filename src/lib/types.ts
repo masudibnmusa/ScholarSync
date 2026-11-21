@@ -14,6 +14,8 @@ export interface ChatMessage {
   /** The message this one answers, as a short quote. */
   replyTo?: { id: string; senderName: string; snippet: string } | null;
   reactions?: { emoji: string; count: number; mine: boolean; names: string[] }[];
+  /** Typed offline; waiting in the outbox (src/lib/offline.ts). */
+  pending?: boolean;
 }
 
 export const REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const; // same list as the database check

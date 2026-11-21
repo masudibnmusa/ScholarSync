@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { DotsThreeOutline } from "@phosphor-icons/react/dist/ssr";
+import { DotsThreeOutline, WifiSlash } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -70,6 +70,24 @@ function MobileNav() {
   );
 }
 
+const subscribeOnline = (cb: () => void) => {
+  window.addEventListener("online", cb);
+  window.addEventListener("offline", cb);
+  return () => { window.removeEventListener("online", cb); window.removeEventListener("offline", cb); };
+};
+
+/** Shown while the device is offline: the page shows the last copy saved on this device. */
+function OfflineBanner() {
+  const online = React.useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  if (online) return null;
+  return (
+    <div role="status" className="flex items-center gap-2 border-b bg-butter px-4 py-2 text-sm text-foreground sm:px-6 lg:px-8">
+      <WifiSlash weight="bold" className="size-4 shrink-0" aria-hidden />
+      <p><span className="font-bold">You&apos;re offline.</span> Showing what this device saw last. Messages you write are sent when you&apos;re back.</p>
+    </div>
+  );
+}
+
 export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfile; sidebarCollapsed: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -109,6 +127,7 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
         <Sidebar onSignOut={signOut} initialCollapsed={sidebarCollapsed} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar onSignOut={signOut} />
+          <OfflineBanner />
           <main id="main" ref={mainRef} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none scroll-thin">
             <motion.div key={pathname} className="h-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }}>
               {children}
