@@ -41,7 +41,8 @@ export interface AppState {
   fetchConflicts: () => Promise<void>;
   fetchSuggestions: (teamId: string) => Promise<void>;
 
-  sendMessage: (teamId: string, content: string, fileId?: string) => Promise<boolean>;
+  sendMessage: (teamId: string, content: string, fileId?: string, replyTo?: string) => Promise<boolean>;
+  toggleReaction: (teamId: string, messageId: string, emoji: string) => Promise<void>;
   createTask: (teamId: string, data: { title: string; description: string; priority: string; dueDate: string; assigneeId: string }) => Promise<boolean>;
   updateTask: (taskId: string, data: Partial<KanbanTask>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
@@ -148,6 +149,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       .channel(channelName(`team-${team.id}`))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `team_id=eq.${team.id}` },
         () => get().fetchChatMessages(team.id))
+      .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions", filter: `team_id=eq.${team.id}` },
+        () => get().fetchChatMessages(team.id))
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `team_id=eq.${team.id}` },
         () => { get().fetchTasks(team.id); get().fetchTeams(); })
       .subscribe();
@@ -226,14 +229,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Chat: the Realtime subscription refreshes every open client, including this one.
-  sendMessage: async (teamId, content, fileId) => {
+  sendMessage: async (teamId, content, fileId, replyTo) => {
     try {
-      await actions.sendMessage(teamId, content, fileId);
+      await actions.sendMessage(teamId, content, fileId, replyTo);
       await get().fetchChatMessages(teamId);
       return true;
     } catch (err) {
       fail("send the message", err);
       return false;
+    }
+  },
+
+  toggleReaction: async (teamId, messageId, emoji) => {
+    try {
+      await actions.toggleReaction(messageId, emoji);
+      await get().fetchChatMessages(teamId);
+    } catch (err) {
+      fail("react to the message", err);
     }
   },
 

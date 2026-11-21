@@ -6,7 +6,11 @@ import * as schema from "./schema";
 import { supabaseServer } from "@/lib/supabase/server";
 
 // prepare: false is required by Supabase's transaction-mode pooler.
-const client = postgres(process.env.DATABASE_URL!, { prepare: false });
+// In development every hot reload re-runs this module; reuse one pool so reloads don't pile up connections
+// until Postgres runs out of slots.
+const globalForDb = globalThis as unknown as { scholarSyncPg?: postgres.Sql };
+const client = globalForDb.scholarSyncPg ?? postgres(process.env.DATABASE_URL!, { prepare: false });
+if (process.env.NODE_ENV !== "production") globalForDb.scholarSyncPg = client;
 
 // Connects as the database owner, which BYPASSES Row-Level Security.
 // Only background jobs (the "service role" in the architecture) may use this directly.

@@ -96,8 +96,17 @@ export const messages = pgTable("messages", {
   senderId: uuid("sender_id"),
   content: text("content").notNull().default(""),
   fileId: uuid("file_id"),
+  replyTo: uuid("reply_to"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+export const messageReactions = pgTable("message_reactions", {
+  messageId: uuid("message_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  teamId: uuid("team_id").notNull(),
+  emoji: text("emoji").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.messageId, t.userId, t.emoji] })]);
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -2,7 +2,7 @@
 
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
@@ -15,10 +15,15 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
 } from "@/lib/types";
+import { REACTIONS } from "@/lib/types";
 
 const Id = z.uuid();
+// Aliases for a reply's quoted parent message.
+const parent = alias(s.messages, "parent");
+const parentUser = alias(s.users, "parent_user");
+const parentFile = alias(s.files, "parent_file");
 const toUiStatus = (st: "todo" | "in_progress" | "done") => (st === "in_progress" ? "in-progress" : st);
 const toDbStatus = (st: KanbanTask["status"]) => (st === "in-progress" ? "in_progress" : st);
 
@@ -131,18 +136,25 @@ export async function getTeams(): Promise<Team[]> {
 
 export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "isMe">[]> {
   Id.parse(teamId);
-  return withUser(async (tx) => {
+  return withUser(async (tx, me) => {
     const rows = await tx
       .select({
         id: s.messages.id, senderId: s.messages.senderId, content: s.messages.content, timestamp: s.messages.createdAt,
         senderName: s.users.name, senderRole: s.users.role, fileName: s.files.name, fileBytes: s.files.sizeBytes, filePath: s.files.storagePath,
+        replyId: s.messages.replyTo, parentContent: parent.content, parentFile: parentFile.name, parentSender: parentUser.name,
       })
       .from(s.messages)
       .leftJoin(s.users, eq(s.users.id, s.messages.senderId))
       .leftJoin(s.files, eq(s.files.id, s.messages.fileId))
+      .leftJoin(parent, eq(parent.id, s.messages.replyTo))
+      .leftJoin(parentUser, eq(parentUser.id, parent.senderId))
+      .leftJoin(parentFile, eq(parentFile.id, parent.fileId))
       .where(eq(s.messages.teamId, teamId))
       .orderBy(desc(s.messages.createdAt))
       .limit(200);
+    const reactions = rows.length ? await tx.select({ messageId: s.messageReactions.messageId, emoji: s.messageReactions.emoji, userId: s.messageReactions.userId, name: s.users.name })
+      .from(s.messageReactions).leftJoin(s.users, eq(s.users.id, s.messageReactions.userId))
+      .where(inArray(s.messageReactions.messageId, rows.map((r) => r.id))).orderBy(asc(s.messageReactions.createdAt)) : [];
     return rows.reverse().map((r) => ({
       id: r.id,
       senderId: r.senderId ?? "",
@@ -153,17 +165,23 @@ export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "is
       fileName: r.fileName,
       fileSize: r.fileBytes == null ? null : fmtSize(r.fileBytes),
       filePath: r.filePath,
+      replyTo: r.replyId ? { id: r.replyId, senderName: r.parentSender ?? "Former member", snippet: (r.parentContent || (r.parentFile ? `📎 ${r.parentFile}` : "")).slice(0, 140) } : null,
+      reactions: REACTIONS.map((emoji) => {
+        const list = reactions.filter((x) => x.messageId === r.id && x.emoji === emoji);
+        return { emoji, count: list.length, mine: list.some((x) => x.userId === me), names: list.map((x) => x.name ?? "Former member") };
+      }).filter((x) => x.count > 0),
     }));
   });
 }
 
-const MessageInput = z.object({ teamId: Id, content: z.string().trim().max(4000), fileId: Id.optional() })
+const MessageInput = z.object({ teamId: Id, content: z.string().trim().max(4000), fileId: Id.optional(), replyTo: Id.optional() })
   .refine((m) => m.content || m.fileId, "Message is empty");
 
-export async function sendMessage(teamId: string, content: string, fileId?: string) {
-  const m = MessageInput.parse({ teamId, content, fileId });
+export async function sendMessage(teamId: string, content: string, fileId?: string, replyTo?: string) {
+  const m = MessageInput.parse({ teamId, content, fileId, replyTo });
+  // RLS checks that a reply answers a message in the same team.
   const [row] = await withUser((tx) =>
-    tx.insert(s.messages).values({ teamId: m.teamId, content: m.content, fileId: m.fileId }).returning({ id: s.messages.id }),
+    tx.insert(s.messages).values({ teamId: m.teamId, content: m.content, fileId: m.fileId, replyTo: m.replyTo }).returning({ id: s.messages.id }),
   );
   try {
     await inngest.send({ name: "chat/message.created", data: { teamId: m.teamId, messageId: row.id } });
@@ -171,6 +189,40 @@ export async function sendMessage(teamId: string, content: string, fileId?: stri
     // The message is saved; only the AI task extraction is skipped.
     console.error("Inngest unavailable, task extraction skipped:", err);
   }
+}
+
+/** Adds my reaction to a message, or takes it back if I already reacted with that emoji. */
+export async function toggleReaction(messageId: string, emoji: string) {
+  Id.parse(messageId);
+  const e = z.enum(REACTIONS).parse(emoji);
+  await withUser(async (tx, uid) => {
+    const removed = await tx.delete(s.messageReactions)
+      .where(and(eq(s.messageReactions.messageId, messageId), eq(s.messageReactions.userId, uid), eq(s.messageReactions.emoji, e)))
+      .returning({ id: s.messageReactions.messageId });
+    if (removed.length) return;
+    const [msg] = await tx.select({ teamId: s.messages.teamId }).from(s.messages).where(eq(s.messages.id, messageId));
+    if (!msg) throw new Error("Message not found");
+    await tx.insert(s.messageReactions).values({ messageId, userId: uid, teamId: msg.teamId, emoji: e });
+  });
+}
+
+/** Messages and files in a team whose text or name contains `query` (any case), newest first. RLS limits it to teams I can see. */
+export async function searchTeam(teamId: string, query: string): Promise<ChatSearchHit[]> {
+  Id.parse(teamId);
+  const q = z.string().trim().min(2).max(100).parse(query);
+  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  return withUser(async (tx) => {
+    const msgs = await tx.select({ id: s.messages.id, content: s.messages.content, timestamp: s.messages.createdAt, senderName: s.users.name })
+      .from(s.messages).leftJoin(s.users, eq(s.users.id, s.messages.senderId))
+      .where(and(eq(s.messages.teamId, teamId), ilike(s.messages.content, like))).orderBy(desc(s.messages.createdAt)).limit(30);
+    const files = await tx.select({ id: s.files.id, name: s.files.name, path: s.files.storagePath, bytes: s.files.sizeBytes, timestamp: s.files.createdAt, by: s.users.name })
+      .from(s.files).leftJoin(s.users, eq(s.users.id, s.files.uploaderId))
+      .where(and(eq(s.files.teamId, teamId), ilike(s.files.name, like))).orderBy(desc(s.files.createdAt)).limit(15);
+    return [
+      ...files.map((f) => ({ kind: "file" as const, id: f.id, name: f.name, storagePath: f.path, size: fmtSize(f.bytes), uploadedBy: f.by ?? "Former member", timestamp: f.timestamp })),
+      ...msgs.map((m) => ({ kind: "message" as const, id: m.id, content: m.content, timestamp: m.timestamp, senderName: m.senderName ?? "Former member" })),
+    ];
+  });
 }
 
 /** AI-picked meeting times from the members' availability. Members only (RLS on team_members). */

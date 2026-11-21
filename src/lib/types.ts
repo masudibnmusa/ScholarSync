@@ -11,7 +11,16 @@ export interface ChatMessage {
   fileName?: string | null;
   fileSize?: string | null;
   filePath?: string | null;
+  /** The message this one answers, as a short quote. */
+  replyTo?: { id: string; senderName: string; snippet: string } | null;
+  reactions?: { emoji: string; count: number; mine: boolean; names: string[] }[];
 }
+
+export const REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const; // same list as the database check
+
+export type ChatSearchHit =
+  | { kind: "message"; id: string; senderName: string; content: string; timestamp: string }
+  | { kind: "file"; id: string; name: string; storagePath: string; size: string; uploadedBy: string; timestamp: string };
 
 export interface KanbanTask {
   id: string;

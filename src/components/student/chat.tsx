@@ -3,17 +3,19 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowDown, CaretDown, ChatsCircle, DownloadSimple, FileArrowUp, FileText, FolderOpen, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowBendUpLeft, ArrowDown, CaretDown, ChatsCircle, DownloadSimple, FileArrowUp, FileText, FolderOpen, Lock, MagnifyingGlass, PaperPlaneTilt, Paperclip, Smiley, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";
 import { clockTime, cn, dayLabel, formatBytes, isMentionOf, MENTION_RE, mentionHandle } from "@/lib/utils";
 import { useUser } from "@/components/app/user-context";
-import type { ChatMessage, Team } from "@/lib/types";
+import { searchTeam } from "@/app/actions";
+import { REACTIONS, type ChatMessage, type ChatSearchHit, type Team } from "@/lib/types";
 import { EmptyState } from "@/components/app/page";
 import { FilesView } from "@/components/student/files";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Segmented } from "@/components/ui/segmented";
 import { Tooltip } from "@/components/ui/overlays";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,14 +88,18 @@ function MessageText({ content, names, me, onPrimary }: { content: string; names
   return <p className="whitespace-pre-wrap break-words">{parts}</p>;
 }
 
-function Bubble({ row, names, me }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string }) {
+type BubbleActions = { onReply: (m: ChatMessage) => void; onReact: (m: ChatMessage, emoji: string) => void; onJump: (id: string) => void } | null;
+
+function Bubble({ row, names, me, actions, highlighted }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string; actions: BubbleActions; highlighted: boolean }) {
   const { msg, head, tail } = row;
+  const reactions = msg.reactions ?? [];
   return (
     <motion.li
+      id={`msg-${msg.id}`}
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      className={cn("flex items-end gap-2.5", msg.isMe && "flex-row-reverse", head ? "mt-4" : "mt-1")}
+      className={cn("group/msg flex items-end gap-2.5 rounded-2xl transition-colors duration-700", msg.isMe && "flex-row-reverse", head ? "mt-4" : "mt-1", highlighted && "bg-warm/20")}
     >
       <div className="w-8 shrink-0">{!msg.isMe && tail && <Avatar name={msg.senderName} id={msg.senderId} size="sm" />}</div>
       <div className={cn("flex min-w-0 max-w-[82%] flex-col sm:max-w-[68%]", msg.isMe ? "items-end" : "items-start")}>
@@ -103,16 +109,57 @@ function Bubble({ row, names, me }: { row: Extract<Row, { kind: "msg" }>; names:
             {msg.fromInstructor && <Badge variant="warm" className="px-1.5 py-0 text-[0.625rem]">Instructor</Badge>}
           </p>
         )}
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5 text-[0.9375rem] leading-relaxed",
-            msg.isMe ? "bg-primary text-primary-foreground" : msg.fromInstructor ? "bg-warm/10 text-foreground ring-1 ring-warm/30" : "bg-muted text-foreground",
-            tail && (msg.isMe ? "rounded-br-md" : "rounded-bl-md"),
+        <div className={cn("flex max-w-full items-center gap-1", msg.isMe && "flex-row-reverse")}>
+          <div
+            className={cn(
+              "min-w-0 rounded-2xl px-4 py-2.5 text-[0.9375rem] leading-relaxed",
+              msg.isMe ? "bg-primary text-primary-foreground" : msg.fromInstructor ? "bg-warm/10 text-foreground ring-1 ring-warm/30" : "bg-muted text-foreground",
+              tail && (msg.isMe ? "rounded-br-md" : "rounded-bl-md"),
+            )}
+          >
+            {msg.replyTo && (
+              <button type="button" onClick={() => actions?.onJump(msg.replyTo!.id)} aria-label={`Replying to ${msg.replyTo.senderName}: ${msg.replyTo.snippet}. Show the original.`}
+                className={cn("mb-1.5 block w-full rounded-lg border-l-[3px] px-2.5 py-1 text-left text-xs transition-opacity hover:opacity-80",
+                  msg.isMe ? "border-white/60 bg-white/15" : "border-primary/60 bg-card/70")}>
+                <span className="block font-bold">{msg.replyTo.senderName}</span>
+                <span className="line-clamp-2 opacity-85">{msg.replyTo.snippet || "Message"}</span>
+              </button>
+            )}
+            {msg.content && <MessageText content={msg.content} names={names} me={me} onPrimary={msg.isMe} />}
+            <FileChip msg={msg} />
+          </div>
+          {actions && (
+            // Shown on hover or keyboard focus; always on touch screens, which have no hover.
+            <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100 [@media(hover:none)]:opacity-100">
+              <Tooltip label="Reply">
+                <button type="button" onClick={() => actions.onReply(msg)} aria-label={`Reply to ${msg.isMe ? "your message" : msg.senderName}`}
+                  className="tap flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowBendUpLeft className="size-4" aria-hidden /></button>
+              </Tooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger aria-label="Add a reaction" className="tap flex size-7 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                  <Smiley className="size-4" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align={msg.isMe ? "end" : "start"} className="flex min-w-0 gap-0.5 p-1">
+                  {REACTIONS.map((e) => (
+                    <DropdownMenuItem key={e} onSelect={() => actions.onReact(msg, e)} aria-label={`React with ${e}`} className="size-9 justify-center p-0 text-lg">{e}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
-        >
-          {msg.content && <MessageText content={msg.content} names={names} me={me} onPrimary={msg.isMe} />}
-          <FileChip msg={msg} />
         </div>
+        {reactions.length > 0 && (
+          <div className={cn("mt-1 flex flex-wrap gap-1", msg.isMe && "justify-end")}>
+            {reactions.map((r) => (
+              <button key={r.emoji} type="button" disabled={!actions} onClick={() => actions?.onReact(msg, r.emoji)} aria-pressed={r.mine}
+                title={r.names.join(", ")} aria-label={`${r.emoji} ${r.count}: ${r.names.join(", ")}${r.mine ? ". Click to remove yours" : ""}`}
+                className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors disabled:cursor-default",
+                  r.mine ? "border-primary/40 bg-primary/10 text-primary" : "bg-card text-muted-foreground enabled:hover:border-primary/30")}>
+                <span className="text-sm leading-none">{r.emoji}</span>{r.count}
+              </button>
+            ))}
+          </div>
+        )}
         {tail && <time dateTime={msg.timestamp} className="mx-1 mt-1 text-[0.6875rem] text-muted-foreground">{clockTime(msg.timestamp)}</time>}
       </div>
     </motion.li>
@@ -124,6 +171,27 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
   const messages = useAppStore((s) => s.chatMessages[team.id]);
   const sendMessage = useAppStore((s) => s.sendMessage);
   const uploadFile = useAppStore((s) => s.uploadFile);
+  const toggleReaction = useAppStore((s) => s.toggleReaction);
+  const download = useAppStore((s) => s.downloadFile);
+  const readOnly = team.courseArchived;
+  const [replyingTo, setReplyingTo] = React.useState<ChatMessage | null>(null);
+  const [highlight, setHighlight] = React.useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const [hits, setHits] = React.useState<ChatSearchHit[] | null>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
+  // Search after a short pause in typing; at least 2 characters.
+  React.useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    let live = true;
+    const t = setTimeout(() => searchTeam(team.id, q).then((h) => live && setHits(h), (err) => {
+      console.error("Search failed:", err);
+      if (live) setHits([]);
+    }), 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [query, team.id]);
 
   const [text, setText] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
@@ -211,6 +279,31 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
     },
   };
 
+  function jump(id: string) {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return void toast.info("That message is older than the 200 shown here.");
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlight(id);
+    setTimeout(() => setHighlight((h) => (h === id ? null : h)), 1600);
+  }
+
+  function reply(m: ChatMessage) {
+    setReplyingTo(m);
+    inputRef.current?.focus();
+  }
+
+  const actions: BubbleActions = readOnly ? null : {
+    onReply: reply,
+    onReact: (m, emoji) => { toggleReaction(team.id, m.id, emoji); },
+    onJump: jump,
+  };
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setQuery("");
+    setHits(null);
+  }
+
   async function send() {
     if (sending) return;
     const content = text.trim();
@@ -222,10 +315,11 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
       if (!id) return setSending(false); // upload failed: keep the draft
       fileId = id;
     }
-    const ok = await sendMessage(team.id, content, fileId);
+    const ok = await sendMessage(team.id, content, fileId, replyingTo?.id);
     if (ok) {
       setText("");
       setFile(null);
+      setReplyingTo(null);
       requestAnimationFrame(() => { grow(); scrollToBottom(); });
     }
     setSending(false);
@@ -246,7 +340,52 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
           </motion.div>
         )}
       </AnimatePresence>
+      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
+        {searchOpen ? (
+          <div className="relative flex-1">
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input ref={searchRef} type="search" value={query} autoFocus aria-label={`Search messages and files in ${team.name}`}
+              onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim().length < 2) setHits(null); }}
+              onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeSearch(); } }}
+              placeholder="Search messages and files…" className="h-9 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25" />
+          </div>
+        ) : <p className="flex-1 text-xs font-semibold text-muted-foreground">{count ? `${count} ${count === 1 ? "message" : "messages"}` : ""}</p>}
+        <Tooltip label={searchOpen ? "Close search" : "Search messages and files"}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={searchOpen ? "Close search" : "Search messages and files"} onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}>
+            {searchOpen ? <X aria-hidden /> : <MagnifyingGlass aria-hidden />}
+          </Button>
+        </Tooltip>
+      </div>
       <div className="relative min-h-0 flex-1">
+        {searchOpen && query.trim().length >= 2 && (
+          <div className="absolute inset-0 z-10 overflow-y-auto bg-card p-2 scroll-thin" role="region" aria-label="Search results">
+            {!hits ? (
+              <div className="space-y-2 p-2" aria-busy="true"><Skeleton className="h-12" /><Skeleton className="h-12" /></div>
+            ) : hits.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">Nothing matches “{query.trim()}”.</p>
+            ) : (
+              <ul className="space-y-1">
+                {hits.map((h) => (
+                  <li key={`${h.kind}-${h.id}`}>
+                    <button type="button" className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-accent"
+                      onClick={() => { if (h.kind === "file") download(h.storagePath); else { closeSearch(); requestAnimationFrame(() => jump(h.id)); } }}>
+                      {h.kind === "file"
+                        ? <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary"><FileText weight="duotone" className="size-4" aria-hidden /></span>
+                        : <Avatar name={h.senderName} size="sm" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate font-bold text-foreground">{h.kind === "file" ? h.name : h.senderName}</span>
+                          <span className="shrink-0">{dayLabel(h.timestamp)}</span>
+                        </span>
+                        <span className="line-clamp-2 text-sm">{h.kind === "file" ? `File · ${h.size} · shared by ${h.uploadedBy}` : <Highlighted text={h.content} query={query.trim()} />}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         <div
           ref={listRef}
           onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}
@@ -271,7 +410,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
                   <span className="rounded-full border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">{row.label}</span>
                   <span className="h-px flex-1 bg-border" aria-hidden />
                 </li>
-              ) : <Bubble key={row.key} row={row} names={memberNames} me={user.name} />)}
+              ) : <Bubble key={row.key} row={row} names={memberNames} me={user.name} actions={actions} highlighted={highlight === row.msg.id} />)}
             </ul>
           )}
         </div>
@@ -284,7 +423,20 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
         </AnimatePresence>
       </div>
 
+      {readOnly ? (
+        <p className="flex shrink-0 items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground"><Lock className="size-4 shrink-0" aria-hidden />This course is archived, so the chat is read-only.</p>
+      ) : (
       <form className="shrink-0 border-t p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl border-l-[3px] border-primary bg-muted py-1.5 pl-3 pr-1.5" role="status">
+            <ArrowBendUpLeft className="size-4 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0 flex-1 text-xs">
+              <span className="block font-bold">Replying to {replyingTo.isMe ? "yourself" : replyingTo.senderName}</span>
+              <span className="block truncate text-muted-foreground">{replyingTo.content || (replyingTo.fileName ? `📎 ${replyingTo.fileName}` : "")}</span>
+            </span>
+            <button type="button" onClick={() => setReplyingTo(null)} aria-label="Cancel reply" className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+          </div>
+        )}
         {file && (
           <div className="mb-2 flex w-fit max-w-full items-center gap-2.5 rounded-xl border bg-muted py-1.5 pl-3 pr-1.5">
             <FileText weight="duotone" className="size-5 shrink-0 text-primary" aria-hidden />
@@ -336,6 +488,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
                 if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) { e.preventDefault(); pickMention(candidates[activeMention].name); return; }
                 if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMentionClosedAt(caret); return; }
               }
+              if (e.key === "Escape" && replyingTo) { e.preventDefault(); e.stopPropagation(); setReplyingTo(null); return; }
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
             }}
             placeholder={`Message ${team.name}…`}
@@ -349,8 +502,15 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
           {instructor ? "Every team member is notified. " : null}<kbd className="font-sans font-semibold">Enter</kbd> to send · <kbd className="font-sans font-semibold">Shift + Enter</kbd> for a new line · <kbd className="font-sans font-semibold">@</kbd> to mention
         </p>
       </form>
+      )}
     </div>
   );
+}
+
+/** Text with each occurrence of `query` (any case) marked. */
+function Highlighted({ text, query }: { text: string; query: string }) {
+  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+  return <>{parts.map((p, i) => (i % 2 ? <mark key={i} className="rounded bg-butter px-0.5 text-foreground">{p}</mark> : p))}</>;
 }
 
 const time = (m: ChatMessage) => new Date(m.timestamp).getTime();

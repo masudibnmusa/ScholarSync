@@ -217,7 +217,7 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 23 of 23 passed in 45 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
+**Latest run:** 24 of 24 passed in 53 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
 
 | Area | Test | Result |
 |---|---|---|
@@ -239,6 +239,7 @@ All seed accounts use the password `password123`.
 | | A file that isn't an image is refused | ✅ Pass |
 | Course management | Create a course, add students by email (added / no account / not a student / typo caught), create a team by hand, turn joining off and reset the code, archive (read-only for instructor and team), restore, remove a student, delete | ✅ Pass |
 | Assignment submissions | Add a hand-in milestone due yesterday; empty and invalid-link hand-ins refused; hand in a file + link + note (marked late); instructor reviews and leaves feedback; student sees it, hands in a new version (feedback marked as on an earlier version); both notified | ✅ Pass |
+| Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
 | | AI team matching page opens | ✅ Pass |
@@ -274,6 +275,7 @@ Where the code differs from the diagram, and why:
 - **Instructors can join team chat.** They post and attach files as themselves (marked "Instructor"), and every team member is notified. Once an instructor has posted in a team's chat, student replies notify them too, with at most one unread reply notification per team so a busy chat doesn't flood them. The Files tab stays read-only for instructors; files they attach in chat appear there. Chat and Files share one popup, opened from a floating button in the bottom-right corner of each workspace (full screen on phones) that shows an unread count; `?view=chat` and `?view=files` open it. Instructors see a team's conflict alerts in a dropdown next to its health badge. Anyone can attach a file by dropping it on the thread.
 - **Archived courses are read-only in the database.** One trigger on the tables of team work and membership (`0021_course_management.sql`) rejects changes from signed-in users once a course is archived; grading, announcements and the course itself stay editable, and admin work and background jobs pass. Self-join checks `joining_open`, and instructors add students by email through `enroll_students()`, which only reports per address whether it worked.
 - **Assignment submissions hang off milestones** (`0022_submissions.sql`). A milestone marked "Teams hand in work" takes one submission per team (a file in the `team-files` bucket under `<team>/submissions/`, a link, or both, plus a note); handing in again replaces it and marks the milestone done. A trigger lets the team change only the hand-in and the instructor only the feedback. Late means after the end of the due day in the viewer's time zone. Marks still go in the rubric grading.
+- **Chat replies and reactions** (`0023_chat_replies_reactions.sql`): `messages.reply_to` quotes the answered message (RLS keeps it in the same team), and `message_reactions` holds one row per person per emoji from a fixed set of six, live over Realtime. Search matches message text and file names in the open team (case-insensitive, newest first).
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
