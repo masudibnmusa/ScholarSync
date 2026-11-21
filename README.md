@@ -2,16 +2,16 @@
 
 # ScholarSync
 
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=0f1e3d)](https://nextjs.org)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&labelColor=0f1e3d)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0f1e3d)](https://www.typescriptlang.org)
-[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=0f1e3d)](https://tailwindcss.com)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres_·_Auth_·_Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white&labelColor=0f1e3d)](https://supabase.com)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=white&labelColor=0f1e3d)](https://orm.drizzle.team)
-[![Gemini](https://img.shields.io/badge/AI-Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white&labelColor=0f1e3d)](https://ai.google.dev)
-[![Inngest](https://img.shields.io/badge/Jobs-Inngest-F97316?style=flat-square&labelColor=0f1e3d)](https://www.inngest.com)
-[![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white&labelColor=0f1e3d)](https://vercel.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square&labelColor=0f1e3d)](LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=2e2620)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&labelColor=2e2620)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=2e2620)](https://www.typescriptlang.org)
+[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=2e2620)](https://tailwindcss.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres_·_Auth_·_Realtime-3ECF8E?style=flat-square&logo=supabase&logoColor=white&labelColor=2e2620)](https://supabase.com)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=white&labelColor=2e2620)](https://orm.drizzle.team)
+[![Gemini](https://img.shields.io/badge/AI-Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white&labelColor=2e2620)](https://ai.google.dev)
+[![Inngest](https://img.shields.io/badge/Jobs-Inngest-F97316?style=flat-square&labelColor=2e2620)](https://www.inngest.com)
+[![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white&labelColor=2e2620)](https://vercel.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square&labelColor=2e2620)](LICENSE)
 
 A collaboration hub for university group projects. Students work in teams with chat, a shared task list (each task shows whether it is to do, in progress or done), shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
