@@ -7,6 +7,7 @@ import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
 import { digestRecipients, sendDigestTo } from "@/lib/digest";
 import { sendPendingPushes } from "@/lib/push";
 import { standupAskees, summarizeTeamStandup } from "@/lib/standups";
+import { linkedTeams, syncTeamRepo } from "@/lib/github";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
 
@@ -200,4 +201,20 @@ export const pushNotifications = inngest.createFunction(
   async ({ step }) => step.run("send-pushes", () => sendPendingPushes()),
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications];
+// Every 30 minutes: new commits and pull requests from each team's linked GitHub repo (see src/lib/github.ts).
+export const syncRepos = inngest.createFunction(
+  { id: "sync-github-repos", triggers: [{ cron: "*/30 * * * *" }] },
+  async ({ step }) => {
+    const ids = await step.run("teams", async () => (await linkedTeams()).map((t) => t.id));
+    for (const id of ids) await step.run(`sync-${id}`, () => syncTeamRepo(id));
+    return { teams: ids.length };
+  },
+);
+
+// A repo was just linked: read it now rather than at the next half hour.
+export const syncLinkedRepo = inngest.createFunction(
+  { id: "sync-linked-github-repo", triggers: [{ event: "github/repo.linked" }] },
+  async ({ event, step }) => step.run("sync", () => syncTeamRepo(String(event.data.teamId))),
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo];

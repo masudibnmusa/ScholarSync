@@ -24,6 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StandupButton } from "@/components/app/standup";
+import { RepoButton } from "@/components/app/repo";
 
 
 function TeamSwitcher({ team }: { team: Team }) {
@@ -162,6 +163,7 @@ export function StudentWorkspace() {
         <div className="ml-auto flex items-center gap-2">
           <MeetingButton team={team} />
           <StandupButton team={team} />
+          <RepoButton team={team} />
           <WeeklyRecapButton team={team} />
           <AiSuggestionsButton />
           {!team.courseArchived && <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>}

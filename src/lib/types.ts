@@ -211,6 +211,7 @@ export interface UserProfile {
   availability: string;
   emailDigest: boolean;
   avatarPath: string | null;
+  githubLogin: string | null;
 }
 
 export interface ConflictAlert {
@@ -320,7 +321,9 @@ export interface Contribution {
     id: string;
     name: string;
     joinedAt: string;
-    members: { userId: string; name: string; tasksDone: number; tasksAssigned: number; messages: number; files: number; standups: number }[];
+    members: { userId: string; name: string; tasksDone: number; tasksAssigned: number; messages: number; files: number; standups: number; commits: number; githubLogin: string | null }[];
+    /** The linked GitHub repo (owner/name), if any. */
+    repo: string | null;
     /** Weeks in which anyone on the team answered the stand-up. */
     standupWeeks: number;
     tasks: { id: string; title: string; status: KanbanTask["status"]; dueDate: string | null; doneAt: string | null }[];
@@ -329,4 +332,23 @@ export interface Contribution {
     peer: null | { avg: number | null; n: number; categories: Record<string, number>; feedback: { text: string; at: string }[] };
     atRisk: string[] | null;
   };
+}
+
+/** A team's linked GitHub repo and its recent commits and pull requests. */
+export interface RepoFeed {
+  repo: string | null;
+  syncedAt: string | null;
+  error: string | null;
+  members: { userId: string; name: string; githubLogin: string | null; commits: number }[];
+  activity: {
+    id: string;
+    kind: "commit" | "pr";
+    title: string;
+    url: string;
+    state: "open" | "closed" | "merged" | null;
+    at: string;
+    /** The team member it's matched to by GitHub username, else the GitHub name. */
+    userId: string | null;
+    author: string;
+  }[];
 }

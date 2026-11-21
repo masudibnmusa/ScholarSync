@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   availability: text("availability").notNull(),
   emailDigest: boolean("email_digest").notNull().default(true),
   avatarPath: text("avatar_path"), // in the public "avatars" bucket; null = initials
+  githubLogin: text("github_login"),
   createdAt: ts("created_at").notNull(),
   updatedAt: ts("updated_at").notNull(),
 });
@@ -55,6 +56,9 @@ export const teams = pgTable("teams", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   healthScore: smallint("health_score"),
+  repo: text("repo"), // GitHub owner/name
+  repoSyncedAt: ts("repo_synced_at"),
+  repoError: text("repo_error"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
@@ -243,6 +247,18 @@ export const standupSummaries = pgTable("standup_summaries", {
   answered: integer("answered").notNull(),
   generatedAt: ts("generated_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
+
+export const repoActivity = pgTable("repo_activity", {
+  teamId: uuid("team_id").notNull(),
+  id: text("id").notNull(),
+  kind: text("kind").$type<"commit" | "pr">().notNull(),
+  githubLogin: text("github_login"),
+  authorName: text("author_name").notNull().default(""),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  state: text("state").$type<"open" | "closed" | "merged">(),
+  at: ts("at").notNull(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.id] })]);
 
 export const fallingBehind = pgTable("falling_behind", {
   teamId: uuid("team_id").notNull(),

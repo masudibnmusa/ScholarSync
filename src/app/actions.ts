@@ -10,13 +10,14 @@ import { matchTeams, suggestMeetings } from "@/lib/ai";
 import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { summarizeTeamStandup } from "@/lib/standups";
+import { checkRepo, parseRepo, RepoError, syncTeamRepo } from "@/lib/github";
 import { toCsv } from "@/lib/utils";
 import { sendDigestTo } from "@/lib/digest";
 import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/grading";
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -40,7 +41,7 @@ export async function getProfile(): Promise<UserProfile> {
   return withUser(async (tx, uid) => {
     const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
     if (!u) throw new Error("Profile not found");
-    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest, avatarPath: u.avatarPath };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest, avatarPath: u.avatarPath, githubLogin: u.githubLogin };
   });
 }
 
@@ -49,6 +50,9 @@ const ProfileInput = z.object({
   skills: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   availability: z.string().max(200).optional(),
   emailDigest: z.boolean().optional(),
+  // Empty clears it. Same rule as GitHub's (and the table's check).
+  githubLogin: z.string().trim().transform((v) => v.replace(/^@/, "") || null)
+    .pipe(z.string().regex(/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/, "Not a GitHub username").nullable()).optional(),
 });
 
 export async function updateProfile(input: z.infer<typeof ProfileInput>) {
@@ -829,6 +833,95 @@ export async function exportGradebook(courseId: string): Promise<{ filename: str
   });
 }
 
+// ─── GitHub (a repo per team; see src/lib/github.ts) ─────────────────────
+
+/** Commits per GitHub username (lowercased) in a team's repo. */
+async function repoCommits(tx: Tx, teamId: string) {
+  const rows = await tx.select({ login: sql<string>`lower(${s.repoActivity.githubLogin})`, n: count() }).from(s.repoActivity)
+    .where(and(eq(s.repoActivity.teamId, teamId), eq(s.repoActivity.kind, "commit"), isNotNull(s.repoActivity.githubLogin))).groupBy(sql`1`);
+  return new Map(rows.map((r) => [r.login, r.n]));
+}
+
+/** A team's repo, sync status and latest 60 commits and pull requests, matched to members by GitHub username. */
+export async function getRepoFeed(teamId: string): Promise<RepoFeed> {
+  Id.parse(teamId);
+  return withUser(async (tx) => {
+    const [team] = await tx.select({ repo: s.teams.repo, syncedAt: s.teams.repoSyncedAt, error: s.teams.repoError }).from(s.teams).where(eq(s.teams.id, teamId));
+    if (!team) throw new Error("Team not found");
+    const [members, activity, commits] = await Promise.all([
+      tx.select({ userId: s.users.id, name: s.users.name, githubLogin: s.users.githubLogin }).from(s.teamMembers)
+        .innerJoin(s.users, eq(s.users.id, s.teamMembers.userId)).where(eq(s.teamMembers.teamId, teamId)).orderBy(asc(s.users.name)),
+      tx.select().from(s.repoActivity).where(eq(s.repoActivity.teamId, teamId)).orderBy(desc(s.repoActivity.at)).limit(60),
+      repoCommits(tx, teamId),
+    ]);
+    const byLogin = new Map(members.filter((m) => m.githubLogin).map((m) => [m.githubLogin!.toLowerCase(), m]));
+    return {
+      ...team,
+      members: members.map((m) => ({ ...m, commits: (m.githubLogin && commits.get(m.githubLogin.toLowerCase())) || 0 })),
+      activity: activity.map((a) => {
+        const m = a.githubLogin ? byLogin.get(a.githubLogin.toLowerCase()) : undefined;
+        return { id: a.id, kind: a.kind, title: a.title, url: a.url, state: a.state, at: a.at, userId: m?.userId ?? null, author: m?.name ?? (a.githubLogin ? `@${a.githubLogin}` : a.authorName) };
+      }),
+    };
+  });
+}
+
+/** Team members and the course instructor may change the repo, while the course is active. */
+async function assertRepoEditor(teamId: string) {
+  return withUser(async (tx, uid) => {
+    const [t] = await tx.select({ instructorId: s.courses.instructorId, archivedAt: s.courses.archivedAt, member: sql<boolean>`public.is_team_member(${s.teams.id})` })
+      .from(s.teams).innerJoin(s.courses, eq(s.courses.id, s.teams.courseId)).where(eq(s.teams.id, teamId));
+    if (!t || (!t.member && t.instructorId !== uid)) throw new Error("Only the team and its instructor can change the repo");
+    if (t.archivedAt) throw new Error("This course is archived");
+  });
+}
+
+/**
+ * Links a GitHub repo to a team (or unlinks it with null), after checking GitHub can read it. Returns an error message
+ * for the person, or null. Changing the repo clears the old one's activity; the first sync starts right away.
+ */
+export async function setTeamRepo(teamId: string, input: string | null): Promise<string | null> {
+  Id.parse(teamId);
+  const wanted = input === null ? null : parseRepo(z.string().max(300).parse(input));
+  if (input !== null && !wanted) return "Use owner/name, or paste the repository's GitHub link.";
+  await assertRepoEditor(teamId);
+  let repo: string | null = null;
+  if (wanted) {
+    try {
+      repo = await checkRepo(wanted);
+    } catch (err) {
+      if (err instanceof RepoError) return err.message;
+      throw err;
+    }
+  }
+  // The owner role writes: teams are otherwise instructor-only, and the repo is all this changes.
+  await adminDb.transaction(async (db) => {
+    await db.update(s.teams).set({ repo, repoSyncedAt: null, repoError: null }).where(eq(s.teams.id, teamId));
+    await db.delete(s.repoActivity).where(eq(s.repoActivity.teamId, teamId));
+  });
+  if (repo) {
+    try {
+      await inngest.send({ name: "github/repo.linked", data: { teamId } });
+    } catch (err) {
+      console.error("Queueing the first repo sync failed:", err); // the half-hourly sync picks it up
+    }
+  }
+  return null;
+}
+
+const REPO_SYNC_COOLDOWN_MS = 60 * 1000;
+
+/** Reads the repo now instead of waiting for the half-hourly sync. "cooldown" = it was read in the last minute. */
+export async function syncRepoNow(teamId: string): Promise<"ok" | "cooldown" | "none"> {
+  Id.parse(teamId);
+  await assertRepoEditor(teamId);
+  const [team] = await adminDb.select({ repo: s.teams.repo, syncedAt: s.teams.repoSyncedAt }).from(s.teams).where(eq(s.teams.id, teamId));
+  if (!team?.repo) return "none";
+  if (team.syncedAt && Date.now() - new Date(team.syncedAt).getTime() < REPO_SYNC_COOLDOWN_MS) return "cooldown";
+  await syncTeamRepo(teamId);
+  return "ok";
+}
+
 // ─── Contribution report (one student; the student themself or the course instructor) ─
 
 /** One student's tasks, chat, files, stand-ups and (for the instructor) peer reviews in a course, next to their team's. */
@@ -842,7 +935,7 @@ export async function getContribution(courseId: string, userId: string): Promise
     if (!course || (uid !== userId && !instructor)) throw new Error("Only the student and their instructor can see this report");
     const [student] = await tx.select({ id: s.users.id, name: s.users.name }).from(s.users).where(eq(s.users.id, userId));
     if (!student) throw new Error("Student not found");
-    const [team] = await tx.select({ id: s.teams.id, name: s.teams.name, joinedAt: s.teamMembers.joinedAt }).from(s.teams)
+    const [team] = await tx.select({ id: s.teams.id, name: s.teams.name, repo: s.teams.repo, joinedAt: s.teamMembers.joinedAt }).from(s.teams)
       .innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, userId)))
       .where(eq(s.teams.courseId, courseId));
     const base = { course: { id: course.id, code: course.code, title: course.title }, student };
@@ -852,8 +945,8 @@ export async function getContribution(courseId: string, userId: string): Promise
     const week = (col: unknown) => sql<string>`to_char(date_trunc('week', ${col}), 'YYYY-MM-DD')`;
     // Qualified by hand: Drizzle leaves columns unqualified in a one-table select, and "id" would mean task_events.id.
     const doneAt = sql<string | null>`(select max(e.created_at) from public.task_events e where e.task_id = "tasks"."id" and e.field = 'status' and e.new_value = 'done')`;
-    const [members, contrib, msgs, files, standups, standupWeeks, tasks, msgWeeks, taskWeeks, reviews, risk] = await Promise.all([
-      tx.select({ userId: s.users.id, name: s.users.name }).from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId))
+    const [members, contrib, msgs, files, standups, standupWeeks, tasks, msgWeeks, taskWeeks, reviews, risk, commits] = await Promise.all([
+      tx.select({ userId: s.users.id, name: s.users.name, githubLogin: s.users.githubLogin }).from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId))
         .where(eq(s.teamMembers.teamId, team.id)).orderBy(asc(s.users.name)),
       tx.select().from(s.memberContribution).where(eq(s.memberContribution.teamId, team.id)),
       tx.select({ userId: s.messages.senderId, n: count() }).from(s.messages).where(eq(s.messages.teamId, team.id)).groupBy(s.messages.senderId),
@@ -873,6 +966,7 @@ export async function getContribution(courseId: string, userId: string): Promise
         .from(s.peerReviews).where(and(eq(s.peerReviews.teamId, team.id), eq(s.peerReviews.revieweeId, userId))).orderBy(desc(s.peerReviews.createdAt)) : [],
       instructor ? tx.select({ reasons: s.fallingBehind.reasons }).from(s.fallingBehind)
         .where(and(eq(s.fallingBehind.teamId, team.id), eq(s.fallingBehind.userId, userId), isNull(s.fallingBehind.resolvedAt))) : [],
+      repoCommits(tx, team.id),
     ]);
 
     const n = (rows: { userId: string | null; n: number }[], id: string) => rows.find((r) => r.userId === id)?.n ?? 0;
@@ -888,10 +982,13 @@ export async function getContribution(courseId: string, userId: string): Promise
     return {
       ...base,
       team: {
-        id: team.id, name: team.name, joinedAt: team.joinedAt,
+        id: team.id, name: team.name, repo: team.repo, joinedAt: team.joinedAt,
         members: members.map((m) => {
           const c = contrib.find((x) => x.userId === m.userId);
-          return { ...m, tasksDone: c?.tasksDone ?? 0, tasksAssigned: c?.tasksAssigned ?? 0, messages: n(msgs, m.userId), files: n(files, m.userId), standups: n(standups, m.userId) };
+          return {
+            ...m, tasksDone: c?.tasksDone ?? 0, tasksAssigned: c?.tasksAssigned ?? 0, messages: n(msgs, m.userId), files: n(files, m.userId),
+            standups: n(standups, m.userId), commits: (m.githubLogin && commits.get(m.githubLogin.toLowerCase())) || 0,
+          };
         }),
         standupWeeks: standupWeeks[0]?.n ?? 0,
         tasks: tasks.map((k) => ({ ...k, status: toUiStatus(k.status) })),

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowCounterClockwise, ArrowRight, Camera, Check, CircleNotch, Trash, UploadSimple, CheckCircle, Circle, Clock, Desktop, EnvelopeSimple, Eye, FloppyDisk, Heartbeat, IdentificationBadge, Lightning, Moon, Palette, Plus, Student, Sun, TextAlignLeft, UsersThree, Warning, X,
+  ArrowCounterClockwise, ArrowRight, Camera, Check, CircleNotch, Trash, UploadSimple, CheckCircle, Circle, Clock, Desktop, EnvelopeSimple, Eye, FloppyDisk, GithubLogo, Heartbeat, IdentificationBadge, Lightning, Moon, Palette, Plus, Student, Sun, TextAlignLeft, UsersThree, Warning, X,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import { ProgressRing } from "@/components/ui/progress";
 import { useMounted } from "@/hooks/use-client";
 
 const skillIdeas = ["React", "Python", "UI design", "Writing", "Data analysis", "Testing", "Presentation", "Project management", "Research", "SQL"];
+const GITHUB_RE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 const availabilityIdeas = ["Weekday evenings", "Weekends", "Mornings", "Afternoons", "Flexible"];
 const MAX_SKILLS = 30;
 
@@ -238,9 +239,11 @@ export function ProfilePanel() {
   const [bio, setBio] = React.useState(user.bio);
   const [skills, setSkills] = React.useState(user.skills);
   const [availability, setAvailability] = React.useState(user.availability);
+  const [github, setGithub] = React.useState(user.githubLogin ?? "");
   const [saving, setSaving] = React.useState(false);
 
-  const dirty = bio !== user.bio || availability !== user.availability || skills.join("|") !== user.skills.join("|");
+  const githubValid = GITHUB_RE.test(github.trim().replace(/^@/, "")) || !github.trim();
+  const dirty = bio !== user.bio || availability !== user.availability || skills.join("|") !== user.skills.join("|") || github.trim().replace(/^@/, "") !== (user.githubLogin ?? "");
   // Strength follows the form, so the ring fills as you type.
   const checks = [
     { id: "bio", label: "Bio", done: !!bio.trim() },
@@ -261,10 +264,11 @@ export function ProfilePanel() {
   async function save(e?: React.FormEvent) {
     e?.preventDefault();
     setSaving(true);
-    if (await updateProfile({ bio: bio.trim(), skills, availability: availability.trim() })) toast.success("Profile saved");
+    if (!githubValid) { jump("github"); return setSaving(false); }
+    if (await updateProfile({ bio: bio.trim(), skills, availability: availability.trim(), ...(student ? { githubLogin: github } : {}) })) toast.success("Profile saved");
     setSaving(false);
   }
-  const reset = () => { setBio(user.bio); setSkills(user.skills); setAvailability(user.availability); };
+  const reset = () => { setBio(user.bio); setSkills(user.skills); setAvailability(user.availability); setGithub(user.githubLogin ?? ""); };
   const jump = (id: string) => { const el = document.getElementById(id); el?.scrollIntoView({ behavior: "smooth", block: "center" }); el?.focus({ preventScroll: true }); };
 
   return (
@@ -371,6 +375,14 @@ export function ProfilePanel() {
               </div>
               <Input id="availability" value={availability} maxLength={200} onChange={(e) => setAvailability(e.target.value)} placeholder="Or describe it, e.g. Tue/Thu after 6pm" aria-describedby="availability-hint" className="mt-3" />
             </Section>
+
+            {student && (
+              <Section icon={GithubLogo} title="GitHub username" htmlFor="github" hint="So commits in your team's linked repository count as yours.">
+                <Input id="github" value={github} maxLength={40} onChange={(e) => setGithub(e.target.value)} placeholder="e.g. octocat" autoComplete="off" spellCheck={false}
+                  aria-describedby="github-hint" aria-invalid={!githubValid || undefined} />
+                {!githubValid && <p className="mt-1.5 text-xs font-semibold text-destructive">Letters, numbers and single hyphens, up to 39 characters.</p>}
+              </Section>
+            )}
           </form>
         </Card>
 

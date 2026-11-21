@@ -57,7 +57,7 @@ export interface AppState {
   downloadFile: (storagePath: string) => Promise<void>;
   deleteFile: (teamId: string, fileId: string) => Promise<boolean>;
   submitPeerReview: (teamId: string, targetId: string, overallRating: number, feedback: string, categoryRatings: Record<string, number>) => Promise<boolean>;
-  updateProfile: (data: { bio?: string; skills?: string[]; availability?: string; emailDigest?: boolean }) => Promise<boolean>;
+  updateProfile: (data: { bio?: string; skills?: string[]; availability?: string; emailDigest?: boolean; githubLogin?: string }) => Promise<boolean>;
   /** Uploads a new profile photo, or removes it with null. */
   setAvatar: (file: File | null) => Promise<boolean>;
   fetchAvatars: () => Promise<void>;
@@ -94,7 +94,7 @@ let onlineListener = false;
 const LIVE_TABLES = [
   "users", "courses", "course_enrollments", "teams", "team_members", "tasks", "files", "task_comments",
   "task_checklist_items", "course_announcements", "course_milestones", "team_milestones", "submissions",
-  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind",
+  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind", "repo_activity",
 ] as const;
 export type LiveTable = (typeof LIVE_TABLES)[number];
 const TEAM_TABLES: LiveTable[] = ["courses", "course_enrollments", "teams", "team_members", "tasks"]; // team cards show task progress

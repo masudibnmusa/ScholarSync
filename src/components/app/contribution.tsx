@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ChatsCircle, CheckSquare, FileText, HandWaving, Lifebuoy, Quotes, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ChatsCircle, CheckSquare, FileText, GitCommit, HandWaving, Lifebuoy, Quotes, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { getContribution } from "@/app/actions";
 import { useLive } from "@/lib/store";
 import { cn, timeAgo } from "@/lib/utils";
@@ -161,6 +161,7 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
     done: sum(team.members.map((m) => m.tasksDone)),
     messages: sum(team.members.map((m) => m.messages)),
     files: sum(team.members.map((m) => m.files)),
+    commits: sum(team.members.map((m) => m.commits)),
   };
 
   return (
@@ -182,23 +183,28 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
         <Card><EmptyState icon={UsersThree} title="Not on a team yet" description={self ? "Once you're placed in a team, your work shows up here." : "This student isn't on a team in this course yet."} /></Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={cn("grid gap-4 sm:grid-cols-2", team.repo ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
             <StatCard compact icon={CheckSquare} tone="success" label="Tasks done" value={mine.tasksDone}
               hint={`${share(mine.tasksDone, totals.done)}% of the team's · ${mine.tasksAssigned} assigned`} />
             <StatCard compact icon={ChatsCircle} tone="info" label="Messages" value={mine.messages} hint={`${share(mine.messages, totals.messages)}% of team chat`} />
             <StatCard compact icon={FileText} tone="primary" label="Files shared" value={mine.files} hint={`${share(mine.files, totals.files)}% of the team's files`} />
             <StatCard compact icon={HandWaving} tone="warm" label="Stand-ups answered" value={mine.standups}
               hint={team.standupWeeks ? `of ${team.standupWeeks} week${team.standupWeeks === 1 ? "" : "s"} the team did one` : "None yet"} />
+            {team.repo && (
+              <StatCard compact icon={GitCommit} tone="danger" label="Commits" value={mine.commits}
+                hint={mine.githubLogin ? `${share(mine.commits, totals.commits)}% of ${team.repo}` : self ? "Add your GitHub username in your profile" : "No GitHub username in their profile"} />
+            )}
           </div>
 
           <div className="grid items-start gap-6 lg:grid-cols-2">
-            <Section id="contrib-team" title="Compared with the team" description="Each member's share of the team's done tasks, messages and files.">
+            <Section id="contrib-team" title="Compared with the team" description={`Each member's share of the team's done tasks, messages, files${team.repo ? " and commits" : ""}.`}>
               <GroupedBars label="Share of team work by member" max={100} suffix="%"
-                series={[{ name: "Tasks done", color: "var(--chart-1)" }, { name: "Messages", color: "var(--chart-3)" }, { name: "Files", color: "var(--chart-4)" }]}
+                series={[{ name: "Tasks done", color: "var(--chart-1)" }, { name: "Messages", color: "var(--chart-3)" }, { name: "Files", color: "var(--chart-4)" },
+                  ...(team.repo ? [{ name: "Commits", color: "var(--chart-2)" }] : [])]}
                 rows={team.members.map((m) => ({
                   id: m.userId,
                   label: m.userId === data.student.id && self ? "You" : m.name,
-                  values: [share(m.tasksDone, totals.done), share(m.messages, totals.messages), share(m.files, totals.files)],
+                  values: [share(m.tasksDone, totals.done), share(m.messages, totals.messages), share(m.files, totals.files), ...(team.repo ? [share(m.commits, totals.commits)] : [])],
                 }))} />
             </Section>
             <Section id="contrib-weeks" title="Last 8 weeks" description="Tasks finished and messages sent each week.">
