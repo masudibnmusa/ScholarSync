@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlay
 import { Progress } from "@/components/ui/progress";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StandupButton } from "@/components/app/standup";
 
 type Sort = "health" | "progress" | "name";
 
@@ -228,7 +229,7 @@ export function InstructorWorkspace() {
                 </div>
                 <Progress value={current.progress} label={`${current.name} progress`} className="h-1.5" />
               </div>
-              <div className="ml-auto flex items-center gap-2"><WeeklyRecapButton team={current} />{!current.courseArchived && <EditTeamButton team={current} />}<MembersButton team={current} align="end" /></div>
+              <div className="ml-auto flex items-center gap-2"><StandupButton team={current} /><WeeklyRecapButton team={current} />{!current.courseArchived && <EditTeamButton team={current} />}<MembersButton team={current} align="end" /></div>
             </div>
           </header>
           {current.courseArchived && (

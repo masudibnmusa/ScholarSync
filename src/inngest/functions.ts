@@ -6,6 +6,7 @@ import { assessTeam, extractTasks } from "@/lib/ai";
 import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
 import { digestRecipients, sendDigestTo } from "@/lib/digest";
 import { sendPendingPushes } from "@/lib/push";
+import { standupAskees, summarizeTeamStandup } from "@/lib/standups";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
 
@@ -126,6 +127,38 @@ export const weeklyRecaps = inngest.createFunction(
   },
 );
 
+// Monday morning (UTC), after the recaps: ask every student in an active course for their stand-up.
+export const askForStandups = inngest.createFunction(
+  { id: "ask-for-standups", triggers: [{ cron: "5 6 * * 1" }] },
+  async ({ step }) => {
+    const asked = await step.run("notify-students", async () => {
+      const rows = await standupAskees();
+      if (!rows.length) return 0;
+      await db.insert(notifications).values(rows.map((r) => ({
+        userId: r.userId, type: "task" as const, title: `Weekly stand-up for ${r.teamName}`,
+        body: "Three quick answers: what you finished, what is next, and anything blocking you.",
+        link: `/student?team=${r.teamId}&standup=1`,
+      })));
+      return rows.length;
+    });
+    return { asked };
+  },
+);
+
+// A student answered: once the team's answers settle, the AI writes the instructor's summary.
+export const summarizeStandups = inngest.createFunction(
+  {
+    id: "summarize-standups",
+    triggers: [{ event: "standup/answered" }],
+    debounce: { key: "event.data.teamId", period: "10m", timeout: "1h" },
+  },
+  async ({ event, step }) => {
+    const teamId = String(event.data.teamId);
+    const written = await step.run("summarize", () => summarizeTeamStandup(teamId));
+    return { teamId, written };
+  },
+);
+
 // Every morning (UTC): tell instructors about teams that missed a milestone or have 3+ overdue tasks.
 // The SQL function (migration 0017) writes the notifications and sends each alert once.
 export const riskAlerts = inngest.createFunction(
@@ -157,4 +190,4 @@ export const pushNotifications = inngest.createFunction(
   async ({ step }) => step.run("send-pushes", () => sendPendingPushes()),
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, dailyDigests, pushNotifications];
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications];

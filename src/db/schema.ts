@@ -225,6 +225,25 @@ export const teamMilestones = pgTable("team_milestones", {
   completedBy: uuid("completed_by"),
 }, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
 
+export const standups = pgTable("standups", {
+  teamId: uuid("team_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  weekStart: date("week_start").notNull(),
+  done: text("done").notNull().default(""),
+  next: text("next").notNull().default(""),
+  blocked: text("blocked").notNull().default(""),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.userId, t.weekStart] })]);
+
+export const standupSummaries = pgTable("standup_summaries", {
+  teamId: uuid("team_id").notNull(),
+  weekStart: date("week_start").notNull(),
+  summary: text("summary").notNull(),
+  blockers: text("blockers").array().notNull().default(sql`'{}'`),
+  answered: integer("answered").notNull(),
+  generatedAt: ts("generated_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
+
 export const submissions = pgTable("submissions", {
   teamId: uuid("team_id").notNull(),
   milestoneId: uuid("milestone_id").notNull(),

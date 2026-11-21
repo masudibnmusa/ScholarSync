@@ -51,6 +51,23 @@ export interface WeeklySummary {
   generatedAt: string;
 }
 
+export interface StandupAnswer {
+  userId: string;
+  name: string;
+  done: string;
+  next: string;
+  blocked: string;
+  updatedAt: string;
+}
+
+/** This week's stand-up for one team. `summary` is the AI's, and only instructors get it. */
+export interface TeamStandup {
+  weekStart: string;
+  members: { userId: string; name: string }[];
+  answers: StandupAnswer[];
+  summary: { summary: string; blockers: string[]; answered: number; generatedAt: string } | null;
+}
+
 export interface Milestone {
   id: string;
   title: string;

@@ -9,13 +9,14 @@ import { inngest } from "@/inngest/client";
 import { matchTeams, suggestMeetings } from "@/lib/ai";
 import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
+import { summarizeTeamStandup } from "@/lib/standups";
 import { toCsv } from "@/lib/utils";
 import { sendDigestTo } from "@/lib/digest";
 import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/grading";
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -411,6 +412,65 @@ export async function refreshWeeklySummary(teamId: string): Promise<"ok" | "cool
   });
   if (recent && Date.now() - new Date(recent).getTime() < RECAP_COOLDOWN_MS) return "cooldown";
   return (await summarizeTeamWeek(teamId)) ? "ok" : "quiet";
+}
+
+// ─── Weekly stand-up ───────────────────────────────────────────────────
+
+/** This week's answers for a team, its members, and (instructors only, by RLS) the AI summary. */
+export async function getStandup(teamId: string): Promise<TeamStandup> {
+  Id.parse(teamId);
+  const week = currentWeekStart();
+  return withUser(async (tx) => {
+    const [members, answers, [summary]] = await Promise.all([
+      tx.select({ userId: s.users.id, name: s.users.name }).from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId))
+        .where(eq(s.teamMembers.teamId, teamId)).orderBy(asc(s.users.name)),
+      tx.select({ userId: s.standups.userId, name: s.users.name, done: s.standups.done, next: s.standups.next, blocked: s.standups.blocked, updatedAt: s.standups.updatedAt })
+        .from(s.standups).innerJoin(s.users, eq(s.users.id, s.standups.userId))
+        .where(and(eq(s.standups.teamId, teamId), eq(s.standups.weekStart, week))).orderBy(asc(s.standups.updatedAt)),
+      tx.select({ summary: s.standupSummaries.summary, blockers: s.standupSummaries.blockers, answered: s.standupSummaries.answered, generatedAt: s.standupSummaries.generatedAt })
+        .from(s.standupSummaries).where(and(eq(s.standupSummaries.teamId, teamId), eq(s.standupSummaries.weekStart, week))),
+    ]);
+    const inTeam = new Set(members.map((m) => m.userId));
+    return { weekStart: week, members, answers: answers.filter((a) => inTeam.has(a.userId)), summary: summary ?? null };
+  });
+}
+
+const StandupForm = z.object({
+  done: z.string().trim().max(1000),
+  next: z.string().trim().max(1000),
+  blocked: z.string().trim().max(1000),
+}).refine((f) => f.done || f.next || f.blocked, "Answer at least one question");
+
+/** Saves my answers for this week (answering again replaces them), then queues the instructor's summary. */
+export async function saveStandup(teamId: string, form: { done: string; next: string; blocked: string }) {
+  Id.parse(teamId);
+  const f = StandupForm.parse(form);
+  const row = { ...f, updatedAt: new Date().toISOString() };
+  await withUser((tx, uid) => tx.insert(s.standups).values({ teamId, userId: uid, weekStart: currentWeekStart(), ...row })
+    .onConflictDoUpdate({ target: [s.standups.teamId, s.standups.userId, s.standups.weekStart], set: row }));
+  try {
+    await inngest.send({ name: "standup/answered", data: { teamId } });
+  } catch (err) {
+    // The answers are saved; the summary is written when the instructor asks for it.
+    console.error("Queueing the stand-up summary failed:", err);
+  }
+}
+
+const STANDUP_COOLDOWN_MS = 2 * 60 * 1000;
+
+/** The instructor asks for the summary now. "empty" = nobody has answered yet; "cooldown" = one was just written. */
+export async function refreshStandupSummary(teamId: string): Promise<"ok" | "cooldown" | "empty"> {
+  Id.parse(teamId);
+  const recent = await withUser(async (tx, uid) => {
+    const [team] = await tx.select({ id: s.teams.id }).from(s.teams).innerJoin(s.courses, eq(s.courses.id, s.teams.courseId))
+      .where(and(eq(s.teams.id, teamId), eq(s.courses.instructorId, uid)));
+    if (!team) throw new Error("Only the course instructor can do this");
+    const [r] = await tx.select({ at: s.standupSummaries.generatedAt }).from(s.standupSummaries)
+      .where(and(eq(s.standupSummaries.teamId, teamId), eq(s.standupSummaries.weekStart, currentWeekStart())));
+    return r?.at;
+  });
+  if (recent && Date.now() - new Date(recent).getTime() < STANDUP_COOLDOWN_MS) return "cooldown";
+  return (await summarizeTeamStandup(teamId)) ? "ok" : "empty";
 }
 
 // ─── Milestones (instructors set them per course; teams mark them done) ─

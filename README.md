@@ -219,7 +219,7 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 27 of 27 passed in 66 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
+**Latest run:** 28 of 28 passed in 78 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
 
 | Area | Test | Result |
 |---|---|---|
@@ -244,6 +244,7 @@ All seed accounts use the password `password123`.
 | Install and alerts | The manifest is served with its icons and the service worker controls the whole site | ✅ Pass |
 | | Turn alerts on (saved on the server, still on after a reload) and off again; the browser's push service is faked, since test browsers have none | ✅ Pass |
 | Live updates | Two students and the instructor in separate browsers: a team rename, a new profile photo and a new announcement appear on the others' open pages without a reload | ✅ Pass |
+| Weekly stand-up | The Monday link opens the stand-up; Send stays off until something is written; a teammate sees the answers arrive live; editing turns Send into Update; the instructor finds the team, reads the answers and who is still missing, and can ask for the AI summary | ✅ Pass |
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
@@ -268,6 +269,7 @@ npm run dev:inngest               # terminal 2, then open http://localhost:8288
 | Task extraction | In the Inngest UI, send event `chat/message.created` with `{"teamId": "00000000-0000-4000-a000-000000000001"}` (or send any chat message as `masud@`). Runs after 2 minutes of quiet. | `masud@` → workspace: 4 suggested tasks |
 | Team health and conflicts | In the Inngest UI, open the `assess-team-health` function and click **Invoke** | `selim.reja@` → Conflicts: an alert for Team Orbit; Analytics: Orbit's health drops |
 | Team matching | `selim.reja@` → Matching → run it | Proposals that place the 20 new students in teams of about 3 (some of 4, none under 2) |
+| Weekly stand-up | As `masud@` and `nazmul@`, open Stand-up in Team Nova and answer (say one of you is blocked). Then as `selim.reja@` open Team Nova → Stand-up → **Summarise now**, or wait 10 minutes for the job | `selim.reja@` → the summary names who did what and lists the blocker; a "stand-up: 1 blocked" notification |
 
 ## Implementation notes
 
@@ -283,6 +285,7 @@ Where the code differs from the diagram, and why:
 - **Chat replies and reactions** (`0023_chat_replies_reactions.sql`): `messages.reply_to` quotes the answered message (RLS keeps it in the same team), and `message_reactions` holds one row per person per emoji from a fixed set of six, live over Realtime. Search matches message text and file names in the open team (case-insensitive, newest first).
 - **Install and alerts** (`0024_push.sql`): `src/app/manifest.ts` and `public/sw.js` make the app installable; the service worker only shows alerts and opens the page they point to (no offline cache). Each browser that turns alerts on stores one `push_subscriptions` row. An Inngest job runs every minute, claims new notifications (`pushed_at`) so none is sent twice, and pushes all except routine chat messages (@mentions still go) that are under an hour old. Subscriptions a push service reports gone (404/410) are deleted. On iPhone and iPad, alerts work only from the Home Screen app (iOS 16.4+).
 - **Live updates everywhere** (`0025_live_updates.sql`): besides the filtered chat, board and notification feeds, one Realtime channel per signed-in user listens to the other tables (profile photos, courses, rosters, teams, files, task comments and checklists, milestones and hand-ins, announcements, reviews, recaps, grading). Realtime checks RLS per row, so people only hear about what they can read; a delete carries only the row id. Changes are batched for 250 ms, then the store refreshes avatars, teams and files, and pages that load their own data reload through `useLive(...tables)`. The channel loads the session token before joining; without it the channel joined as anonymous and RLS dropped every row.
+- **Weekly stand-up** (`0026_standups.sql`): at 06:05 UTC each Monday, right after the recaps, every student in an active course is asked what they finished, what is next and what blocks them. The team and the instructor see the answers. Each answer queues an Inngest event; once a team's answers have been quiet for 10 minutes (at most an hour), Gemini writes a summary with a list of blockers, reading last week's recap as background. Only the instructor can read it (`standup_summaries` RLS). The instructor is notified the first time and again when more blockers appear, and can also ask for the summary from the dialog.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -297,6 +300,7 @@ Where the code differs from the diagram, and why:
 7. ✅ Course management: create and edit courses, invite link with joining on/off and code reset, add students by email, remove students, create teams by hand, archive (read-only) and restore
 8. ✅ Install on phone with push alerts
 9. ✅ Live updates for every page
+10. ✅ AI weekly stand-up
 
 ## License
 

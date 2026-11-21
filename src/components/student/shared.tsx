@@ -113,7 +113,7 @@ function RecapList({ icon: IconCmp, title, items, tone }: { icon: Icon; title: s
   );
 }
 
-const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+export const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
 
 /** The team's weekly AI recap. Opens from the header, or from a notification link with ?recap=1. */
 export function WeeklyRecapButton({ team }: { team: Team }) {
