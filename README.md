@@ -153,13 +153,16 @@ ScholarSync/
 │   ├── seed.sql                          Local demo data
 │   ├── ai-test-data.sql                  Data for testing the AI features
 │   └── config.toml                       Local Supabase config
+├── tests/e2e/                            Black-box Playwright tests: auth, student, profile, instructor
+│   ├── helpers.ts · global-teardown.ts   Sign-in helpers; deletes the e2e accounts after a run
+│   └── fixtures/photo.png                Image for the profile photo tests
 ├── docs/
 │   ├── system-architecture.svg
 │   ├── database-architecture.svg
 │   └── banner/                           README banner: banner.html source + exported PNGs
 ├── public/                               favicon.svg, robots.txt
 ├── .env.example                          Environment variables to copy into .env.local
-└── package.json · next.config.ts · tsconfig.json · eslint.config.mjs · components.json
+└── package.json · next.config.ts · playwright.config.ts · tsconfig.json · eslint.config.mjs · components.json
 ```
 
 ## Getting started
@@ -199,6 +202,47 @@ npx playwright show-report         # after a run: steps, screenshots and traces
 ```
 
 They need local Supabase with the seed. Tests that change data use a fresh account per run or clean up after themselves; accounts named `e2e-…@university.edu` are deleted when the run ends.
+
+**Test data**
+
+| Data | Used for |
+|---|---|
+| Seed student `masud@university.edu` (Team Nova, team id `00000000-0000-4000-a000-000000000001`) | Workspace, task, My week, sidebar and command menu tests. The task test deletes the task it creates. |
+| Seed instructor `selim.reja@university.edu` (teaches `CSE-3200`) | Instructor pages and role guards (read only) |
+| A new `e2e-<time>-<random>@university.edu` account per test | Sign-up and profile photo tests, so no real photo is replaced or removed |
+| [`tests/e2e/fixtures/photo.png`](tests/e2e/fixtures/photo.png) (600 × 360, four coloured quarters) | A wide photo to crop into a square |
+| A generated `notes.txt` (`text/plain`) | Checks that non-images are refused |
+| Wrong password `not-the-password` | The sign-in error message |
+
+All seed accounts use the password `password123`.
+
+**Latest run:** 21 of 21 passed in 33 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
+
+| Area | Test | Result |
+|---|---|---|
+| Sign-in and access | A signed-out visitor is sent to the sign-in page | ✅ Pass |
+| | A wrong password shows an error and stays signed out | ✅ Pass |
+| | Empty fields are flagged before anything is sent | ✅ Pass |
+| | A student lands on their dashboard and can sign out | ✅ Pass |
+| | A student can't open instructor pages | ✅ Pass |
+| | An instructor lands on their dashboard and can't open student pages | ✅ Pass |
+| | A signed-in user visiting `/login` goes straight home | ✅ Pass |
+| | A new account is created as a student and signed in | ✅ Pass |
+| Student workspace | Creates a task on the team board, then deletes it | ✅ Pass |
+| | A task needs a title | ✅ Pass |
+| | My week shows a live clock and today on the calendar | ✅ Pass |
+| | My week switches between list and month views | ✅ Pass |
+| | The sidebar opens on hover and closes when the pointer leaves | ✅ Pass |
+| | Ctrl+K opens the command menu | ✅ Pass |
+| Profile photo | Crop, save, replace and remove a photo (saved at 512 × 512; cancel keeps the old one) | ✅ Pass |
+| | A file that isn't an image is refused | ✅ Pass |
+| Instructor | Analytics page opens | ✅ Pass |
+| | Conflicts page opens | ✅ Pass |
+| | AI team matching page opens | ✅ Pass |
+| | Notifications page opens | ✅ Pass |
+| | The course dashboard lists the seeded course | ✅ Pass |
+
+Not covered yet: sending chat messages (it would notify the seeded teammates and start AI task extraction), the AI features themselves, and phone-sized screens.
 
 ### Testing the AI features
 
