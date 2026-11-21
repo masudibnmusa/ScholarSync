@@ -9,6 +9,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { exportCourseReport, getCourses, joinCourse, setCourseArchived } from "@/app/actions";
+import { downloadCsv } from "@/lib/utils";
 import { useAppStore, useLive } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
@@ -117,11 +118,7 @@ export function CourseDetail({ id }: { id: string }) {
     setExporting(true);
     try {
       const { filename, csv } = await exportCourseReport(course.id);
-      // BOM so Excel reads names as UTF-8.
-      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
-      const a = Object.assign(document.createElement("a"), { href: url, download: filename });
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadCsv(filename, csv);
     } catch (err) {
       console.error("Export failed:", err);
       toast.error("Could not export the report");

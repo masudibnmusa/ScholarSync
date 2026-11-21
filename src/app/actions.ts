@@ -797,6 +797,38 @@ export async function exportCourseReport(courseId: string): Promise<{ filename: 
   });
 }
 
+/**
+ * The gradebook for an LMS import (Moodle, Canvas, …): one row per enrolled student, keyed by email, with each rubric
+ * criterion's points, the team grade, the student's contribution factor and the final grade. Blank = not graded.
+ */
+export async function exportGradebook(courseId: string): Promise<{ filename: string; csv: string }> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const course = await ownCourse(tx, uid, courseId);
+    const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId));
+    const ids = teams.map((t) => t.id);
+    const none = !ids.length;
+    const [students, members, criteria, grades, factors] = await Promise.all([
+      tx.select({ id: s.users.id, name: s.users.name, email: s.users.email }).from(s.courseEnrollments)
+        .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId)).where(eq(s.courseEnrollments.courseId, courseId)),
+      none ? [] : tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, ids)),
+      loadCriteria(tx, courseId),
+      none ? [] : tx.select().from(s.teamGrades).where(inArray(s.teamGrades.teamId, ids)),
+      none ? [] : tx.select().from(s.studentGradeFactors).where(inArray(s.studentGradeFactors.teamId, ids)),
+    ]);
+    const rows = students.map((st) => {
+      const team = teams.find((t) => members.some((m) => m.teamId === t.id && m.userId === st.id));
+      const points = Object.fromEntries(grades.filter((g) => g.teamId === team?.id).map((g) => [g.criterionId, g.points]));
+      const tg = team ? teamPercent(criteria, points) : null;
+      const factor = factors.find((f) => f.teamId === team?.id && f.userId === st.id)?.factor ?? 1;
+      return [st.name, st.email, team?.name ?? "", ...criteria.map((c) => points[c.id] ?? ""), tg ?? "", tg == null ? "" : factor, finalPercent(tg, factor) ?? ""];
+    }).sort((a, b) => `${a[2] || "~"}\u0000${a[0]}`.localeCompare(`${b[2] || "~"}\u0000${b[0]}`));
+
+    const header = ["Student", "Email", "Team", ...criteria.map((c) => `${c.name} (/${c.maxPoints})`), "Team grade (%)", "Contribution factor", "Final grade (%)"];
+    return { filename: `${course.code}-gradebook-${new Date().toISOString().slice(0, 10)}.csv`, csv: toCsv([header, ...rows]) };
+  });
+}
+
 // ─── My week (students): everything dated across all their teams ───────
 
 const WEEK_AHEAD_DAYS = 120; // the list shows three weeks; the month view and calendar export look further

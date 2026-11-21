@@ -214,7 +214,7 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 | A new `e2e-<time>-<random>@university.edu` account per test | Sign-up and profile photo tests, so no real photo is replaced or removed |
 | [`tests/e2e/fixtures/photo.png`](tests/e2e/fixtures/photo.png) (600 × 360, four coloured quarters) | A wide photo to crop into a square |
 | A generated `notes.txt` (`text/plain`) | Checks that non-images are refused |
-| A throwaway course `E2E-<time>` with new students | The course management, submissions, live, stand-up and at-risk tests; it deletes the course itself, and the teardown removes any `E2E-` course left by a failed run |
+| A throwaway course `E2E-<time>` with new students | The course management, submissions, live, stand-up, at-risk and grading tests; it deletes the course itself, and the teardown removes any `E2E-` course left by a failed run |
 | Wrong password `not-the-password` | The sign-in error message |
 
 All seed accounts use the password `password123`.
@@ -245,6 +245,7 @@ All seed accounts use the password `password123`.
 | | Turn alerts on (saved on the server, still on after a reload) and off again; the browser's push service is faked, since test browsers have none | ✅ Pass |
 | Live updates | Two students and the instructor in separate browsers: a team rename, a new profile photo and a new announcement appear on the others' open pages without a reload | ✅ Pass |
 | Weekly stand-up | The Monday link opens the stand-up; Send stays off until something is written; a teammate sees the answers arrive live; editing turns Send into Update; the instructor finds the team, reads the answers and who is still missing, and can ask for the AI summary | ✅ Pass |
+| Grading | Set a two-criterion rubric, grade the team with a factor override for one student, export the gradebook: one row per student with each criterion's points, team grade, factor and final grade | ✅ Pass |
 | At risk | A falling-behind case added for a throwaway student shows on the instructor's At risk page with its signals, team and stage; when it resolves it moves to Recovered without a reload; students can't open the page | ✅ Pass |
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
@@ -294,6 +295,7 @@ Where the code differs from the diagram, and why:
 - **Live updates everywhere** (`0025_live_updates.sql`): besides the filtered chat, board and notification feeds, one Realtime channel per signed-in user listens to the other tables (profile photos, courses, rosters, teams, files, task comments and checklists, milestones and hand-ins, announcements, reviews, recaps, grading). Realtime checks RLS per row, so people only hear about what they can read; a delete carries only the row id. Changes are batched for 250 ms, then the store refreshes avatars, teams and files, and pages that load their own data reload through `useLive(...tables)`. The channel loads the session token before joining; without it the channel joined as anonymous and RLS dropped every row.
 - **Weekly stand-up** (`0026_standups.sql`): at 06:05 UTC each Monday, right after the recaps, every student in an active course is asked what they finished, what is next and what blocks them. The team and the instructor see the answers. Each answer queues an Inngest event; once a team's answers have been quiet for 10 minutes (at most an hour), Gemini writes a summary with a list of blockers, reading last week's recap as background. Only the instructor can read it (`standup_summaries` RLS). The instructor is notified the first time and again when more blockers appear, and can also ask for the summary from the dialog.
 - **Who's falling behind** (`0027_falling_behind.sql`): every morning at 07:20 UTC, `check_falling_behind()` checks each student in each team of an active course for three signals: 2+ overdue tasks (or one 3+ days late), 7+ days silent in team chat while teammates talk, and peer reviews averaging 2.5/5 or lower (from 2+ reviews). Two signals together start an episode: the student gets a private "quick check-in" naming them. If two signals still hold 3 days later, the instructor is told once. Slipping back within 7 days of recovering continues the episode without another nudge. This complements `send_risk_alerts()` (0017), which flags whole teams. The instructor's **At risk** page (`/instructor/at-risk`) lists open cases (escalated ones first) and those that recovered in the last 30 days, live (`0028_at_risk.sql`).
+- **Gradebook export.** The grading card's *Export gradebook* button downloads a CSV with one row per enrolled student, keyed by email, for importing into Moodle or Canvas: each rubric criterion's points, the team grade, the saved contribution factor and the final grade (team grade × factor, capped at 100). Blank cells mean not graded. The course page's contribution report is the longer version with tasks, chat and reviews.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -310,6 +312,7 @@ Where the code differs from the diagram, and why:
 9. ✅ Live updates for every page
 10. ✅ AI weekly stand-up
 11. ✅ Early warning for students falling behind, with an At risk page
+12. ✅ Gradebook export for LMS import
 
 ## License
 

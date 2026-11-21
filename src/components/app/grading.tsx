@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeSlash, Exam, PencilSimple, Plus, Star, Trash } from "@phosphor-icons/react/dist/ssr";
+import { DownloadSimple, Eye, EyeSlash, Exam, PencilSimple, Plus, Star, Trash } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { getCourseGrading, getMyGrade, saveRubric, saveTeamGrade, setGradesReleased } from "@/app/actions";
+import { exportGradebook, getCourseGrading, getMyGrade, saveRubric, saveTeamGrade, setGradesReleased } from "@/app/actions";
 import { finalPercent, FACTOR_MAX, FACTOR_MIN, teamPercent } from "@/lib/grading";
-import { cn } from "@/lib/utils";
+import { cn, downloadCsv } from "@/lib/utils";
 import type { CourseGrading, MyGrade, RubricCriterion } from "@/lib/types";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -220,6 +220,19 @@ export function GradingPanel({ courseId }: { courseId: string }) {
   const [grading, setGrading] = React.useState<GradedTeam | null>(null);
   const [confirmRelease, setConfirmRelease] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const { filename, csv } = await exportGradebook(courseId);
+      downloadCsv(filename, csv);
+    } catch (err) {
+      console.error("Gradebook export failed:", err);
+      toast.error("Could not export the gradebook");
+    }
+    setExporting(false);
+  }
 
   const load = React.useCallback(() => getCourseGrading(courseId).then(setData).catch((err) => console.error("Loading grading failed:", err)), [courseId]);
   const live = useLive("courses", "rubric_criteria", "team_grades", "student_grade_factors", "teams", "team_members", "peer_reviews");
@@ -247,6 +260,7 @@ export function GradingPanel({ courseId }: { courseId: string }) {
       <CardTitle aside={
         <div className="flex flex-wrap items-center gap-2">
           {data.released ? <Badge variant="success"><Eye aria-hidden /> Visible to students</Badge> : <Badge variant="muted"><EyeSlash aria-hidden /> Draft</Badge>}
+          {graded > 0 && <Button size="sm" variant="outline" loading={exporting} onClick={exportCsv}>{!exporting && <DownloadSimple aria-hidden />} Export gradebook</Button>}
           <Button size="sm" variant="outline" onClick={() => setRubricOpen(true)}><PencilSimple aria-hidden /> {data.criteria.length ? "Edit rubric" : "Set up rubric"}</Button>
           {data.criteria.length > 0 && (data.released
             ? <Button size="sm" variant="outline" loading={busy} onClick={() => release(false)}>Hide grades</Button>
@@ -285,7 +299,7 @@ export function GradingPanel({ courseId }: { courseId: string }) {
               })}
             </ul>
           )}
-          <p className="mt-3 text-xs text-muted-foreground">{graded} of {data.teams.length} teams graded. Grades also appear in the exported report.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{graded} of {data.teams.length} teams graded. The gradebook CSV (one row per student, keyed by email) imports into Moodle or Canvas.</p>
         </>
       )}
 
