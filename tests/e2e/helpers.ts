@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { expect, type Browser, type Page } from "@playwright/test";
 
 export const PASSWORD = "password123";
@@ -78,4 +79,25 @@ export async function deleteCourse(page: Page, code: string) {
   await page.getByRole("menuitem", { name: "Delete course" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete course" }).click();
   await expect(page.getByRole("button", { name: `Options for ${code}` })).toHaveCount(0);
+}
+
+/** The local Supabase service role key, or undefined when it isn't running. For setup the UI can't do (and teardown). */
+export function serviceKey() {
+  try {
+    return execSync("npx supabase status -o env", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+      .match(/^SERVICE_ROLE_KEY="?([^"\n]+)"?$/m)?.[1];
+  } catch {}
+}
+
+/** Calls the local REST API with the service role (bypasses RLS). Only for throwaway E2E rows. */
+export async function adminRest<T = unknown>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  const key = serviceKey();
+  if (!key) throw new Error("Local Supabase is not running");
+  const res = await fetch(`http://127.0.0.1:54321/rest/v1/${path}`, {
+    method: init.method ?? "GET",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation" },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  if (!res.ok) throw new Error(`${init.method ?? "GET"} ${path}: ${res.status} ${await res.text()}`);
+  return (await res.json()) as T;
 }

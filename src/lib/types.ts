@@ -295,3 +295,16 @@ export interface TaskEvent {
   newValue: string | null;
   createdAt: string;
 }
+
+/** A student flagged by the daily falling-behind check (instructor view). `resolvedAt` set = recovered. */
+export interface AtRiskStudent {
+  teamId: string;
+  teamName: string;
+  courseCode: string;
+  userId: string;
+  name: string;
+  reasons: string[];
+  flaggedAt: string;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+}

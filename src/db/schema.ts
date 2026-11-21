@@ -244,6 +244,15 @@ export const standupSummaries = pgTable("standup_summaries", {
   generatedAt: ts("generated_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.teamId, t.weekStart] })]);
 
+export const fallingBehind = pgTable("falling_behind", {
+  teamId: uuid("team_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  reasons: text("reasons").array().notNull(),
+  flaggedAt: ts("flagged_at").notNull().defaultNow(),
+  escalatedAt: ts("escalated_at"),
+  resolvedAt: ts("resolved_at"),
+}, (t) => [primaryKey({ columns: [t.teamId, t.userId] })]);
+
 export const submissions = pgTable("submissions", {
   teamId: uuid("team_id").notNull(),
   milestoneId: uuid("milestone_id").notNull(),

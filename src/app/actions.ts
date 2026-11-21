@@ -16,7 +16,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -966,6 +966,20 @@ export async function getConflicts(): Promise<ConflictAlert[]> {
       id: a.id, teamId: a.teamId, teamName, severity: a.severity, description: a.summary,
       sentimentScore: a.sentiment, isResolved: !!a.resolvedAt, createdAt: a.createdAt,
     }));
+  });
+}
+
+/** Students the falling-behind check flagged in my courses: open cases, and ones that recovered in the last 30 days. */
+export async function getAtRisk(): Promise<AtRiskStudent[]> {
+  return withUser(async (tx) => {
+    const rows = await tx.select({ f: s.fallingBehind, teamName: s.teams.name, courseCode: s.courses.code, name: s.users.name })
+      .from(s.fallingBehind) // RLS: only the team's instructor
+      .innerJoin(s.teams, eq(s.teams.id, s.fallingBehind.teamId))
+      .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId))
+      .innerJoin(s.users, eq(s.users.id, s.fallingBehind.userId))
+      .where(sql`${s.fallingBehind.resolvedAt} is null or ${s.fallingBehind.resolvedAt} > now() - interval '30 days'`)
+      .orderBy(desc(s.fallingBehind.flaggedAt));
+    return rows.map((r) => ({ ...r.f, teamName: r.teamName, courseCode: r.courseCode, name: r.name }));
   });
 }
 
