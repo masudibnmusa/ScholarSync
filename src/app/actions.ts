@@ -346,11 +346,18 @@ export async function getMilestones(courseId: string): Promise<Milestone[]> {
     const ms = await tx.select().from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId))
       .orderBy(asc(s.courseMilestones.dueDate), asc(s.courseMilestones.createdAt));
     if (!ms.length) return [];
-    // RLS shows a student only their own team's completions, and the instructor every team's.
-    const done = await tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.milestoneId, ms.map((m) => m.id)));
+    // RLS shows a student only their own team's completions and hand-ins, and the instructor every team's.
+    const ids = ms.map((m) => m.id);
+    const done = await tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.milestoneId, ids));
+    const subs = await tx.select({ sub: s.submissions, by: s.users.name }).from(s.submissions)
+      .leftJoin(s.users, eq(s.users.id, s.submissions.submittedBy)).where(inArray(s.submissions.milestoneId, ids));
     return ms.map((m) => ({
-      id: m.id, title: m.title, description: m.description, dueDate: m.dueDate,
+      id: m.id, title: m.title, description: m.description, dueDate: m.dueDate, requiresSubmission: m.requiresSubmission,
       completions: done.filter((d) => d.milestoneId === m.id).map((d) => ({ teamId: d.teamId, completedAt: d.completedAt })),
+      submissions: subs.filter((x) => x.sub.milestoneId === m.id).map(({ sub, by }) => ({
+        teamId: sub.teamId, link: sub.link, storagePath: sub.storagePath, fileName: sub.fileName, fileSize: sub.fileSize, note: sub.note,
+        submittedByName: by ?? "A teammate", submittedAt: sub.submittedAt, feedback: sub.feedback, feedbackAt: sub.feedbackAt,
+      })),
     }));
   });
 }
@@ -359,6 +366,7 @@ const MilestoneInput = z.object({
   title: z.string().trim().min(1, "Give the milestone a title").max(120),
   description: z.string().trim().max(1000),
   dueDate: z.iso.date(),
+  requiresSubmission: z.boolean().default(false),
 });
 
 export async function saveMilestone(courseId: string, input: z.input<typeof MilestoneInput>, id?: string) {
@@ -374,6 +382,13 @@ export async function saveMilestone(courseId: string, input: z.input<typeof Mile
 
 export async function deleteMilestone(id: string) {
   Id.parse(id);
+  // Remove the hand-in files first: the rows cascade away with the milestone, the stored files wouldn't.
+  const paths = await withUser((tx) => tx.select({ path: s.submissions.storagePath }).from(s.submissions)
+    .where(and(eq(s.submissions.milestoneId, id), isNotNull(s.submissions.storagePath))));
+  if (paths.length) {
+    const { error } = await (await supabaseServer()).storage.from("team-files").remove(paths.map((p) => p.path as string));
+    if (error) throw new Error(`Could not remove the hand-in files: ${error.message}`);
+  }
   await withUser((tx) => tx.delete(s.courseMilestones).where(eq(s.courseMilestones.id, id)));
 }
 
@@ -400,6 +415,44 @@ export async function postAnnouncement(courseId: string, input: z.input<typeof A
 export async function deleteAnnouncement(id: string) {
   Id.parse(id);
   await withUser((tx) => tx.delete(s.courseAnnouncements).where(eq(s.courseAnnouncements.id, id)));
+}
+
+const SubmissionInput = z.object({
+  link: z.url({ protocol: /^https?$/, message: "Use a web link starting with http:// or https://" }).max(2000).nullable(),
+  file: z.object({ path: z.string().max(500), name: z.string().trim().min(1).max(255), size: z.number().int().min(0) }).nullable(),
+  note: z.string().trim().max(2000),
+}).refine((v) => v.link || v.file, "Attach a file or add a link");
+
+/**
+ * Hands in (or replaces) my team's work for a milestone and marks the milestone done. The file is already in
+ * storage under the team's folder; returns the replaced file's path so the caller can remove it.
+ */
+export async function submitWork(teamId: string, milestoneId: string, input: z.input<typeof SubmissionInput>): Promise<string | null> {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  const v = SubmissionInput.parse(input);
+  if (v.file && !v.file.path.startsWith(`${teamId}/submissions/`)) throw new Error("Invalid file");
+  return withUser(async (tx) => {
+    const [old] = await tx.select({ path: s.submissions.storagePath }).from(s.submissions)
+      .where(and(eq(s.submissions.teamId, teamId), eq(s.submissions.milestoneId, milestoneId)));
+    const row = { link: v.link, storagePath: v.file?.path ?? null, fileName: v.file?.name ?? null, fileSize: v.file?.size ?? null, note: v.note };
+    // RLS checks team membership and that the milestone takes hand-ins; a trigger stamps who and when.
+    await tx.insert(s.submissions).values({ teamId, milestoneId, ...row })
+      .onConflictDoUpdate({ target: [s.submissions.teamId, s.submissions.milestoneId], set: { ...row, submittedAt: sql`now()` } });
+    await tx.insert(s.teamMilestones).values({ teamId, milestoneId }).onConflictDoNothing();
+    return old?.path && old.path !== row.storagePath ? old.path : null;
+  });
+}
+
+/** Instructor: written feedback on a team's hand-in. A trigger keeps the hand-in itself unchanged. */
+export async function saveSubmissionFeedback(teamId: string, milestoneId: string, feedback: string) {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  const text = z.string().trim().max(4000).parse(feedback);
+  const rows = await withUser((tx) => tx.update(s.submissions).set({ feedback: text })
+    .where(and(eq(s.submissions.teamId, teamId), eq(s.submissions.milestoneId, milestoneId), sql`public.teaches_team(${s.submissions.teamId})`))
+    .returning({ teamId: s.submissions.teamId }));
+  if (!rows.length) throw new Error("Submission not found or not your course");
 }
 
 export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {
@@ -890,8 +943,12 @@ export async function updateCourse(id: string, input: z.input<typeof CourseInput
  */
 async function removeTeamFiles(teamIds: string[]) {
   if (!teamIds.length) return;
-  const paths = await withUser((tx) =>
-    tx.select({ path: s.files.storagePath }).from(s.files).where(inArray(s.files.teamId, teamIds)));
+  const paths = await withUser(async (tx) => [
+    ...await tx.select({ path: s.files.storagePath }).from(s.files).where(inArray(s.files.teamId, teamIds)),
+    // Hand-in files live in the same bucket but aren't in the files table.
+    ...(await tx.select({ path: s.submissions.storagePath }).from(s.submissions).where(and(inArray(s.submissions.teamId, teamIds), isNotNull(s.submissions.storagePath))))
+      .map((r) => ({ path: r.path as string })),
+  ]);
   if (!paths.length) return;
   const sb = await supabaseServer();
   for (let i = 0; i < paths.length; i += 1000) { // Storage removes at most 1000 objects per call

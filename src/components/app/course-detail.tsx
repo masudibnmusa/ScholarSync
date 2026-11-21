@@ -259,7 +259,7 @@ export function CourseDetail({ id }: { id: string }) {
       </Stagger>
 
       {(canEdit || (!instructor && course.enrolled)) && <Announcements courseId={course.id} canPost={canEdit} />}
-      {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} />}
+      {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} readOnly={archived} />}
       {canEdit && <GradingPanel courseId={course.id} />}
       {!instructor && course.enrolled && <MyGradeCard courseId={course.id} />}
 

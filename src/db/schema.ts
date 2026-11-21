@@ -195,6 +195,7 @@ export const courseMilestones = pgTable("course_milestones", {
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   dueDate: date("due_date").notNull(),
+  requiresSubmission: boolean("requires_submission").notNull().default(false),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
@@ -203,6 +204,21 @@ export const teamMilestones = pgTable("team_milestones", {
   milestoneId: uuid("milestone_id").notNull(),
   completedAt: ts("completed_at").notNull().defaultNow(),
   completedBy: uuid("completed_by"),
+}, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
+
+export const submissions = pgTable("submissions", {
+  teamId: uuid("team_id").notNull(),
+  milestoneId: uuid("milestone_id").notNull(),
+  link: text("link"),
+  storagePath: text("storage_path"),
+  fileName: text("file_name"),
+  fileSize: bigint("file_size", { mode: "number" }),
+  note: text("note").notNull().default(""),
+  submittedBy: uuid("submitted_by"),
+  submittedAt: ts("submitted_at").notNull().defaultNow(),
+  feedback: text("feedback").notNull().default(""),
+  feedbackBy: uuid("feedback_by"),
+  feedbackAt: ts("feedback_at"),
 }, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
 
 export const rubricCriteria = pgTable("rubric_criteria", {

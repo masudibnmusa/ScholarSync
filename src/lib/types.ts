@@ -47,8 +47,25 @@ export interface Milestone {
   title: string;
   description: string;
   dueDate: string;
+  /** Teams hand in work (a file or link) for this milestone. */
+  requiresSubmission: boolean;
   /** Teams (that the viewer can see) which marked this milestone done. */
   completions: { teamId: string; completedAt: string }[];
+  /** Hand-ins the viewer can see: every team's for the instructor, their own team's for a student. */
+  submissions: Submission[];
+}
+
+export interface Submission {
+  teamId: string;
+  link: string | null;
+  storagePath: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  note: string;
+  submittedByName: string;
+  submittedAt: string;
+  feedback: string;
+  feedbackAt: string | null;
 }
 
 export interface RubricCriterion {

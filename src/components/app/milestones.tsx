@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck, Check, CheckCircle, DotsThree, Flag, PencilSimple, Plus, Trash } from "@phosphor-icons/react/dist/ssr";
+import { CalendarCheck, Check, CheckCircle, Clock, DotsThree, Flag, PencilSimple, Plus, Trash, Tray, UploadSimple } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { deleteMilestone, getMilestones, saveMilestone, setMilestoneDone } from "@/app/actions";
 import { cn, dueInfo, toneText } from "@/lib/utils";
 import type { Milestone, Team } from "@/lib/types";
+import { HandInDialog, isLate, SubmissionSummary, SubmissionsReview } from "@/components/app/submissions";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ function DateBlock({ date }: { date: string }) {
 function MilestoneDialog({ courseId, milestone, open, onOpenChange, onSaved }: {
   courseId: string; milestone: Milestone | null; open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void;
 }) {
-  const [form, setForm] = React.useState({ title: milestone?.title ?? "", description: milestone?.description ?? "", dueDate: milestone?.dueDate ?? "" });
+  const [form, setForm] = React.useState({ title: milestone?.title ?? "", description: milestone?.description ?? "", dueDate: milestone?.dueDate ?? "", requiresSubmission: milestone?.requiresSubmission ?? false });
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -83,6 +84,13 @@ function MilestoneDialog({ courseId, milestone, open, onOpenChange, onSaved }: {
             <Textarea id="ms-desc" value={form.description} maxLength={1000} placeholder="e.g. Two pages: problem, users, planned features."
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </Field>
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-colors hover:bg-accent/50">
+            <input type="checkbox" checked={form.requiresSubmission} onChange={(e) => setForm({ ...form, requiresSubmission: e.target.checked })} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+            <span>
+              <span className="block text-sm font-bold">Teams hand in work</span>
+              <span className="block text-xs text-muted-foreground">Each team uploads a file or shares a link. Late hand-ins are flagged, and you can leave feedback.</span>
+            </span>
+          </label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" loading={saving}>{milestone ? "Save changes" : "Add milestone"}</Button>
@@ -94,11 +102,14 @@ function MilestoneDialog({ courseId, milestone, open, onOpenChange, onSaved }: {
 }
 
 /** Course milestones. Instructors manage them and see every team's status; a student marks their own team's. */
-export function Milestones({ courseId, teams, instructor, canEdit }: { courseId: string; teams: Team[]; instructor: boolean; canEdit: boolean }) {
+export function Milestones({ courseId, teams, instructor, canEdit, readOnly = false }: { courseId: string; teams: Team[]; instructor: boolean; canEdit: boolean; readOnly?: boolean }) {
   const [items, setItems] = React.useState<Milestone[] | null>(null);
   const [editing, setEditing] = React.useState<Milestone | null | undefined>(undefined); // undefined = closed, null = new
   const [deleting, setDeleting] = React.useState<Milestone | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [handingIn, setHandingIn] = React.useState<Milestone | null>(null);
+  const [reviewingId, setReviewingId] = React.useState<string | null>(null);
+  const reviewing = items?.find((m) => m.id === reviewingId) ?? null; // follows reloads, so saved feedback shows
   const myTeam = instructor ? null : teams[0] ?? null;
 
   const load = React.useCallback(() => getMilestones(courseId).then(setItems).catch((err) => {
@@ -159,14 +170,35 @@ export function Milestones({ courseId, teams, instructor, canEdit }: { courseId:
             const due = dueInfo(m.dueDate);
             const doneCount = teams.filter((t) => statusOf(m, t.id) === "done").length;
             const mine = myTeam ? statusOf(m, myTeam.id) : null;
+            const mySub = myTeam ? m.submissions.find((x) => x.teamId === myTeam.id) ?? null : null;
+            const overdue = m.dueDate < today();
             return (
               <li key={m.id} className="flex flex-wrap items-start gap-x-4 gap-y-3 py-4 first:pt-0 last:pb-0">
                 <DateBlock date={m.dueDate} />
                 <div className="min-w-0 flex-1 basis-56">
-                  <p className="font-bold">{m.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-bold">
+                    {m.title}
+                    {m.requiresSubmission && <span className="inline-flex items-center gap-1 rounded-full bg-peach px-2 py-0.5 text-[0.6875rem] font-bold text-warm-text"><Tray weight="fill" className="size-3" aria-hidden />Hand-in</span>}
+                  </p>
                   {m.description && <p className="mt-0.5 whitespace-pre-line text-sm text-muted-foreground">{m.description}</p>}
                   {due && mine !== "done" && <p className={cn("mt-1 text-xs font-semibold", toneText[due.tone])}>{due.label}</p>}
-                  {instructor && teams.length > 0 && (
+                  {mySub && <div className="mt-3"><SubmissionSummary sub={mySub} dueDate={m.dueDate} /></div>}
+                  {instructor && teams.length > 0 && m.requiresSubmission && (
+                    <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label={`Hand-ins for ${m.title}`}>
+                      {teams.map((t) => {
+                        const x = m.submissions.find((y) => y.teamId === t.id);
+                        const late = x && isLate(x.submittedAt, m.dueDate);
+                        const label = x ? (late ? "Handed in late" : "Handed in") : overdue ? "Missing" : "Not yet";
+                        return (
+                          <li key={t.id} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
+                            x ? (late ? "bg-butter text-warning" : "bg-sage text-success") : overdue ? "bg-rose text-destructive" : "bg-muted text-muted-foreground")}>
+                            {x && (late ? <Clock weight="bold" className="size-3" aria-hidden /> : <Check weight="bold" className="size-3" aria-hidden />)}{t.name}<span className="sr-only">: {label}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {instructor && teams.length > 0 && !m.requiresSubmission && (
                     <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label={`Team status for ${m.title}`}>
                       {teams.map((t) => {
                         const st = statusOf(m, t.id);
@@ -180,10 +212,19 @@ export function Milestones({ courseId, teams, instructor, canEdit }: { courseId:
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {instructor && teams.length > 0 && (
+                  {instructor && teams.length > 0 && (m.requiresSubmission ? (
+                    <Button size="sm" variant="outline" onClick={() => setReviewingId(m.id)}>
+                      <Tray aria-hidden /> Review <span className="tabular-nums text-muted-foreground">{m.submissions.length}/{teams.length}</span>
+                    </Button>
+                  ) : (
                     <span className="text-sm font-bold tabular-nums">{doneCount}/{teams.length}<span className="ml-1 text-xs font-medium text-muted-foreground">done</span></span>
+                  ))}
+                  {myTeam && m.requiresSubmission && !readOnly && (
+                    <Button size="sm" variant={mySub ? "outline" : "default"} onClick={() => setHandingIn(m)}>
+                      <UploadSimple aria-hidden /> {mySub ? "New version" : "Hand in"}
+                    </Button>
                   )}
-                  {myTeam && (mine === "done" ? (
+                  {myTeam && !m.requiresSubmission && !readOnly && (mine === "done" ? (
                     <Tooltip label="Mark as not done">
                       <Button size="sm" variant="secondary" className="bg-sage text-success hover:bg-sage/80" loading={busy === m.id} onClick={() => toggle(m, false)}>
                         {busy !== m.id && <CheckCircle weight="fill" aria-hidden />} Done
@@ -210,6 +251,13 @@ export function Milestones({ courseId, teams, instructor, canEdit }: { courseId:
         </ol>
       )}
 
+      {myTeam && handingIn && (
+        <HandInDialog key={handingIn.id} team={myTeam} milestone={handingIn} current={handingIn.submissions.find((x) => x.teamId === myTeam.id) ?? null}
+          open onOpenChange={(o) => { if (!o) setHandingIn(null); }} onDone={load} />
+      )}
+      {instructor && reviewing && (
+        <SubmissionsReview milestone={reviewing} teams={teams} open onOpenChange={(o) => { if (!o) setReviewingId(null); }} onChanged={load} />
+      )}
       {canEdit && editing !== undefined && (
         <MilestoneDialog key={editing?.id ?? "new"} courseId={courseId} milestone={editing} open onOpenChange={(o) => { if (!o) setEditing(undefined); }} onSaved={load} />
       )}
