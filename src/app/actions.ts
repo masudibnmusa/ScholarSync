@@ -79,7 +79,7 @@ export async function sendSampleDigest(): Promise<number> {
 
 export async function getTeams(): Promise<Team[]> {
   return withUser(async (tx) => {
-    const rows = await tx.select({ t: s.teams, courseCode: s.courses.code }).from(s.teams)
+    const rows = await tx.select({ t: s.teams, courseCode: s.courses.code, archivedAt: s.courses.archivedAt }).from(s.teams)
       .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId)).orderBy(asc(s.teams.name));
     if (!rows.length) return [];
     const ids = rows.map((r) => r.t.id);
@@ -100,13 +100,14 @@ export async function getTeams(): Promise<Team[]> {
       .where(inArray(s.messages.teamId, ids))
       .groupBy(s.messages.teamId);
 
-    return rows.map(({ t, courseCode }) => {
+    return rows.map(({ t, courseCode, archivedAt }) => {
       const p = progress.find((x) => x.teamId === t.id);
       const done = p?.doneTasks ?? 0;
       return {
         id: t.id,
         courseId: t.courseId,
         courseCode,
+        courseArchived: !!archivedAt,
         name: t.name,
         description: t.description,
         healthScore: t.healthScore ?? 100, // no AI assessment yet: nothing flagged
@@ -854,6 +855,8 @@ export async function getCourses(): Promise<Course[]> {
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
         students: isMine ? roster.map((e) => ({ id: e.userId, name: e.name })) : [],
         joinCode: isMine ? c.joinCode : null,
+        joiningOpen: c.joiningOpen,
+        archivedAt: c.archivedAt ? new Date(c.archivedAt).toISOString() : null,
       };
     });
   });
@@ -908,6 +911,53 @@ export async function deleteCourse(id: string) {
   await withUser((tx) => tx.delete(s.courses).where(eq(s.courses.id, id)));
 }
 
+export type EnrollOutcome = { email: string; outcome: "added" | "already" | "no_account" | "not_student" };
+const Emails = z.array(z.string().trim().toLowerCase().pipe(z.email())).min(1).max(200);
+
+/** Enrolls existing student accounts by email; reports per address. Unknown addresses are left for the invite link. */
+export async function enrollStudents(courseId: string, emails: string[]): Promise<EnrollOutcome[]> {
+  Id.parse(courseId);
+  const list = Emails.parse(emails);
+  const rows = await withUser((tx) => tx.execute<{ address: string; outcome: EnrollOutcome["outcome"] }>(
+    sql`select address, outcome from public.enroll_students(${courseId}, array[${sql.join(list.map((e) => sql`${e}`), sql`, `)}]::text[])`));
+  return [...rows].map((r) => ({ email: r.address, outcome: r.outcome }));
+}
+
+/** Takes a student out of my course; a trigger also takes them off its teams. */
+export async function removeStudent(courseId: string, userId: string) {
+  Id.parse(courseId);
+  Id.parse(userId);
+  const rows = await withUser((tx) => tx.delete(s.courseEnrollments)
+    .where(and(eq(s.courseEnrollments.courseId, courseId), eq(s.courseEnrollments.userId, userId)))
+    .returning({ id: s.courseEnrollments.userId }));
+  if (!rows.length) throw new Error("Student not found in your course");
+}
+
+/** A new invite code; the old link and code stop working. */
+export async function resetJoinCode(courseId: string): Promise<string> {
+  Id.parse(courseId);
+  const [row] = await withUser((tx) => tx.update(s.courses).set({ joinCode: sql`public.new_join_code()` })
+    .where(eq(s.courses.id, courseId)).returning({ code: s.courses.joinCode }));
+  if (!row) throw new Error("Course not found or not yours");
+  return row.code;
+}
+
+export async function setJoiningOpen(courseId: string, open: boolean) {
+  Id.parse(courseId);
+  z.boolean().parse(open);
+  const rows = await withUser((tx) => tx.update(s.courses).set({ joiningOpen: open }).where(eq(s.courses.id, courseId)).returning({ id: s.courses.id }));
+  if (!rows.length) throw new Error("Course not found or not yours");
+}
+
+/** Archive at term end (read-only for everyone; grading still works) or restore. */
+export async function setCourseArchived(courseId: string, archived: boolean) {
+  Id.parse(courseId);
+  z.boolean().parse(archived);
+  const rows = await withUser((tx) => tx.update(s.courses).set({ archivedAt: archived ? sql`now()` : null })
+    .where(eq(s.courses.id, courseId)).returning({ id: s.courses.id }));
+  if (!rows.length) throw new Error("Course not found or not yours");
+}
+
 export async function deleteTeam(id: string) {
   Id.parse(id);
   await withUser(async (tx, uid) => {
@@ -921,9 +971,20 @@ export async function deleteTeam(id: string) {
   await withUser((tx) => tx.delete(s.teams).where(eq(s.teams.id, id)));
 }
 
+/** RLS (enroll_self_insert) enforces the same; this only turns its refusal into a message a student understands. */
+async function assertJoinable(tx: Parameters<Parameters<typeof withUser>[0]>[0], courseId: string) {
+  const [c] = await tx.select({ open: s.courses.joiningOpen, archivedAt: s.courses.archivedAt }).from(s.courses).where(eq(s.courses.id, courseId));
+  if (!c) throw new Error("Course not found");
+  if (c.archivedAt) throw new Error("This course has ended and is archived");
+  if (!c.open) throw new Error("This course isn't accepting new students. Ask your instructor to add you.");
+}
+
 export async function joinCourse(id: string) {
   Id.parse(id);
-  await withUser((tx, uid) => tx.insert(s.courseEnrollments).values({ courseId: id, userId: uid }).onConflictDoNothing());
+  await withUser(async (tx, uid) => {
+    await assertJoinable(tx, id);
+    await tx.insert(s.courseEnrollments).values({ courseId: id, userId: uid }).onConflictDoNothing();
+  });
 }
 
 // Invite codes are typed by hand too: ignore case, spaces and dashes.
@@ -941,7 +1002,7 @@ export async function getInvite(code: string): Promise<CourseInvite | null> {
       .where(and(eq(s.courseEnrollments.courseId, row.c.id), eq(s.courseEnrollments.userId, uid)));
     return {
       id: row.c.id, code: row.c.code, title: row.c.title, term: row.c.term, instructorName: row.instructorName ?? "Instructor",
-      enrolled: !!enrolled, isMine: row.c.instructorId === uid,
+      enrolled: !!enrolled, isMine: row.c.instructorId === uid, open: row.c.joiningOpen && !row.c.archivedAt,
     };
   });
 }
@@ -952,6 +1013,7 @@ export async function joinCourseByCode(code: string): Promise<string> {
   return withUser(async (tx, uid) => {
     const [course] = await tx.select({ id: s.courses.id }).from(s.courses).where(eq(s.courses.joinCode, joinCode));
     if (!course) throw new Error("No course has that invite code");
+    await assertJoinable(tx, course.id);
     await tx.insert(s.courseEnrollments).values({ courseId: course.id, userId: uid }).onConflictDoNothing();
     return course.id;
   });
@@ -965,14 +1027,14 @@ export async function leaveCourse(id: string) {
 
 // ─── Team editing (instructors) ────────────────────────────────────────
 
-export type RosterStudent = { id: string; name: string; skills: string[]; teamId: string | null; teamName: string | null };
+export type RosterStudent = { id: string; name: string; email: string; skills: string[]; teamId: string | null; teamName: string | null };
 
 /** Everyone enrolled in a course, with the team each one is on (if any). RLS limits this to the course's instructor. */
 export async function getCourseRoster(courseId: string): Promise<RosterStudent[]> {
   Id.parse(courseId);
   return withUser(async (tx) => {
     const students = await tx
-      .select({ id: s.users.id, name: s.users.name, skills: s.users.skills })
+      .select({ id: s.users.id, name: s.users.name, email: s.users.email, skills: s.users.skills })
       .from(s.courseEnrollments)
       .innerJoin(s.users, eq(s.users.id, s.courseEnrollments.userId))
       .where(eq(s.courseEnrollments.courseId, courseId))
@@ -994,6 +1056,24 @@ const TeamEdit = z.object({
   description: z.string().trim().max(500),
   memberIds: z.array(Id).min(1).max(20),
 });
+
+/** Creates a team in my course with these members. A student already on another team of the course moves over. */
+export async function createTeam(courseId: string, input: z.infer<typeof TeamEdit>) {
+  Id.parse(courseId);
+  const t = TeamEdit.parse(input);
+  const ids = [...new Set(t.memberIds)];
+  return withUser(async (tx) => {
+    const enrolled = await tx.select({ id: s.courseEnrollments.userId }).from(s.courseEnrollments)
+      .where(and(eq(s.courseEnrollments.courseId, courseId), inArray(s.courseEnrollments.userId, ids)));
+    if (enrolled.length !== ids.length) throw new Error("Every member must be enrolled in the course");
+    // RLS (teams_write) rejects this unless the caller teaches the course.
+    const [team] = await tx.insert(s.teams).values({ courseId, name: t.name, description: t.description }).returning({ id: s.teams.id });
+    const courseTeams = tx.select({ id: s.teams.id }).from(s.teams).where(eq(s.teams.courseId, courseId));
+    await tx.delete(s.teamMembers).where(and(inArray(s.teamMembers.teamId, courseTeams), inArray(s.teamMembers.userId, ids), ne(s.teamMembers.teamId, team.id)));
+    await tx.insert(s.teamMembers).values(ids.map((userId) => ({ teamId: team.id, userId })));
+    return team.id;
+  });
+}
 
 /** Renames a team and sets its exact member list. A student moved in from another team of the same course leaves that team. */
 export async function updateTeam(teamId: string, input: z.infer<typeof TeamEdit>) {

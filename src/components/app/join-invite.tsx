@@ -26,7 +26,7 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
       router.replace(`/student/courses/${id}`);
     } catch (err) {
       console.error("Joining by invite failed:", err);
-      toast.error("Could not join the course");
+      toast.error("Could not join the course", { description: err instanceof Error ? err.message : undefined });
       setJoining(false);
     }
   }
@@ -61,6 +61,8 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
               <><p className="w-full text-sm text-muted-foreground">Invite links are for students. Instructors can browse the course from the dashboard.</p><Button asChild variant="outline"><Link href={home}>Back to dashboard</Link></Button></>
             ) : invite.enrolled ? (
               <><p className="w-full text-sm text-muted-foreground">You&apos;re already in this course.</p>{open}</>
+            ) : !invite.open ? (
+              <><p className="w-full text-sm text-muted-foreground">This course isn&apos;t accepting new students right now. Ask your instructor to add you.</p><Button asChild variant="outline"><Link href={home}>Go to your courses</Link></Button></>
             ) : (
               <Button size="lg" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} Join course</Button>
             )}

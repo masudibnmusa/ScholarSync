@@ -212,11 +212,12 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 | A new `e2e-<time>-<random>@university.edu` account per test | Sign-up and profile photo tests, so no real photo is replaced or removed |
 | [`tests/e2e/fixtures/photo.png`](tests/e2e/fixtures/photo.png) (600 × 360, four coloured quarters) | A wide photo to crop into a square |
 | A generated `notes.txt` (`text/plain`) | Checks that non-images are refused |
+| A throwaway course `E2E-<time>` with two new students | The course management test; it deletes the course itself, and the teardown removes any `E2E-` course left by a failed run |
 | Wrong password `not-the-password` | The sign-in error message |
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 21 of 21 passed in 33 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
+**Latest run:** 22 of 22 passed in 43 s (2026-11-22, Chromium, 1440 × 900, local Supabase with the seed).
 
 | Area | Test | Result |
 |---|---|---|
@@ -236,6 +237,7 @@ All seed accounts use the password `password123`.
 | | Ctrl+K opens the command menu | ✅ Pass |
 | Profile photo | Crop, save, replace and remove a photo (saved at 512 × 512; cancel keeps the old one) | ✅ Pass |
 | | A file that isn't an image is refused | ✅ Pass |
+| Course management | Create a course, add students by email (added / no account / not a student / typo caught), create a team by hand, turn joining off and reset the code, archive (read-only for instructor and team), restore, remove a student, delete | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
 | | AI team matching page opens | ✅ Pass |
@@ -269,6 +271,7 @@ Where the code differs from the diagram, and why:
 - **Events come from the Server Action.** `sendMessage` sends the Inngest event after the insert, instead of a database webhook. If Inngest is unreachable the message is still saved and extraction is skipped.
 - **Team matching runs in the request.** The instructor waits for the result, so `runTeamMatching` calls Gemini directly; Gemini only proposes (never a team under 2 students), and teams are created when the instructor approves.
 - **Instructors can join team chat.** They post and attach files as themselves (marked "Instructor"), and every team member is notified. Once an instructor has posted in a team's chat, student replies notify them too, with at most one unread reply notification per team so a busy chat doesn't flood them. The Files tab stays read-only for instructors; files they attach in chat appear there. Chat and Files share one popup, opened from a floating button in the bottom-right corner of each workspace (full screen on phones) that shows an unread count; `?view=chat` and `?view=files` open it. Instructors see a team's conflict alerts in a dropdown next to its health badge. Anyone can attach a file by dropping it on the thread.
+- **Archived courses are read-only in the database.** One trigger on the tables of team work and membership (`0021_course_management.sql`) rejects changes from signed-in users once a course is archived; grading, announcements and the course itself stay editable, and admin work and background jobs pass. Self-join checks `joining_open`, and instructors add students by email through `enroll_students()`, which only reports per address whether it worked.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
@@ -280,7 +283,7 @@ Where the code differs from the diagram, and why:
 4. ✅ Analytics and conflicts on the SQL views
 5. ✅ AI jobs: task extraction, team health, team matching
 6. ✅ `/student/*` and `/instructor/*` routes (next: move first-load data into Server Components)
-7. Course management UI (courses and enrollments are seeded or added in SQL today)
+7. ✅ Course management: create and edit courses, invite link with joining on/off and code reset, add students by email, remove students, create teams by hand, archive (read-only) and restore
 
 ## License
 

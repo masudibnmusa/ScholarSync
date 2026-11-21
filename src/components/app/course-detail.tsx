@@ -4,14 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, CheckCircle, DownloadSimple, Info, Lightbulb, ListChecks, PencilSimple, SignIn, Sparkle, Target, UsersThree,
+  Archive, ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, CheckCircle, DotsThree, DownloadSimple, Info, Lightbulb, ListChecks, Lock, PencilSimple, SignIn, Sparkle, Target, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { exportCourseReport, getCourses, joinCourse } from "@/app/actions";
+import { exportCourseReport, getCourses, joinCourse, setCourseArchived } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
+import { CourseStudents } from "@/components/app/course-students";
 import { GradingPanel, MyGradeCard } from "@/components/app/grading";
 import { InviteButton } from "@/components/app/invite";
 import { Milestones } from "@/components/app/milestones";
@@ -19,11 +20,13 @@ import { Announcements } from "@/components/app/announcements";
 import { EmptyState, Page, StatCard } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { HealthBadge } from "@/components/instructor/charts";
-import { EditTeamButton } from "@/components/instructor/edit-team";
+import { EditTeamButton, NewTeamButton } from "@/components/instructor/edit-team";
+import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { AvatarStack } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,6 +96,21 @@ export function CourseDetail({ id }: { id: string }) {
   const [editing, setEditing] = React.useState(false);
   const [joining, setJoining] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
+  const [archiving, setArchiving] = React.useState<"archive" | "restore" | null>(null);
+
+  async function setArchived(archived: boolean) {
+    if (!course) return;
+    try {
+      await setCourseArchived(course.id, archived);
+      toast.success(archived ? `${course.code} archived` : `${course.code} restored`, {
+        description: archived ? "It's read-only now. Grading still works." : "Teams can work in it again.",
+      });
+      await Promise.all([load(), fetchTeams()]);
+    } catch (err) {
+      console.error("Archive failed:", err);
+      toast.error(archived ? "Could not archive the course" : "Could not restore the course");
+    }
+  }
 
   async function exportReport() {
     if (!course) return;
@@ -116,7 +134,9 @@ export function CourseDetail({ id }: { id: string }) {
     console.error("Loading course failed:", err);
     setCourse(null);
   }), [id]);
-  React.useEffect(() => { load(); }, [load]);
+  // Team edits elsewhere on the page (new team, edit, delete) change the counts and roster: reload when they do.
+  const teamsSignature = useAppStore((s) => s.teams.filter((t) => t.courseId === id).map((t) => `${t.id}:${t.name}:${t.members.map((m) => m.userId).join(",")}`).join("|"));
+  React.useEffect(() => { load(); }, [load, teamsSignature]);
 
   async function join() {
     if (!course) return;
@@ -127,7 +147,7 @@ export function CourseDetail({ id }: { id: string }) {
       await Promise.all([load(), fetchTeams()]);
     } catch (err) {
       console.error("Join failed:", err);
-      toast.error("Could not join the course");
+      toast.error("Could not join the course", { description: err instanceof Error ? err.message : undefined });
     }
     setJoining(false);
   }
@@ -160,6 +180,8 @@ export function CourseDetail({ id }: { id: string }) {
 
   const accent = accentOf(course.code);
   const canEdit = instructor && course.isMine;
+  const archived = !!course.archivedAt;
+  const canManage = canEdit && !archived; // people and teams; an archived course is read-only
   // RLS limits teams to what the viewer may see: all of them for the course's instructor, their own for a student.
   const teams = allTeams.filter((t) => t.courseId === course.id);
   const avgProgress = teams.length ? Math.round(teams.reduce((n, t) => n + t.progress, 0) / teams.length) : 0;
@@ -181,6 +203,7 @@ export function CourseDetail({ id }: { id: string }) {
               <span className="rounded-lg bg-glass-strong px-2.5 py-1 font-mono text-xs font-bold tracking-wide">{course.code}</span>
               <span className="rounded-full bg-glass px-2.5 py-0.5 text-xs font-semibold">{course.term}</span>
               {!instructor && course.enrolled && <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">Enrolled</span>}
+              {archived && <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-0.5 text-xs font-bold text-background"><Archive weight="fill" className="size-3" aria-hidden />Archived</span>}
             </div>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{course.title}</h1>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-foreground/75">
@@ -188,16 +211,41 @@ export function CourseDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canEdit && course.joinCode && <InviteButton code={course.joinCode} courseCode={course.code} />}
+            {canManage && course.joinCode && <InviteButton courseId={course.id} code={course.joinCode} courseCode={course.code} joiningOpen={course.joiningOpen} onChanged={load} />}
             {canEdit && <Button variant="secondary" loading={exporting} onClick={exportReport}>{!exporting && <DownloadSimple aria-hidden />} Export report</Button>}
             {canEdit && <Button variant="secondary" onClick={() => setEditing(true)}><PencilSimple aria-hidden /> Edit course</Button>}
-            {canEdit && course.unplaced >= 2 && (
+            {canManage && course.unplaced >= 2 && (
               <Button asChild variant="warm"><Link href={`/instructor/matching?course=${course.id}`}><Sparkle weight="fill" aria-hidden /> Match teams with AI</Link></Button>
             )}
-            {!instructor && !course.enrolled && <Button variant="secondary" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} Join course</Button>}
+            {canEdit && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="icon" aria-label={`More actions for ${course.code}`}><DotsThree weight="bold" aria-hidden /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {archived
+                    ? <DropdownMenuItem onSelect={() => setArchiving("restore")}><ArrowCounterClockwise aria-hidden /> Restore course</DropdownMenuItem>
+                    : <DropdownMenuItem onSelect={() => setArchiving("archive")}><Archive aria-hidden /> Archive course</DropdownMenuItem>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {!instructor && !course.enrolled && (course.joiningOpen && !archived
+              ? <Button variant="secondary" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} Join course</Button>
+              : <span className="inline-flex items-center gap-1.5 rounded-xl bg-glass-strong px-3 py-2 text-sm font-semibold"><Lock aria-hidden className="size-4" />{archived ? "This course has ended" : "Not accepting new students"}</span>)}
           </div>
         </div>
       </motion.header>
+
+      {archived && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed bg-muted/50 px-4 py-3 text-sm">
+          <Lock weight="duotone" className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <p className="min-w-0 flex-1">
+            <strong>Archived on {new Date(course.archivedAt!).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}.</strong>{" "}
+            {canEdit ? "Teams can still read their work, but nobody can change it. Grading still works." : "You can still read your team's work, but it can't be changed."}
+          </p>
+          {canEdit && <Button size="sm" variant="outline" onClick={() => setArchiving("restore")}><ArrowCounterClockwise aria-hidden /> Restore</Button>}
+        </div>
+      )}
 
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <StaggerItem><StatCard compact icon={UsersThree} label="Students" value={course.studentCount} tone="info" /></StaggerItem>
@@ -224,14 +272,17 @@ export function CourseDetail({ id }: { id: string }) {
 
         <section aria-labelledby="teams-title" className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 id="teams-title" className="text-lg font-extrabold">{instructor ? "Teams" : "Your team"}</h2>
-            {teams.length > 0 && <Badge variant="muted">{teams.length}</Badge>}
+            <div className="flex items-center gap-2">
+              <h2 id="teams-title" className="text-lg font-extrabold">{instructor ? "Teams" : "Your team"}</h2>
+              {teams.length > 0 && <Badge variant="muted">{teams.length}</Badge>}
+            </div>
+            {canManage && <NewTeamButton courseId={course.id} courseCode={course.code} />}
           </div>
           {!teamsLoaded ? (
             <Skeleton className="h-40 rounded-3xl" />
           ) : teams.length ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              {teams.map((t) => <TeamCard key={t.id} team={t} editable={canEdit} href={`/${user.role}/courses/${course.id}/teams/${t.id}`} />)}
+              {teams.map((t) => <TeamCard key={t.id} team={t} editable={canManage} href={`/${user.role}/courses/${course.id}/teams/${t.id}`} />)}
             </div>
           ) : (
             <Card className="border-dashed bg-transparent shadow-none">
@@ -239,12 +290,22 @@ export function CourseDetail({ id }: { id: string }) {
                 description={instructor
                   ? course.unplaced >= 2 ? "Let AI group the enrolled students into balanced teams." : "Teams appear here once students join and are matched."
                   : course.enrolled ? "Your instructor hasn't matched you into a team yet." : "Join the course to be matched into a team."}>
-                {canEdit && course.unplaced >= 2 && <Button asChild variant="warm"><Link href={`/instructor/matching?course=${course.id}`}><Sparkle weight="fill" aria-hidden /> Match teams</Link></Button>}
+                {canManage && course.unplaced >= 2 && <Button asChild variant="warm"><Link href={`/instructor/matching?course=${course.id}`}><Sparkle weight="fill" aria-hidden /> Match teams</Link></Button>}
               </EmptyState>
             </Card>
           )}
         </section>
       </div>
+
+      {canEdit && <CourseStudents course={course} readOnly={archived} onChanged={() => { load(); fetchTeams(); }} />}
+
+      <ConfirmDialog open={!!archiving} onOpenChange={(o) => !o && setArchiving(null)} destructive={archiving === "archive"}
+        title={archiving === "archive" ? `Archive ${course.code}?` : `Restore ${course.code}?`}
+        confirmLabel={archiving === "archive" ? "Archive course" : "Restore course"}
+        description={archiving === "archive"
+          ? "Use this when the term is over. Everything becomes read-only: teams keep access to their tasks, chat and files but can't change them, nobody can join, and you can't change students or teams. Grading still works. You can restore it any time."
+          : "Teams can work in it again, and you can manage students and teams."}
+        onConfirm={() => { if (archiving) setArchived(archiving === "archive"); setArchiving(null); }} />
 
       {canEdit && <CourseDialog key={`${course.id}-${editing}`} course={course} open={editing} onOpenChange={setEditing} onSaved={load} />}
     </Page>

@@ -37,6 +37,8 @@ export const courses = pgTable("courses", {
   rationale: text("rationale").notNull().default(""),
   gradesReleased: boolean("grades_released").notNull().default(false),
   joinCode: text("join_code").notNull().default(sql`public.new_join_code()`),
+  joiningOpen: boolean("joining_open").notNull().default(true),
+  archivedAt: ts("archived_at"),
   instructorId: uuid("instructor_id").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

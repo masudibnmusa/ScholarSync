@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  CaretUpDown, Check, CheckCircle, MagnifyingGlass, Plus, Target,
+  CaretUpDown, Check, CheckCircle, Lock, MagnifyingGlass, Plus, Target,
 } from "@phosphor-icons/react/dist/ssr";
 import { useAppStore } from "@/lib/store";
 import { cn, dueInfo, firstName, toneText } from "@/lib/utils";
@@ -162,9 +162,15 @@ export function StudentWorkspace() {
           <MeetingButton team={team} />
           <WeeklyRecapButton team={team} />
           <AiSuggestionsButton />
-          <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>
+          {!team.courseArchived && <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>}
         </div>
       </header>
+      {team.courseArchived && (
+        <p role="status" className="flex shrink-0 items-center gap-2 border-b bg-muted/60 px-4 py-2 text-sm lg:px-6">
+          <Lock weight="duotone" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span><strong>{team.courseCode} is archived.</strong> You can read your team's tasks, chat and files, but they can't be changed.</span>
+        </p>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* Board */}

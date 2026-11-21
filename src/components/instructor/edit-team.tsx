@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowsLeftRight, MagnifyingGlass, PencilSimple, Trash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, MagnifyingGlass, PencilSimple, Plus, Trash } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { deleteTeam, getCourseRoster, updateTeam, type RosterStudent } from "@/app/actions";
+import { createTeam, deleteTeam, getCourseRoster, updateTeam, type RosterStudent } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/lib/types";
@@ -15,8 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Rename a team, change its description, and pick its members from everyone enrolled in the course. */
-function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
+/** Create a team (no `team`), or rename one, change its description, and pick its members from everyone enrolled in the course. */
+function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; courseId: string; courseCode: string; onDone: () => void }) {
   const fetchTeams = useAppStore((s) => s.fetchTeams);
   const selectedId = useAppStore((s) => s.selectedTeam?.id);
   const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
@@ -24,21 +24,21 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
   const pathname = usePathname();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
-  const [name, setName] = React.useState(team.name);
-  const [description, setDescription] = React.useState(team.description);
-  const [members, setMembers] = React.useState(() => new Set(team.members.map((m) => m.userId)));
+  const [name, setName] = React.useState(team?.name ?? "");
+  const [description, setDescription] = React.useState(team?.description ?? "");
+  const [members, setMembers] = React.useState(() => new Set(team?.members.map((m) => m.userId)));
   const [roster, setRoster] = React.useState<RosterStudent[] | null>(null);
   const [query, setQuery] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
-    getCourseRoster(team.courseId).then(setRoster, (err) => {
+    getCourseRoster(courseId).then(setRoster, (err) => {
       console.error("Loading roster failed:", err);
       setRoster([]);
       setError("Could not load the course's students.");
     });
-  }, [team.courseId]);
+  }, [courseId]);
 
   const toggle = (id: string) => setMembers((m) => {
     const next = new Set(m);
@@ -46,13 +46,14 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
     return next;
   });
 
-  // This team's members first, then everyone else by name. Sorted by who was on the team at open, not by
+  const teamId = team?.id;
+  // This team's members first (when creating: students without a team first), then everyone else by name. Sorted by who was on the team at open, not by
   // current ticks, so a row never jumps away from the cursor when clicked.
   const q = query.trim().toLowerCase();
   const list = (roster ?? [])
     .filter((st) => !q || `${st.name} ${st.skills.join(" ")} ${st.teamName ?? ""}`.toLowerCase().includes(q))
-    .sort((a, b) => Number(b.teamId === team.id) - Number(a.teamId === team.id));
-  const moving = (roster ?? []).filter((st) => members.has(st.id) && st.teamId && st.teamId !== team.id);
+    .sort((a, b) => teamId ? Number(b.teamId === teamId) - Number(a.teamId === teamId) : Number(!b.teamId) - Number(!a.teamId));
+  const moving = (roster ?? []).filter((st) => members.has(st.id) && st.teamId && st.teamId !== teamId);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -61,9 +62,10 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      await updateTeam(team.id, { name, description, memberIds: [...members] });
+      if (team) await updateTeam(team.id, { name, description, memberIds: [...members] });
+      else await createTeam(courseId, { name, description, memberIds: [...members] });
       await fetchTeams();
-      toast.success(`${name.trim()} updated`, { description: moving.length ? `${moving.length} ${moving.length === 1 ? "student" : "students"} moved from another team.` : undefined });
+      toast.success(`${name.trim()} ${team ? "updated" : "created"}`, { description: moving.length ? `${moving.length} ${moving.length === 1 ? "student" : "students"} moved from another team.` : undefined });
       onDone();
     } catch (err) {
       console.error("Update team failed:", err);
@@ -73,6 +75,7 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
   }
 
   async function remove() {
+    if (!team) return;
     setDeleting(true);
     setError(null);
     try {
@@ -92,7 +95,7 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
   return (
     <form onSubmit={save} className="space-y-4" noValidate>
       <Field label="Team name" htmlFor="team-name">
-        <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} aria-invalid={!name.trim() || undefined} />
+        <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Team Atlas" autoFocus={!team} aria-invalid={(!!team && !name.trim()) || undefined} />
       </Field>
       <Field label="Project or description" htmlFor="team-description" optional>
         <Textarea id="team-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} className="min-h-16" placeholder="What this team is building…" />
@@ -116,7 +119,7 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
             <ul className="divide-y">
               {list.map((st) => {
                 const checked = members.has(st.id);
-                const elsewhere = st.teamId && st.teamId !== team.id;
+                const elsewhere = st.teamId && st.teamId !== teamId;
                 return (
                   <li key={st.id}>
                     <label className={cn("flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/60", checked && "bg-primary/[0.04]")}>
@@ -127,10 +130,10 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
                         {st.skills.length > 0 && <span className="block truncate text-xs text-muted-foreground">{st.skills.slice(0, 3).join(" · ")}</span>}
                       </span>
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold",
-                        st.teamId === team.id ? "bg-secondary text-secondary-foreground"
+                        st.teamId === teamId ? "bg-secondary text-secondary-foreground"
                           : elsewhere ? (checked ? "bg-warm/15 text-warm-text" : "bg-muted text-muted-foreground")
                             : "bg-success/12 text-success")}>
-                        {st.teamId === team.id ? "This team" : elsewhere ? (checked ? `Moves from ${st.teamName}` : st.teamName) : "No team"}
+                        {st.teamId === teamId ? "This team" : elsewhere ? (checked ? `Moves from ${st.teamName}` : st.teamName) : "No team"}
                       </span>
                     </label>
                   </li>
@@ -148,18 +151,22 @@ function EditTeamForm({ team, onDone }: { team: Team; onDone: () => void }) {
       </fieldset>
 
       {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
-      <DialogFooter className="sm:justify-between">
-        <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" loading={deleting} disabled={saving} onClick={() => setConfirmDelete(true)}>
-          {!deleting && <Trash aria-hidden />} Delete team
-        </Button>
+      <DialogFooter className={team ? "sm:justify-between" : undefined}>
+        {team && (
+          <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" loading={deleting} disabled={saving} onClick={() => setConfirmDelete(true)}>
+            {!deleting && <Trash aria-hidden />} Delete team
+          </Button>
+        )}
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
           <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
-          <Button type="submit" loading={saving} disabled={roster === null || deleting}>{!saving && <PencilSimple aria-hidden />} Save changes</Button>
+          <Button type="submit" loading={saving} disabled={roster === null || deleting}>{!saving && (team ? <PencilSimple aria-hidden /> : <Plus weight="bold" aria-hidden />)} {team ? "Save changes" : "Create team"}</Button>
         </div>
       </DialogFooter>
-      <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={`Delete ${team.name}?`} confirmLabel="Delete team"
-        description={`This permanently deletes the team's tasks, chat, files and peer reviews. Its ${team.members.length} ${team.members.length === 1 ? "student stays" : "students stay"} enrolled in ${team.courseCode} without a team, ready to be matched again. This can't be undone.`}
-        onConfirm={remove} />
+      {team && (
+        <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={`Delete ${team.name}?`} confirmLabel="Delete team"
+          description={`This permanently deletes the team's tasks, chat, files and peer reviews. Its ${team.members.length} ${team.members.length === 1 ? "student stays" : "students stay"} enrolled in ${courseCode} without a team, ready to be matched again. This can't be undone.`}
+          onConfirm={remove} />
+      )}
     </form>
   );
 }
@@ -176,7 +183,26 @@ export function EditTeamButton({ team }: { team: Team }) {
             <DialogDescription>{team.courseCode} · Members keep their tasks, chat and files; removed students lose access to them.</DialogDescription>
           </DialogHeader>
           {/* Mounted only while open, so it always starts from the team's current data. */}
-          {open && <EditTeamForm team={team} onDone={() => setOpen(false)} />}
+          {open && <EditTeamForm team={team} courseId={team.courseId} courseCode={team.courseCode} onDone={() => setOpen(false)} />}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Instructor: make a team by hand and pick its members, without AI matching. */
+export function NewTeamButton({ courseId, courseCode }: { courseId: string; courseCode: string }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}><Plus weight="bold" aria-hidden /> New team</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New team in {courseCode}</DialogTitle>
+            <DialogDescription>Name it and pick its members. A student already on a team moves to this one.</DialogDescription>
+          </DialogHeader>
+          {open && <EditTeamForm courseId={courseId} courseCode={courseCode} onDone={() => setOpen(false)} />}
         </DialogContent>
       </Dialog>
     </>

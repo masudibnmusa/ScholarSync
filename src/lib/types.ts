@@ -126,6 +126,7 @@ export interface Team {
   id: string;
   courseId: string;
   courseCode: string;
+  courseArchived: boolean; // read-only: the course was archived
   name: string;
   description: string;
   healthScore: number;
@@ -209,6 +210,8 @@ export interface Course {
   myTeam: string | null; // student only
   students: { id: string; name: string }[]; // instructor only: for the roster preview
   joinCode: string | null; // instructor only: the invite code (/join/<code>)
+  joiningOpen: boolean; // students can join on their own
+  archivedAt: string | null; // set: the term is over and the course is read-only
 }
 
 export interface CourseInvite {
@@ -219,6 +222,7 @@ export interface CourseInvite {
   instructorName: string;
   enrolled: boolean;
   isMine: boolean;
+  open: boolean; // accepting new students (open and not archived)
 }
 
 export interface TeamReview {

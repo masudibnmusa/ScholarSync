@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, Check, MagnifyingGlass, ShieldCheck, Sparkle, UsersThree, Warning,
+  ArrowLeft, ArrowRight, Check, MagnifyingGlass, ShieldCheck, Sparkle, UsersThree, Warning, Lock,
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
@@ -228,9 +228,15 @@ export function InstructorWorkspace() {
                 </div>
                 <Progress value={current.progress} label={`${current.name} progress`} className="h-1.5" />
               </div>
-              <div className="ml-auto flex items-center gap-2"><WeeklyRecapButton team={current} /><EditTeamButton team={current} /><MembersButton team={current} align="end" /></div>
+              <div className="ml-auto flex items-center gap-2"><WeeklyRecapButton team={current} />{!current.courseArchived && <EditTeamButton team={current} />}<MembersButton team={current} align="end" /></div>
             </div>
           </header>
+          {current.courseArchived && (
+        <p role="status" className="flex shrink-0 items-center gap-2 border-b bg-muted/60 px-4 py-2 text-sm lg:px-6">
+          <Lock weight="duotone" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span><strong>{current.courseCode} is archived.</strong> This team's work is read-only. Restore the course to make changes.</span>
+        </p>
+      )}
 
           <div className="flex min-h-0 flex-1">
             <div className="flex min-w-0 flex-1 flex-col p-4 lg:p-6">

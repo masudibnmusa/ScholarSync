@@ -4,10 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BookOpen, Books, ChalkboardTeacher, DotsThree, MagnifyingGlass, PencilSimple, Plus, SignIn, SignOut, Sparkle, Student, Trash, UserPlus, UsersThree,
+  Archive, ArrowCounterClockwise, BookOpen, Books, ChalkboardTeacher, DotsThree, Lock, MagnifyingGlass, PencilSimple, Plus, SignIn, SignOut, Sparkle, Student, Trash, UserPlus, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { createCourse, deleteCourse, updateCourse, getCourses, joinCourse, leaveCourse } from "@/app/actions";
+import { createCourse, deleteCourse, updateCourse, getCourses, joinCourse, leaveCourse, setCourseArchived } from "@/app/actions";
 import { useAppStore } from "@/lib/store";
 import { cn, firstName } from "@/lib/utils";
 import { useClientValue } from "@/hooks/use-client";
@@ -36,11 +36,12 @@ function defaultTerm() {
   return `${d.getMonth() < 5 ? "Spring" : d.getMonth() < 8 ? "Summer" : "Fall"} ${d.getFullYear()}`;
 }
 
-function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
-  course: Course; role: string; busy: boolean; onJoin: () => void; onLeave: () => void; onEdit: () => void; onDelete: () => void;
+function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete, onArchive }: {
+  course: Course; role: string; busy: boolean; onJoin: () => void; onLeave: () => void; onEdit: () => void; onDelete: () => void; onArchive: () => void;
 }) {
   const accent = accentOf(course.code);
   const instructor = role === "instructor";
+  const archived = !!course.archivedAt;
   return (
     <Card interactive className="group relative flex h-full flex-col overflow-hidden">
       <div className="relative h-24 overflow-hidden" style={{ background: accent }}>
@@ -48,7 +49,10 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
         <BookOpen weight="duotone" className="absolute -bottom-4 -right-3 size-24 text-foreground/10 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" aria-hidden />
         <div className="relative flex items-start justify-between gap-2 p-4">
           <span className="rounded-lg bg-glass-strong px-2.5 py-1 font-mono text-xs font-bold tracking-wide text-foreground">{course.code}</span>
-          <span className="rounded-full bg-glass px-2.5 py-0.5 text-[0.6875rem] font-semibold text-foreground">{course.term}</span>
+          <span className="flex flex-wrap justify-end gap-1">
+            {archived && <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-0.5 text-[0.6875rem] font-bold text-background"><Archive weight="fill" className="size-3" aria-hidden />Archived</span>}
+            <span className="rounded-full bg-glass px-2.5 py-0.5 text-[0.6875rem] font-semibold text-foreground">{course.term}</span>
+          </span>
         </div>
       </div>
 
@@ -64,6 +68,9 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={onEdit}><PencilSimple aria-hidden /> Edit course</DropdownMenuItem>
+                {archived
+                  ? <DropdownMenuItem onSelect={onArchive}><ArrowCounterClockwise aria-hidden /> Restore course</DropdownMenuItem>
+                  : <DropdownMenuItem onSelect={onArchive}><Archive aria-hidden /> Archive course</DropdownMenuItem>}
                 <DropdownMenuItem destructive onSelect={onDelete}><Trash aria-hidden /> Delete course</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -92,7 +99,9 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
                 {course.students.length ? <AvatarStack people={course.students} max={5} /> : <span className="text-xs text-muted-foreground">No students yet</span>}
                 {course.unplaced > 0 && <Badge variant="warm">{course.unplaced} without a team</Badge>}
               </div>
-              {course.unplaced >= 2 ? (
+              {archived ? (
+                <Button variant="outline" className="w-full" disabled><Lock aria-hidden /> Archived, read-only</Button>
+              ) : course.unplaced >= 2 ? (
                 <Button asChild variant="warm" className="w-full">
                   <Link href={`/instructor/matching?course=${course.id}`}><Sparkle weight="fill" aria-hidden /> Match teams with AI</Link>
                 </Button>
@@ -109,6 +118,8 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete }: {
                 <SignOut aria-hidden /> Leave
               </Button>
             </div>
+          ) : archived || !course.joiningOpen ? (
+            <Button variant="outline" className="w-full" disabled><Lock aria-hidden /> {archived ? "Course has ended" : "Not accepting students"}</Button>
           ) : (
             <Button className="w-full" loading={busy} onClick={onJoin}>{!busy && <SignIn aria-hidden />} Join course</Button>
           )}
@@ -184,7 +195,7 @@ export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?:
   );
 }
 
-type Pending = { kind: "leave" | "delete"; course: Course } | null;
+type Pending = { kind: "leave" | "delete" | "archive" | "restore"; course: Course } | null;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -203,6 +214,7 @@ export function CoursesDashboard() {
   const instructor = user.role === "instructor";
   const [courses, setCourses] = React.useState<Course[] | null>(null);
   const [tab, setTab] = React.useState<"mine" | "browse">("mine");
+  const [shelf, setShelf] = React.useState<"active" | "archived">("active"); // instructors
   const [query, setQuery] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
@@ -224,7 +236,7 @@ export function CoursesDashboard() {
       await Promise.all([load(), fetchTeams()]);
     } catch (err) {
       console.error(fail, err);
-      toast.error(fail);
+      toast.error(fail, { description: err instanceof Error ? err.message : undefined });
     }
     setBusyId(null);
   }
@@ -234,13 +246,18 @@ export function CoursesDashboard() {
     if (!pending) return;
     const { kind, course: c } = pending;
     if (kind === "leave") run(c.id, () => leaveCourse(c.id), `Left ${c.code}`, "Could not leave the course");
+    else if (kind === "archive") run(c.id, () => setCourseArchived(c.id, true), `${c.code} archived`, "Could not archive the course");
+    else if (kind === "restore") run(c.id, () => setCourseArchived(c.id, false), `${c.code} restored`, "Could not restore the course");
     else run(c.id, () => deleteCourse(c.id), `${c.code} deleted`, "Could not delete the course");
   }
 
   const list = courses ?? [];
-  const mine = list.filter((c) => (instructor ? c.isMine : c.enrolled));
+  // Instructors keep archived courses on their own shelf; students see theirs under My courses, and the catalog only lists live ones.
+  const allMine = list.filter((c) => (instructor ? c.isMine : c.enrolled));
+  const archivedMine = instructor ? allMine.filter((c) => c.archivedAt) : [];
+  const mine = instructor ? allMine.filter((c) => !c.archivedAt) : allMine;
   const q = query.trim().toLowerCase();
-  const shown = (instructor || tab === "mine" ? mine : list)
+  const shown = (instructor ? (shelf === "archived" ? archivedMine : mine) : tab === "mine" ? mine : list.filter((c) => !c.archivedAt || c.enrolled))
     .filter((c) => !q || `${c.code} ${c.title} ${c.term} ${c.instructorName}`.toLowerCase().includes(q));
 
   const unplaced = mine.reduce((n, c) => n + c.unplaced, 0);
@@ -256,7 +273,7 @@ export function CoursesDashboard() {
         { icon: Books, label: "Enrolled", value: mine.length, tone: "primary" as const },
         { icon: UsersThree, label: "On a team", value: mine.filter((c) => c.myTeam).length, tone: "success" as const },
         { icon: UserPlus, label: "Awaiting a team", value: waiting, tone: "warm" as const },
-        { icon: BookOpen, label: "Open to join", value: list.length - mine.length, tone: "info" as const },
+        { icon: BookOpen, label: "Open to join", value: list.filter((c) => !c.enrolled && c.joiningOpen && !c.archivedAt).length, tone: "info" as const },
       ];
 
   const summary = !courses ? "" : instructor
@@ -279,7 +296,10 @@ export function CoursesDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {instructor ? (
-          <h2 className="text-lg font-extrabold">Your courses</h2>
+          archivedMine.length ? (
+            <Segmented label="Which courses" value={shelf} onChange={setShelf}
+              options={[{ value: "active", label: <>Active <span className="text-xs tabular-nums opacity-70">{mine.length}</span></> }, { value: "archived", label: <>Archived <span className="text-xs tabular-nums opacity-70">{archivedMine.length}</span></> }]} />
+          ) : <h2 className="text-lg font-extrabold">Your courses</h2>
         ) : (
           <Segmented label="Which courses" value={tab} onChange={setTab}
             options={[{ value: "mine", label: <>My courses <span className="text-xs tabular-nums opacity-70">{mine.length}</span></> }, { value: "browse", label: "Browse all" }]} />
@@ -296,13 +316,14 @@ export function CoursesDashboard() {
         </div>
       ) : (
         <AnimatePresence mode="wait">
-          <motion.div key={`${tab}-${shown.length ? "list" : "empty"}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, ease: EASE }}>
+          <motion.div key={`${tab}-${shelf}-${shown.length ? "list" : "empty"}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, ease: EASE }}>
             {shown.length ? (
               <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {shown.map((c) => (
                   <StaggerItem key={c.id} className="h-full">
                     <CourseCard course={c} role={user.role} busy={busyId === c.id}
-                      onJoin={() => join(c)} onLeave={() => setPending({ kind: "leave", course: c })} onEdit={() => setEditing(c)} onDelete={() => setPending({ kind: "delete", course: c })} />
+                      onJoin={() => join(c)} onLeave={() => setPending({ kind: "leave", course: c })} onEdit={() => setEditing(c)} onDelete={() => setPending({ kind: "delete", course: c })}
+                      onArchive={() => setPending({ kind: c.archivedAt ? "restore" : "archive", course: c })} />
                   </StaggerItem>
                 ))}
               </Stagger>
@@ -312,6 +333,8 @@ export function CoursesDashboard() {
                   <EmptyState icon={MagnifyingGlass} title="No matching courses" description={`Nothing matches “${query.trim()}”. Try a course code or a different word.`}>
                     <Button variant="outline" onClick={() => setQuery("")}>Clear search</Button>
                   </EmptyState>
+                ) : instructor && shelf === "archived" ? (
+                  <EmptyState icon={Archive} title="No archived courses" description="Archive a course from its menu when the term ends." />
                 ) : instructor ? (
                   <EmptyState icon={Books} title="No courses yet" description="Create your first course. Students join it from their dashboard, then AI matching builds balanced teams.">
                     <Button onClick={() => setCreating(true)}><Plus weight="bold" aria-hidden /> New course</Button>
@@ -334,13 +357,18 @@ export function CoursesDashboard() {
       <ConfirmDialog
         open={!!pending}
         onOpenChange={(o) => !o && setPending(null)}
-        title={pending?.kind === "delete" ? `Delete ${pending.course.code}?` : `Leave ${pending?.course.code}?`}
+        title={pending?.kind === "delete" ? `Delete ${pending.course.code}?` : pending?.kind === "archive" ? `Archive ${pending.course.code}?` : pending?.kind === "restore" ? `Restore ${pending.course.code}?` : `Leave ${pending?.course.code}?`}
+        destructive={pending?.kind !== "restore"}
         description={pending?.kind === "delete"
           ? "This deletes the course with its enrolments and every team in it, including their chat, tasks and files. This can't be undone."
+          : pending?.kind === "archive"
+            ? "Use this when the term is over. Everything becomes read-only: teams keep access to their work but can't change it, and nobody can join. Grading still works. You can restore it any time."
+          : pending?.kind === "restore"
+            ? "Teams can work in it again, and you can manage students and teams."
           : pending?.course.myTeam
             ? `You'll also leave ${pending.course.myTeam} and lose access to its chat, tasks and files. You can rejoin the course later, but not the team.`
             : "You can join again any time."}
-        confirmLabel={pending?.kind === "delete" ? "Delete course" : "Leave course"}
+        confirmLabel={pending?.kind === "delete" ? "Delete course" : pending?.kind === "archive" ? "Archive course" : pending?.kind === "restore" ? "Restore course" : "Leave course"}
         onConfirm={confirmPending}
       />
     </Page>
