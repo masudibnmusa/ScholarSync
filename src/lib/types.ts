@@ -300,6 +300,7 @@ export interface TaskEvent {
 
 /** A student flagged by the daily falling-behind check (instructor view). `resolvedAt` set = recovered. */
 export interface AtRiskStudent {
+  courseId: string;
   teamId: string;
   teamName: string;
   courseCode: string;
@@ -309,4 +310,23 @@ export interface AtRiskStudent {
   flaggedAt: string;
   escalatedAt: string | null;
   resolvedAt: string | null;
+}
+
+/** One student's work in one course, for the contribution report. `peer` and `atRisk` are for the instructor only. */
+export interface Contribution {
+  course: { id: string; code: string; title: string };
+  student: { id: string; name: string };
+  team: null | {
+    id: string;
+    name: string;
+    joinedAt: string;
+    members: { userId: string; name: string; tasksDone: number; tasksAssigned: number; messages: number; files: number; standups: number }[];
+    /** Weeks in which anyone on the team answered the stand-up. */
+    standupWeeks: number;
+    tasks: { id: string; title: string; status: KanbanTask["status"]; dueDate: string | null; doneAt: string | null }[];
+    /** The last 8 weeks, oldest first; `week` is the Monday (YYYY-MM-DD). */
+    weeks: { week: string; tasks: number; messages: number }[];
+    peer: null | { avg: number | null; n: number; categories: Record<string, number>; feedback: { text: string; at: string }[] };
+    atRisk: string[] | null;
+  };
 }

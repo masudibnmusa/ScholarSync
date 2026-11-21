@@ -16,7 +16,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -829,6 +829,84 @@ export async function exportGradebook(courseId: string): Promise<{ filename: str
   });
 }
 
+// ─── Contribution report (one student; the student themself or the course instructor) ─
+
+/** One student's tasks, chat, files, stand-ups and (for the instructor) peer reviews in a course, next to their team's. */
+export async function getContribution(courseId: string, userId: string): Promise<Contribution> {
+  Id.parse(courseId);
+  Id.parse(userId);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select({ id: s.courses.id, code: s.courses.code, title: s.courses.title, instructorId: s.courses.instructorId })
+      .from(s.courses).where(eq(s.courses.id, courseId));
+    const instructor = course?.instructorId === uid;
+    if (!course || (uid !== userId && !instructor)) throw new Error("Only the student and their instructor can see this report");
+    const [student] = await tx.select({ id: s.users.id, name: s.users.name }).from(s.users).where(eq(s.users.id, userId));
+    if (!student) throw new Error("Student not found");
+    const [team] = await tx.select({ id: s.teams.id, name: s.teams.name, joinedAt: s.teamMembers.joinedAt }).from(s.teams)
+      .innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, userId)))
+      .where(eq(s.teams.courseId, courseId));
+    const base = { course: { id: course.id, code: course.code, title: course.title }, student };
+    if (!team) return { ...base, team: null };
+
+    const since = sql`date_trunc('week', now()) - interval '7 weeks'`;
+    const week = (col: unknown) => sql<string>`to_char(date_trunc('week', ${col}), 'YYYY-MM-DD')`;
+    // Qualified by hand: Drizzle leaves columns unqualified in a one-table select, and "id" would mean task_events.id.
+    const doneAt = sql<string | null>`(select max(e.created_at) from public.task_events e where e.task_id = "tasks"."id" and e.field = 'status' and e.new_value = 'done')`;
+    const [members, contrib, msgs, files, standups, standupWeeks, tasks, msgWeeks, taskWeeks, reviews, risk] = await Promise.all([
+      tx.select({ userId: s.users.id, name: s.users.name }).from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId))
+        .where(eq(s.teamMembers.teamId, team.id)).orderBy(asc(s.users.name)),
+      tx.select().from(s.memberContribution).where(eq(s.memberContribution.teamId, team.id)),
+      tx.select({ userId: s.messages.senderId, n: count() }).from(s.messages).where(eq(s.messages.teamId, team.id)).groupBy(s.messages.senderId),
+      tx.select({ userId: s.files.uploaderId, n: count() }).from(s.files).where(eq(s.files.teamId, team.id)).groupBy(s.files.uploaderId),
+      tx.select({ userId: s.standups.userId, n: count() }).from(s.standups).where(eq(s.standups.teamId, team.id)).groupBy(s.standups.userId),
+      tx.select({ n: sql<number>`count(distinct ${s.standups.weekStart})::int` }).from(s.standups).where(eq(s.standups.teamId, team.id)),
+      tx.select({ id: s.tasks.id, title: s.tasks.title, status: s.tasks.status, dueDate: s.tasks.dueDate, doneAt }).from(s.tasks)
+        .where(and(eq(s.tasks.teamId, team.id), eq(s.tasks.assigneeId, userId))).orderBy(desc(s.tasks.updatedAt)).limit(50),
+      tx.select({ week: week(s.messages.createdAt), n: count() }).from(s.messages)
+        .where(and(eq(s.messages.teamId, team.id), eq(s.messages.senderId, userId), sql`${s.messages.createdAt} >= ${since}`)).groupBy(sql`1`),
+      tx.select({ week: week(s.taskEvents.createdAt), n: sql<number>`count(distinct ${s.taskEvents.taskId})::int` }).from(s.taskEvents)
+        .innerJoin(s.tasks, eq(s.tasks.id, s.taskEvents.taskId))
+        .where(and(eq(s.tasks.teamId, team.id), eq(s.tasks.assigneeId, userId), eq(s.taskEvents.field, "status"), eq(s.taskEvents.newValue, "done"), sql`${s.taskEvents.createdAt} >= ${since}`))
+        .groupBy(sql`1`),
+      // RLS: a student only reads reviews they wrote, so this is the instructor's view.
+      instructor ? tx.select({ rating: s.peerReviews.rating, categories: s.peerReviews.categoryRatings, feedback: s.peerReviews.feedback, at: s.peerReviews.createdAt })
+        .from(s.peerReviews).where(and(eq(s.peerReviews.teamId, team.id), eq(s.peerReviews.revieweeId, userId))).orderBy(desc(s.peerReviews.createdAt)) : [],
+      instructor ? tx.select({ reasons: s.fallingBehind.reasons }).from(s.fallingBehind)
+        .where(and(eq(s.fallingBehind.teamId, team.id), eq(s.fallingBehind.userId, userId), isNull(s.fallingBehind.resolvedAt))) : [],
+    ]);
+
+    const n = (rows: { userId: string | null; n: number }[], id: string) => rows.find((r) => r.userId === id)?.n ?? 0;
+    const monday = new Date(`${currentWeekStart()}T00:00:00Z`);
+    const weeks = Array.from({ length: 8 }, (_, i) => {
+      const w = new Date(monday.getTime() - (7 - i) * 7 * 86_400_000).toISOString().slice(0, 10);
+      return { week: w, tasks: taskWeeks.find((r) => r.week === w)?.n ?? 0, messages: msgWeeks.find((r) => r.week === w)?.n ?? 0 };
+    });
+    const categories: Record<string, number[]> = {};
+    for (const r of reviews) for (const [k, v] of Object.entries(r.categories ?? {})) (categories[k] ??= []).push(v);
+    const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
+
+    return {
+      ...base,
+      team: {
+        id: team.id, name: team.name, joinedAt: team.joinedAt,
+        members: members.map((m) => {
+          const c = contrib.find((x) => x.userId === m.userId);
+          return { ...m, tasksDone: c?.tasksDone ?? 0, tasksAssigned: c?.tasksAssigned ?? 0, messages: n(msgs, m.userId), files: n(files, m.userId), standups: n(standups, m.userId) };
+        }),
+        standupWeeks: standupWeeks[0]?.n ?? 0,
+        tasks: tasks.map((k) => ({ ...k, status: toUiStatus(k.status) })),
+        weeks,
+        peer: instructor ? {
+          avg: avg(reviews.map((r) => r.rating)), n: reviews.length,
+          categories: Object.fromEntries(Object.entries(categories).map(([k, v]) => [k, avg(v)!])),
+          feedback: reviews.filter((r) => r.feedback.trim()).map((r) => ({ text: r.feedback, at: r.at })),
+        } : null,
+        atRisk: instructor ? (risk[0]?.reasons ?? null) : null,
+      },
+    };
+  });
+}
+
 // ─── My week (students): everything dated across all their teams ───────
 
 const WEEK_AHEAD_DAYS = 120; // the list shows three weeks; the month view and calendar export look further
@@ -1004,14 +1082,14 @@ export async function getConflicts(): Promise<ConflictAlert[]> {
 /** Students the falling-behind check flagged in my courses: open cases, and ones that recovered in the last 30 days. */
 export async function getAtRisk(): Promise<AtRiskStudent[]> {
   return withUser(async (tx) => {
-    const rows = await tx.select({ f: s.fallingBehind, teamName: s.teams.name, courseCode: s.courses.code, name: s.users.name })
+    const rows = await tx.select({ f: s.fallingBehind, teamName: s.teams.name, courseId: s.courses.id, courseCode: s.courses.code, name: s.users.name })
       .from(s.fallingBehind) // RLS: only the team's instructor
       .innerJoin(s.teams, eq(s.teams.id, s.fallingBehind.teamId))
       .innerJoin(s.courses, eq(s.courses.id, s.teams.courseId))
       .innerJoin(s.users, eq(s.users.id, s.fallingBehind.userId))
       .where(sql`${s.fallingBehind.resolvedAt} is null or ${s.fallingBehind.resolvedAt} > now() - interval '30 days'`)
       .orderBy(desc(s.fallingBehind.flaggedAt));
-    return rows.map((r) => ({ ...r.f, teamName: r.teamName, courseCode: r.courseCode, name: r.name }));
+    return rows.map((r) => ({ ...r.f, teamName: r.teamName, courseId: r.courseId, courseCode: r.courseCode, name: r.name }));
   });
 }
 

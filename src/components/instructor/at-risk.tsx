@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Bell, ChatsCircle, CheckCircle, Clock, HandHeart, Lifebuoy, Info } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, Bell, ChartBar, ChatsCircle, CheckCircle, Clock, HandHeart, Lifebuoy, Info } from "@phosphor-icons/react/dist/ssr";
 import { getAtRisk } from "@/app/actions";
 import { useLive } from "@/lib/store";
 import { timeAgo } from "@/lib/utils";
@@ -44,6 +44,7 @@ function StudentCard({ s }: { s: AtRiskStudent }) {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild variant="ghost" size="sm"><Link href={`/instructor/courses/${s.courseId}/students/${s.userId}`}><ChartBar aria-hidden /> Contribution</Link></Button>
           <Button asChild variant="ghost" size="sm"><Link href={`/instructor?team=${s.teamId}&view=chat`}><ChatsCircle aria-hidden /> Message team</Link></Button>
           <Button asChild variant="outline" size="sm"><Link href={`/instructor?team=${s.teamId}`}>Open team <ArrowRight aria-hidden /></Link></Button>
         </div>

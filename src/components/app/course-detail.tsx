@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Archive, ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, CheckCircle, DotsThree, DownloadSimple, Info, Lightbulb, ListChecks, Lock, PencilSimple, SignIn, Sparkle, Target, UsersThree,
+  Archive, ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, ChartBar, CheckCircle, DotsThree, DownloadSimple, Info, Lightbulb, ListChecks, Lock, PencilSimple, SignIn, Sparkle, Target, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -226,6 +226,9 @@ export function CourseDetail({ id }: { id: string }) {
                     : <DropdownMenuItem onSelect={() => setArchiving("archive")}><Archive aria-hidden /> Archive course</DropdownMenuItem>}
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+            {!instructor && course.enrolled && teams.length > 0 && (
+              <Button asChild variant="secondary"><Link href={`/student/courses/${course.id}/contribution`}><ChartBar aria-hidden /> Your contribution</Link></Button>
             )}
             {!instructor && !course.enrolled && (course.joiningOpen && !archived
               ? <Button variant="secondary" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} Join course</Button>

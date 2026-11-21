@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { CheckCircle, Info, MagnifyingGlass, Trash, UserCirclePlus, UserPlus, Users, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { enrollStudents, getCourseRoster, removeStudent, type EnrollOutcome, type RosterStudent } from "@/app/actions";
@@ -170,7 +171,9 @@ export function CourseStudents({ course, readOnly, onChanged }: { course: Course
               <li key={st.id} className="flex items-center gap-3 px-4 py-3">
                 <Avatar name={st.name} id={st.id} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{st.name}</p>
+                  <p className="truncate text-sm font-semibold">
+                    <Link href={`/instructor/courses/${course.id}/students/${st.id}`} className="hover:text-primary hover:underline" aria-label={`${st.name}: contribution report`}>{st.name}</Link>
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">{st.email}</p>
                 </div>
                 {st.teamName ? <Badge className="hidden sm:inline-flex">{st.teamName}</Badge> : <Badge variant="warm" className="hidden sm:inline-flex">No team</Badge>}
