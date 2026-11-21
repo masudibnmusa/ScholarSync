@@ -7,3 +7,8 @@ supabase/.branches
 .taste-skill
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

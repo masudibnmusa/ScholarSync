@@ -188,6 +188,18 @@ Stop with `Ctrl+C` for the dev server and `npx supabase stop` for Supabase. Loca
 
 **Demo accounts** (seed, password `password123`): instructor `selim.reja@university.edu`; students `masud@`, `nazmul@`, `chinmoy@` (Team Nova) and `sara@`, `rahim@`, `fatima@` (Team Orbit), all `@university.edu`.
 
+### End-to-end tests
+
+Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, creating and deleting a task, My week's live clock and month view, the auto-hiding sidebar, the command menu, the profile photo crop/replace/remove flow and the instructor pages.
+
+```bash
+npx playwright install chromium    # once
+npm run test:e2e                   # starts `npm run dev` if it isn't running
+npx playwright show-report         # after a run: steps, screenshots and traces
+```
+
+They need local Supabase with the seed. Tests that change data use a fresh account per run or clean up after themselves; accounts named `e2e-…@university.edu` are deleted when the run ends.
+
 ### Testing the AI features
 
 [`supabase/ai-test-data.sql`](supabase/ai-test-data.sql) loads chat and students built to exercise each AI feature, and lists the expected results at the top. It is safe to re-run: it clears earlier AI results and teams made by matching first.
