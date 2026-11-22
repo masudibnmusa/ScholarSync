@@ -228,7 +228,7 @@ export function MatchingPanel() {
         <div className="pointer-events-none absolute -bottom-40 -left-16 size-96 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--brand)_30%,transparent),transparent_65%)]" aria-hidden />
         <div className="pointer-events-none absolute inset-0 bg-dots opacity-[0.07]" aria-hidden />
 
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
+        <div className="relative grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
           <div className="min-w-0 space-y-7">
             <div>
               <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">

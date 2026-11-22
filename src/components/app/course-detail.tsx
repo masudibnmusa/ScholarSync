@@ -77,7 +77,7 @@ function TeamCard({ team, href, editable }: { team: Team; href: string; editable
         <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5" />
         <span className="w-9 text-right text-xs font-bold tabular-nums">{team.progress}%</span>
       </div>
-      <div className="mt-4 flex items-center justify-between gap-2 pt-1">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 pt-1">
         <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} max={4} />
         <div className="flex gap-1.5">
           {editable && <EditTeamButton team={team} />}
@@ -266,7 +266,7 @@ export function CourseDetail({ id }: { id: string }) {
       {canEdit && <GradingPanel courseId={course.id} />}
       {!instructor && course.enrolled && <MyGradeCard courseId={course.id} />}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
           <InfoSection icon={Info} title="About this course" text={course.description} canEdit={canEdit} onEdit={() => setEditing(true)} />
           <InfoSection icon={Target} title="Goals" text={course.goals} list canEdit={canEdit} onEdit={() => setEditing(true)} />

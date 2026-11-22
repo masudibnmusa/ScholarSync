@@ -205,6 +205,8 @@ npx playwright show-report         # after a run: steps, screenshots and traces
 
 Unit checks for the pure modules (`src/lib/*.check.mjs`; no app or database needed): `npm run test:unit`.
 
+The phone tests (`mobile.spec.ts`) run in a `phone` project: Chromium at 390 × 844 with touch, using the seed accounts read only.
+
 The offline test runs in its own `production` project against `npm run build && npm start -p 3100`, which Playwright starts too (the first run builds, which takes a minute or two).
 
 They need local Supabase with the seed. Tests that change data use a fresh account per run or clean up after themselves; accounts named `e2e-…@university.edu` are deleted when the run ends.
@@ -227,6 +229,7 @@ Tests that change data never touch the seed accounts' teams. They make their own
 | Meeting notes naming *E2E Ada* (due 2026-12-04), *E2E Ben* (due 2026-12-08), an unowned test plan and a decision | The Gemini test (`E2E_AI=1` only): 3 items, the decision skipped |
 | [`tests/e2e/fixtures/photo.png`](tests/e2e/fixtures/photo.png) (600 × 360, four coloured quarters) | A wide photo to crop into a square |
 | A generated `notes.txt` (`text/plain`) | Checks that non-images are refused |
+| A 390 × 844 touch screen (the `phone` project) with the seed accounts, read only | Layout on phones. It caught three overflows, now fixed: the AI matching intro, the instructor's course page grid and the team cards' buttons |
 | A fake push service (`https://push.e2e.invalid/<uuid>`) | Test browsers have none; the alerts test replaces `PushManager` with it |
 | Wrong password `not-the-password` | The sign-in error message |
 
@@ -259,6 +262,9 @@ All seed accounts use the password `password123`.
 | Live updates | Two students and the instructor in separate browsers: a team rename, a new profile photo and a new announcement appear on the others' open pages without a reload | ✅ Pass |
 | Weekly stand-up | The Monday link opens the stand-up; Send stays off until something is written; a teammate sees the answers arrive live; editing turns Send into Update; the instructor finds the team, reads the answers and who is still missing, and can ask for the AI summary | ✅ Pass |
 | Grading | Set a two-criterion rubric, grade the team with a factor override for one student, export the gradebook: one row per student with each criterion's points, team grade, factor and final grade | ✅ Pass |
+| Phone (390 × 844) | Every student page and every instructor page, including the course page, fits the screen: no sideways scroll and nothing sticking out past the edge | ✅ Pass |
+| | The tab bar shows Dashboard, Workspace, Week and Reviews; Week becomes the current tab; More opens a sheet with Notifications and Profile, which navigates and closes | ✅ Pass |
+| | The workspace's Charter, Stand-up, Repo and New buttons stay on screen; chat opens full screen | ✅ Pass |
 | Offline (production build) | Open the workspace, chat and My week once; offline they open from the last copy with a banner; a message written offline shows "Waiting to send"; a page never opened says so; back online the message is sent and a teammate sees it live; signing out leaves no saved pages or data | ✅ Pass |
 | Contribution report | With a done task, messages and a peer review added for a throwaway team: the instructor opens a student's report from the roster (task share, chat share, team comparison, this week's activity, the task marked done, peer score and feedback); the student opens their own from the course page, without peer reviews | ✅ Pass |
 | GitHub per team | A malformed username is caught on the profile, then saved; something that isn't a repo is refused without calling GitHub; with a repo and activity added as the sync job would, the open dialog shows commits per member (usernames matched regardless of case), commits by strangers under their GitHub name and a merged PR; the student's contribution report counts the commits; a teammate unlinks the repo and its activity is removed | ✅ Pass |
@@ -278,7 +284,7 @@ All seed accounts use the password `password123`.
 psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/falling_behind.sql
 ```
 
-Not covered yet: sending chat messages (it would notify the seeded teammates and start AI task extraction), the AI features themselves, and phone-sized screens.
+Not covered yet: sending chat messages as the seed accounts (the chat tests use throwaway teams, so seeded teammates aren't notified), and most AI features (only meeting notes has a test, run with `E2E_AI=1`).
 
 ### Testing the AI features
 
@@ -346,6 +352,7 @@ Where the code differs from the diagram, and why:
 18. ✅ Office hours booking
 19. ✅ Office hours in My week
 20. ✅ At risk badge in the navigation
+21. ✅ Phone-sized tests
 
 ## License
 

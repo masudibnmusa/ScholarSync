@@ -17,7 +17,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "desktop", testIgnore: /offline\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    { name: "desktop", testIgnore: /(offline|mobile)\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // Phone-sized checks (layout, tab bar, full-screen chat), in Chromium with touch.
+    { name: "phone", testMatch: /mobile\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
     // Offline mode needs a production build: the dev server's hot-reload client won't start without its websocket.
     { name: "production", testMatch: /offline\.spec/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, baseURL: "http://localhost:3100" } },
   ],
