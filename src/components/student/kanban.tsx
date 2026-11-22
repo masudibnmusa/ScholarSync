@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MeetingNotesButton } from "@/components/student/meeting-notes";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Status = KanbanTask["status"];
@@ -466,6 +467,7 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
 export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { scope?: "all" | "mine"; query?: string; readOnly?: boolean; onEdit?: (task: KanbanTask | null) => void }) {
   const user = useUser();
   const tasks = useAppStore((s) => s.kanbanTasks);
+  const team = useAppStore((s) => s.selectedTeam);
   const tasksLoaded = useAppStore((s) => s.loaded.tasks);
   const updateTask = useAppStore((s) => s.updateTask);
   const deleteTask = useAppStore((s) => s.deleteTask);
@@ -508,7 +510,10 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
             </span>
           ))}
           {editable && (
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => onEdit(null)}><Plus weight="bold" aria-hidden /> Add task</Button>
+            <div className="ml-auto flex gap-1">
+              {team && !team.courseArchived && <MeetingNotesButton team={team} />}
+              <Button size="sm" variant="ghost" onClick={() => onEdit(null)}><Plus weight="bold" aria-hidden /> Add task</Button>
+            </div>
           )}
         </div>
 

@@ -6,7 +6,8 @@ import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, 
 import { adminDb, withUser } from "@/db";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
-import { matchTeams, suggestMeetings } from "@/lib/ai";
+import { extractActionItems, matchTeams, suggestMeetings } from "@/lib/ai";
+import { cleanActionItems, MAX_ACTION_ITEMS, type ActionItem } from "@/lib/action-items";
 import type { MeetingSlot } from "@/lib/meeting";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { summarizeTeamStandup } from "@/lib/standups";
@@ -305,6 +306,30 @@ export async function createTask(teamId: string, input: { title: string; descrip
   Id.parse(teamId);
   const t = TaskFields.omit({ status: true }).parse(input);
   await withUser((tx) => tx.insert(s.tasks).values({ ...t, teamId, position: Date.now() }));
+}
+
+/** Action items from meeting notes, for the student to review before they become tasks. Members only. */
+export async function extractNoteTasks(teamId: string, notes: string): Promise<ActionItem[]> {
+  Id.parse(teamId);
+  const text = z.string().trim().min(10, "Paste a few lines of notes").max(10_000).parse(notes);
+  const members = await withUser(async (tx, uid) => {
+    const rows = await tx.select({ id: s.users.id, name: s.users.name }).from(s.teamMembers)
+      .innerJoin(s.users, eq(s.users.id, s.teamMembers.userId)).where(eq(s.teamMembers.teamId, teamId));
+    if (!rows.some((m) => m.id === uid)) throw new Error("Only team members can add tasks");
+    return rows;
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const raw = await extractActionItems(text, members.map((m) => m.name), today);
+  if (!raw) throw new Error("The AI returned nothing");
+  return cleanActionItems(raw, members, today);
+}
+
+/** Adds several tasks at once (from meeting notes), all or none. */
+export async function createTasks(teamId: string, input: { title: string; description: string; priority: string; dueDate: string; assigneeId: string }[]) {
+  Id.parse(teamId);
+  const items = z.array(TaskFields.omit({ status: true })).min(1).max(MAX_ACTION_ITEMS).parse(input);
+  const now = Date.now();
+  await withUser((tx) => tx.insert(s.tasks).values(items.map((t, i) => ({ ...t, teamId, position: now + i }))));
 }
 
 export async function updateTask(taskId: string, patch: Partial<KanbanTask>) {
