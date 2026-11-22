@@ -1327,6 +1327,14 @@ export async function getConflicts(): Promise<ConflictAlert[]> {
   });
 }
 
+/** Open falling-behind cases in my courses, for the nav badge (RLS: instructors see their teams'). */
+export async function countAtRisk(): Promise<number> {
+  return withUser(async (tx) => {
+    const [r] = await tx.select({ n: count() }).from(s.fallingBehind).where(isNull(s.fallingBehind.resolvedAt));
+    return r?.n ?? 0;
+  });
+}
+
 /** Students the falling-behind check flagged in my courses: open cases, and ones that recovered in the last 30 days. */
 export async function getAtRisk(): Promise<AtRiskStudent[]> {
   return withUser(async (tx) => {

@@ -23,6 +23,8 @@ export interface AppState {
   conflictAlerts: ConflictAlert[];
   taskSuggestions: TaskSuggestion[];
   unreadNotifCount: number;
+  /** Instructors: open falling-behind cases, for the At risk badge. */
+  atRiskCount: number;
   loaded: { teams: boolean; tasks: boolean; files: boolean; notifications: boolean; conflicts: boolean };
   uploading: boolean;
   commandOpen: boolean;
@@ -42,6 +44,7 @@ export interface AppState {
   fetchNotifications: () => Promise<void>;
   fetchFiles: (teamId: string) => Promise<void>;
   fetchConflicts: () => Promise<void>;
+  fetchAtRiskCount: () => Promise<void>;
   fetchSuggestions: (teamId: string) => Promise<void>;
 
   sendMessage: (teamId: string, content: string, fileId?: string, replyTo?: string) => Promise<boolean>;
@@ -124,7 +127,7 @@ const empty = {
   files: [],
   conflictAlerts: [],
   taskSuggestions: [],
-  unreadNotifCount: 0,
+  unreadNotifCount: 0, atRiskCount: 0,
   loaded: { teams: false, tasks: false, files: false, notifications: false, conflicts: false },
   uploading: false,
   commandOpen: false,
@@ -167,6 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (team && tables.includes("files")) get().fetchFiles(team.id);
       if (team && tables.includes("task_suggestions") && user.role === "student") get().fetchSuggestions(team.id);
       if (tables.includes("conflict_alerts") && user.role === "instructor") get().fetchConflicts();
+      if (tables.includes("falling_behind") && user.role === "instructor") get().fetchAtRiskCount();
     };
     for (const table of LIVE_TABLES) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
@@ -175,7 +179,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
     userChannel = channel.subscribe();
-    await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null, get().fetchAvatars()]);
+    await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null,
+      user.role === "instructor" ? get().fetchAtRiskCount() : null, get().fetchAvatars()]);
     if (!onlineListener) {
       onlineListener = true;
       // Back online: send what was typed offline, then reload what may have changed meanwhile.
@@ -294,6 +299,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, conflicts: true } }));
       loadFail("load conflict alerts", err);
+    }
+  },
+
+  fetchAtRiskCount: async () => {
+    try {
+      set({ atRiskCount: await withSnapshot(get().currentUser?.id, "at-risk-count", actions.countAtRisk) });
+    } catch (err) {
+      console.error("Failed to count at-risk students:", err); // a badge: no toast
     }
   },
 

@@ -17,7 +17,8 @@ export function useBadgeCounts(): Record<NonNullable<NavItem["badge"]>, number> 
   const notifications = useAppStore((s) => s.unreadNotifCount);
   const conflicts = useAppStore((s) => s.conflictAlerts.filter((c) => !c.isResolved).length);
   const suggestions = useAppStore((s) => s.taskSuggestions.length);
-  return { notifications, conflicts, suggestions };
+  const atRisk = useAppStore((s) => s.atRiskCount);
+  return { notifications, conflicts, suggestions, atRisk };
 }
 
 /** Full-width nav list: the desktop sidebar and the mobile "More" sheet. `collapsed` shows icons only, labels as tooltips. */
