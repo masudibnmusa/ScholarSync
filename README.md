@@ -37,7 +37,7 @@ Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.
 
 ### How a request works
 
-1. The browser opens a page such as `/student/tasks`, and the store calls a Server Action. The action queries Postgres **as the signed-in user** through `withUser()` in [`src/db/index.ts`](src/db/index.ts): Drizzle connects as a role that bypasses RLS, so each query runs in a transaction that first sets `role = authenticated` and `request.jwt.claims` from the verified session. Never query with `adminDb` from a user request.
+1. The browser opens a page such as `/student/tasks`. The app layout loads what every page shares (teams, notifications, photos, and for instructors the alerts and at-risk count) on the server, and the course dashboard loads its courses there too, so the page arrives with them: `AppStoreSnapshot` in `src/lib/store.ts` hands that data to `useAppStore` as a per-request snapshot while server rendering and hydrating, and the browser store starts from the same objects. In dev, the workspace now shows its team in about 0.2 s instead of 0.9 s. My week and the task board still load in the browser: they group by the viewer's own clock and time zone. After that, and for every change, the store calls a Server Action. The action queries Postgres **as the signed-in user** through `withUser()` in [`src/db/index.ts`](src/db/index.ts): Drizzle connects as a role that bypasses RLS, so each query runs in a transaction that first sets `role = authenticated` and `request.jwt.claims` from the verified session. Never query with `adminDb` from a user request.
 2. Postgres **Row-Level Security** (RLS) returns only the rows that user may see. Access rules live in the database, not in API code.
 3. On sign-up, the `on_auth_user_created` trigger creates the matching `public.users` row (always as a student).
 4. Changes go through **Server Actions**, which validate input with zod and write with Drizzle. RLS checks every write too.
@@ -240,7 +240,7 @@ Tests that change data never touch the seed accounts' teams. They make their own
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 44 of 44 passed in 3 min, with the AI test skipped as usual (2026-11-22, Chromium; desktop 1440 × 900, phone 390 × 844, and the offline test against a production build; local Supabase with the seed). Unit checks: 14 of 14 passed. The run stops first if a seeded account is set to a language other than English (someone used it in বাংলা), since the tests read it in English.
+**Latest run:** 46 of 46 passed in 3 min, with the AI test skipped as usual (2026-11-22, Chromium; desktop 1440 × 900, phone 390 × 844, and the offline test against a production build; local Supabase with the seed). Unit checks: 14 of 14 passed. The run stops first if a seeded account is set to a language other than English (someone used it in বাংলা), since the tests read it in English.
 
 | Area | Test | Result |
 |---|---|---|
@@ -280,6 +280,7 @@ All seed accounts use the password `password123`.
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Language | A new student switches to বাংলা in Profile: the page reloads with `lang="bn"`, Bangla navigation, headings and tab title, on every page, with no hydration errors; signing in from a fresh browser switches it to Bangla too (saved on the account); switching back gives English | ✅ Pass |
 | Language follows the account | A second browser with an old `lang=en` cookie, signed in to the same account, switches to Bangla after the account does instead of saving English back; a language picked on the sign-up page is saved to the new account and a fresh browser gets it | ✅ Pass |
+| First load | The seeded student's and instructor's dashboards and workspaces arrive from the server with their courses and teams (no loading skeleton in the HTML), and 16 pages open without hydration errors with the browser at UTC+14, far from the server's time zone | ✅ Pass |
 | | A visitor picks বাংলা on the sign-in page: the form and the landing page are in Bangla | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
@@ -349,7 +350,7 @@ Where the code differs from the diagram, and why:
 3. ✅ Teams, tasks, chat (Realtime), files (Storage), notifications, peer review
 4. ✅ Analytics and conflicts on the SQL views
 5. ✅ AI jobs: task extraction, team health, team matching
-6. ✅ `/student/*` and `/instructor/*` routes (next: move first-load data into Server Components)
+6. ✅ `/student/*` and `/instructor/*` routes
 7. ✅ Course management: create and edit courses, invite link with joining on/off and code reset, add students by email, remove students, create teams by hand, archive (read-only) and restore
 8. ✅ Install on phone with push alerts
 9. ✅ Live updates for every page
@@ -371,6 +372,7 @@ Where the code differs from the diagram, and why:
 25. ✅ Bangla digits for every number
 26. ✅ Per-request language while server rendering
 27. ✅ Source maps for Sentry
+28. ✅ First data rendered on the server
 
 ## License
 

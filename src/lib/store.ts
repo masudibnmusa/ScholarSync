@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { create } from "zustand";
 import * as Sentry from "@sentry/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -12,8 +13,9 @@ import type {
 } from "@/lib/types";
 import { t } from "@/lib/i18n";
 
-// Client state for the signed-in app. It is filled only in the browser (effects and events),
-// never during server rendering, so one user's data can't leak into another request.
+// Client state for the signed-in app. The store itself is filled only in the browser, never during server rendering,
+// so one user's data can't leak into another request. The first data comes from the server layout instead: it renders
+// through a per-request snapshot (AppStoreSnapshot), and the browser store starts from the same data.
 export interface AppState {
   currentUser: UserProfile | null;
   selectedTeam: Team | null;
@@ -75,7 +77,8 @@ const BUCKET = "team-files";
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"]; // same list as the avatars bucket
 export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const avatarUrl = (path: string) => supabaseBrowser().storage.from("avatars").getPublicUrl(path).data.publicUrl;
+/** The public URL of a profile photo (what storage.getPublicUrl builds), without a client, so the server can make it too. */
+const avatarUrl = (path: string) => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
 
 function fail(what: string, err: unknown) {
   console.error(`Failed to ${what}:`, err);
@@ -111,6 +114,8 @@ let teamChannel: RealtimeChannel | null = null;
 let userChannel: RealtimeChannel | null = null;
 const channelName = (base: string) => `${base}-${crypto.randomUUID()}`;
 let bootRun: Promise<void> | null = null; // StrictMode mounts twice; boot once
+let bootedFor: string | null = null; // the user whose channels are open
+let seededFor: string | null = null; // the user whose server data the store started from
 
 function closeChannels() {
   const sb = supabaseBrowser();
@@ -137,15 +142,17 @@ const empty = {
   live: {},
 };
 
-export const useAppStore = create<AppState>((set, get) => ({
+const baseStore = create<AppState>((set, get) => ({
   ...empty,
   setCommandOpen: (open) => set({ commandOpen: open }),
 
-  // Loads everything for a signed-in session. The profile comes from the server layout.
+  // Opens the live channels and loads everything for a signed-in session. The profile, and usually the first data,
+  // come from the server layout (AppStoreSnapshot); they're loaded again once the channel listens, so nothing is missed.
   boot: (user) => (bootRun ??= (async () => {
-    if (get().currentUser?.id === user.id && get().loaded.teams) return;
+    if (bootedFor === user.id) return;
+    bootedFor = user.id;
     closeChannels();
-    set({ ...empty, currentUser: user, avatars: user.avatarPath ? { [user.id]: avatarUrl(user.avatarPath) } : {} });
+    if (get().currentUser?.id !== user.id) set({ ...empty, currentUser: user, avatars: user.avatarPath ? { [user.id]: avatarUrl(user.avatarPath) } : {} });
     // Load the session token first, or the channel joins as anon and RLS hides every row from it.
     const sb = supabaseBrowser();
     await sb.realtime.setAuth().catch((err) => console.error("Realtime auth failed:", err));
@@ -181,6 +188,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
     userChannel = channel.subscribe();
+    const selected = get().selectedTeam; // from the server data: open its channel and load its board
+    if (selected && !teamChannel) get().setSelectedTeam(selected);
     await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null,
       user.role === "instructor" ? get().fetchAtRiskCount() : null, get().fetchAvatars()]);
     if (!onlineListener) {
@@ -211,6 +220,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await clearOffline();
     Sentry.setUser(null);
     closeChannels();
+    bootedFor = seededFor = null;
     set(empty);
   },
 
@@ -547,6 +557,56 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 }));
+
+
+/** What the server layout loads for the signed-in app; missing parts load in the browser as before. */
+export interface InitialData {
+  teams?: Team[];
+  notifications?: Notification[];
+  avatarPaths?: Record<string, string>;
+  conflictAlerts?: ConflictAlert[];
+  atRiskCount?: number;
+}
+
+function seed(user: UserProfile, d: InitialData): Partial<AppState> {
+  const out: Partial<AppState> = { currentUser: user, loaded: { ...empty.loaded } };
+  if (d.teams) Object.assign(out, { teams: d.teams, selectedTeam: d.teams[0] ?? null, loaded: { ...out.loaded!, teams: true } });
+  if (d.notifications) Object.assign(out, { notifications: d.notifications, unreadNotifCount: d.notifications.filter((n) => !n.read).length, loaded: { ...out.loaded!, notifications: true } });
+  if (d.conflictAlerts) Object.assign(out, { conflictAlerts: d.conflictAlerts, loaded: { ...out.loaded!, conflicts: true } });
+  if (d.atRiskCount != null) out.atRiskCount = d.atRiskCount;
+  out.avatars = Object.fromEntries(Object.entries(d.avatarPaths ?? (user.avatarPath ? { [user.id]: user.avatarPath } : {})).map(([id, p]) => [id, avatarUrl(p)]));
+  return out;
+}
+
+const ServerSnapshot = React.createContext<AppState | null>(null);
+
+/** Starts the browser store from the server's data, once per user. Runs during render on purpose: before anything
+ *  reads the store, so the first render after hydration already has the data. Idempotent. */
+function seedStore(userId: string, state: AppState) {
+  if (seededFor === userId || bootedFor === userId) return;
+  seededFor = userId;
+  baseStore.setState(state);
+}
+
+/**
+ * Renders the app with the server layout's data: while server rendering and hydrating, useAppStore reads this
+ * per-request snapshot (never the shared store), and in the browser the store starts from the same objects, so the
+ * page shows data from its first paint and hydration matches.
+ */
+export function AppStoreSnapshot({ user, data, children }: { user: UserProfile; data: InitialData; children: React.ReactNode }) {
+  const state = React.useMemo(() => ({ ...baseStore.getInitialState(), ...seed(user, data) }), [user, data]);
+  if (typeof window !== "undefined") seedStore(user.id, state);
+  return React.createElement(ServerSnapshot.Provider, { value: state }, children);
+}
+
+/** The app store as a hook, `useAppStore((s) => s.teams)`, plus getState/setState/subscribe for code outside React. */
+export const useAppStore = Object.assign(
+  function useAppStore<T>(selector: (s: AppState) => T): T {
+    const server = React.useContext(ServerSnapshot);
+    return React.useSyncExternalStore(baseStore.subscribe, () => selector(baseStore.getState()), () => selector(server ?? baseStore.getInitialState()));
+  },
+  { getState: baseStore.getState, setState: baseStore.setState, subscribe: baseStore.subscribe, getInitialState: baseStore.getInitialState },
+);
 
 /** A number that changes whenever any of these tables changes anywhere; add it to a reload effect's dependencies. */
 export const useLive = (...tables: LiveTable[]) => useAppStore((s) => tables.reduce((n, t) => n + (s.live[t] ?? 0), 0));

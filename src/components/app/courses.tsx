@@ -209,14 +209,14 @@ function partOfDay() {
 }
 const todayLabel = () => new Date().toLocaleDateString(intl(), { weekday: "long", day: "numeric", month: "long" });
 
-export function CoursesDashboard() {
+export function CoursesDashboard({ initialCourses = null }: { initialCourses?: Course[] | null }) {
   const { t, tn } = useT();
   const user = useUser();
   const greeting = useClientValue(partOfDay, t("Welcome back"));
   const today = useClientValue(todayLabel, "");
   const fetchTeams = useAppStore((s) => s.fetchTeams);
   const instructor = user.role === "instructor";
-  const [courses, setCourses] = React.useState<Course[] | null>(null);
+  const [courses, setCourses] = React.useState<Course[] | null>(initialCourses);
   const [tab, setTab] = React.useState<"mine" | "browse">("mine");
   const [shelf, setShelf] = React.useState<"active" | "archived">("active"); // instructors
   const [query, setQuery] = React.useState("");
