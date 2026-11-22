@@ -5,7 +5,7 @@ import { z } from "zod";
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { adminDb, AuthError, withUser } from "@/db";
-import { LOCALE_COOKIE, LOCALES, translate } from "@/lib/i18n";
+import { LOCALE_COOKIE, LOCALE_PENDING_COOKIE, LOCALES, translate } from "@/lib/i18n";
 import { translateNotice } from "@/lib/i18n/notices";
 import { requestLocale } from "@/lib/locale-server";
 import * as s from "@/db/schema";
@@ -68,11 +68,15 @@ export async function updateProfile(input: z.infer<typeof ProfileInput>) {
 /** Sets the interface language: the cookie for this browser, and my profile (for emails) when signed in. */
 export async function setLanguage(locale: string) {
   const l = z.enum(LOCALES).parse(locale);
-  (await cookies()).set(LOCALE_COOKIE, l, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  const jar = await cookies();
+  jar.set(LOCALE_COOKIE, l, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   try {
     await withUser((tx, uid) => tx.update(s.users).set({ locale: l }).where(eq(s.users.id, uid)));
+    jar.delete(LOCALE_PENDING_COOKIE);
   } catch (err) {
-    if (!(err instanceof AuthError)) throw err; // signed out (sign-in page): the cookie is enough
+    if (!(err instanceof AuthError)) throw err;
+    // Signed out (sign-in page): the account gets this choice at the next sign-in.
+    jar.set(LOCALE_PENDING_COOKIE, "1", { path: "/", maxAge: 60 * 60 * 24, sameSite: "lax" });
   }
 }
 

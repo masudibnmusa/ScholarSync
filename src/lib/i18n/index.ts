@@ -6,6 +6,8 @@ import { bn } from "./bn.ts";
 export const LOCALES = ["en", "bn"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const LOCALE_COOKIE = "lang";
+/** Set when the language was chosen while signed out, so the next sign-in saves it to the account. */
+export const LOCALE_PENDING_COOKIE = "lang_pending";
 export const LOCALE_NAMES: Record<Locale, string> = { en: "English", bn: "বাংলা" };
 const DICTS: Record<Locale, Record<string, string>> = { en: {}, bn };
 

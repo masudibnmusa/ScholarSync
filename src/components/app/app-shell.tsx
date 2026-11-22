@@ -107,12 +107,12 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
     Sentry.setUser({ id: user.id }); // the id only: no name or email leaves the app
   }, [user]);
 
-  // The language follows the person: a new browser (no "lang" cookie yet) switches to their saved one, and a choice
-  // made while signed out (on the sign-in page) is saved to the profile so emails follow it.
+  // The language follows the account: a choice made while signed out (on the sign-in page) is saved to it; otherwise
+  // this browser switches to the account's language, so an old cookie never overwrites a change made on another device.
   React.useEffect(() => {
     const cookie = document.cookie.match(/(?:^|;\s*)lang=(\w+)/)?.[1];
-    if (!cookie && user.locale !== locale) setLanguage(user.locale).then(() => window.location.reload(), () => {});
-    else if (isLocale(cookie) && cookie !== user.locale) setLanguage(cookie).catch(() => {});
+    if (isLocale(cookie) && /(?:^|;\s*)lang_pending=1/.test(document.cookie)) setLanguage(cookie).catch(() => {});
+    else if ((isLocale(cookie) ? cookie : locale) !== user.locale) setLanguage(user.locale).then(() => window.location.reload(), () => {});
   }, [user.locale, locale]);
 
   const signOut = React.useCallback(async () => {

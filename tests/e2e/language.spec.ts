@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { PASSWORD, register } from "./helpers";
+import { PASSWORD, register, signIn, uniqueEmail } from "./helpers";
 
 // Switching the language saves it to the account, so this uses a freshly registered student, never a seed account.
 
@@ -66,4 +66,45 @@ test("a visitor picks Bangla on the sign-in page", async ({ page }) => {
   expect(errors).toEqual([]);
   // The cookie belongs to this test's browser only; put it back for nobody else to inherit.
   await page.context().clearCookies({ name: "lang" });
+});
+
+test("a browser with an old language cookie follows the account instead of overwriting it", async ({ page, browser }) => {
+  const me = await register(page, "E2E Language Follower");
+  // A second browser that chose English earlier (its cookie says en) and is signed in to the same account.
+  const other = await browser.newContext();
+  await other.addCookies([{ name: "lang", value: "en", url: "http://localhost:3000" }]);
+  const laptop = await other.newPage();
+  await signIn(laptop, me.email);
+
+  // The account switches to Bangla in the first browser…
+  await page.goto("/student/profile");
+  await page.getByRole("radiogroup", { name: "Language" }).getByRole("radio", { name: "বাংলা" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+
+  // …and the second one follows on its next page load, rather than saving its English back to the account.
+  await laptop.reload();
+  await expect(laptop.locator("html")).toHaveAttribute("lang", "bn");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+  await other.close();
+});
+
+test("a language picked on the sign-up page is saved to the new account", async ({ page, browser }) => {
+  await page.goto("/register");
+  await page.getByRole("radiogroup", { name: "Language" }).getByRole("radio", { name: "বাংলা" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+  const email = uniqueEmail();
+  await page.getByLabel("পুরো নাম").fill("E2E Bangla Signup");
+  await page.getByLabel("বিশ্ববিদ্যালয়ের ইমেইল").fill(email);
+  await page.getByLabel("পাসওয়ার্ড", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "অ্যাকাউন্ট তৈরি করুন" }).click();
+  await page.waitForURL(/\/student\/courses/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "bn");
+
+  // A browser that has never been used signs in and gets Bangla from the account.
+  const other = await browser.newContext();
+  const fresh = await other.newPage();
+  await signIn(fresh, email); // signs in on the English page; the app then switches to the account's language
+  await expect(fresh.locator("html")).toHaveAttribute("lang", "bn");
+  await other.close();
 });
