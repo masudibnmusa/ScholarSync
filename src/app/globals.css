@@ -68,6 +68,17 @@
   --chart-3: #5f8f6f;
   --chart-4: #6d8db5;
 
+  /* One line per team (trend charts). Fixed order; validated on the card surface: worst adjacent CVD ΔE 9.1,
+     normal-vision 19.6. Yellow, aqua and magenta are under 3:1 here, so those charts carry direct labels and a table. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+
   --shadow-soft: 0 1px 2px rgb(var(--shadow-color) / 0.04), 0 8px 24px -12px rgb(var(--shadow-color) / 0.18);
   --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.05), 0 20px 44px -18px rgb(var(--shadow-color) / 0.32);
 }
@@ -127,6 +138,16 @@
   --chart-2: #eeb042;
   --chart-3: #8cc09d;
   --chart-4: #94b2d8;
+
+  /* Same eight hues stepped for the dark card (all >= 3:1; worst adjacent CVD ΔE 8.4). */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #0ca30c;
+  --series-7: #9085e9;
+  --series-8: #e66767;
 
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px -10px rgb(0 0 0 / 0.5);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 18px 40px -16px rgb(0 0 0 / 0.7);

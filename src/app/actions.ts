@@ -18,7 +18,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -1060,6 +1060,50 @@ export async function syncRepoNow(teamId: string): Promise<"ok" | "cooldown" | "
   if (team.syncedAt && Date.now() - new Date(team.syncedAt).getTime() < REPO_SYNC_COOLDOWN_MS) return "cooldown";
   await syncTeamRepo(teamId);
   return "ok";
+}
+
+// ─── Course trends (analytics over time; course instructor only) ───────
+
+const TREND_WEEKS = 10;
+
+/**
+ * For each team, per week over the last 10: tasks finished, messages, the health score at the end of the week and
+ * board completion at the end of the week (each task's status then, rebuilt from task history).
+ */
+export async function getCourseTrends(courseId: string): Promise<CourseTrends> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    await ownCourse(tx, uid, courseId);
+    const rows = await tx.execute<{ team_id: string; name: string; week: string; done: number; messages: number; health: number | null; total: number; done_total: number }>(sql`
+      with weeks as (
+        select wk, wk + interval '1 week' as wk_end
+        from generate_series(date_trunc('week', now()) - make_interval(weeks => ${TREND_WEEKS - 1}), date_trunc('week', now()), interval '1 week') as wk
+      )
+      select t.id as team_id, t.name, to_char(w.wk, 'YYYY-MM-DD') as week,
+        (select count(distinct e.task_id) from public.task_events e join public.tasks k on k.id = e.task_id
+          where k.team_id = t.id and e.field = 'status' and e.new_value = 'done' and e.created_at >= w.wk and e.created_at < w.wk_end)::int as done,
+        (select count(*) from public.messages m where m.team_id = t.id and m.created_at >= w.wk and m.created_at < w.wk_end)::int as messages,
+        (select h.score from public.team_health_history h where h.team_id = t.id and h.day < w.wk_end::date order by h.day desc limit 1)::int as health,
+        (select count(*) from public.tasks k where k.team_id = t.id and k.created_at < w.wk_end)::int as total,
+        (select count(*) from public.tasks k where k.team_id = t.id and k.created_at < w.wk_end and coalesce(
+          (select e.new_value from public.task_events e where e.task_id = k.id and e.field = 'status' and e.created_at < w.wk_end order by e.created_at desc, e.id desc limit 1),
+          (select e.old_value from public.task_events e where e.task_id = k.id and e.field = 'status' order by e.created_at, e.id limit 1),
+          k.status::text) = 'done')::int as done_total
+      from public.teams t cross join weeks w
+      where t.course_id = ${courseId}
+      order by t.name, w.wk`);
+    const weeks = [...new Set(rows.map((r) => r.week))];
+    const teams = new Map<string, CourseTrends["teams"][number]>();
+    for (const r of rows) {
+      const t = teams.get(r.team_id) ?? { id: r.team_id, name: r.name, done: [], messages: [], health: [], progress: [] };
+      t.done.push(r.done);
+      t.messages.push(r.messages);
+      t.health.push(r.health);
+      t.progress.push(r.total ? Math.round((r.done_total / r.total) * 100) : null);
+      teams.set(r.team_id, t);
+    }
+    return { weeks, teams: [...teams.values()] };
+  });
 }
 
 // ─── Contribution report (one student; the student themself or the course instructor) ─

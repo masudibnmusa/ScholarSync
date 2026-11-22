@@ -7,11 +7,14 @@ import {
   ArrowRight, CaretDown, CaretUp, ChartLineUp, ChatsCircle, CheckCircle, Heartbeat, ListChecks, Pulse, Scales, Sparkle, UsersThree, Warning,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, useLive } from "@/lib/store";
 import { cn, healthInfo, toneVar } from "@/lib/utils";
 import type { Team } from "@/lib/types";
 import { EmptyState, Page } from "@/components/app/page";
-import { GroupedBars, HealthBadge } from "@/components/instructor/charts";
+import { GroupedBars, HealthBadge, LineChart } from "@/components/instructor/charts";
+import { getCourseTrends } from "@/app/actions";
+import type { CourseTrends } from "@/lib/types";
+import { Segmented } from "@/components/ui/segmented";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,69 @@ import { AnimatedNumber, EASE, Stagger, StaggerItem } from "@/components/ui/moti
 import { Progress, ProgressRing } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const METRICS = {
+  progress: { label: "Completion", suffix: "%", max: 100, note: "Share of the team's tasks done at the end of each week." },
+  done: { label: "Tasks done", suffix: "", max: undefined, note: "Tasks finished each week." },
+  messages: { label: "Messages", suffix: "", max: undefined, note: "Team chat messages each week. A sudden drop often means a stuck team." },
+  health: { label: "Health", suffix: "", max: 100, note: "The nightly AI health score at the end of each week. Recorded since 22 Nov 2026." },
+} as const;
+type Metric = keyof typeof METRICS;
+const MAX_LINES = 8; // the categorical palette has eight validated slots
+const weekLabel = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
+
+/** Each team's last 10 weeks, one line per team, for one course at a time. */
+function Trends({ teams }: { teams: Team[] }) {
+  const courses = [...new Map(teams.map((t) => [t.courseId, t.courseCode])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const [courseId, setCourseId] = React.useState(courses[0]?.[0] ?? "");
+  const [metric, setMetric] = React.useState<Metric>("progress");
+  const [data, setData] = React.useState<CourseTrends | null | undefined>(undefined);
+  const live = useLive("tasks", "teams", "team_members");
+  React.useEffect(() => {
+    if (!courseId) return;
+    getCourseTrends(courseId).then(setData).catch((err) => { console.error("Loading trends failed:", err); setData(null); });
+  }, [courseId, live]);
+
+  const m = METRICS[metric];
+  // Colour follows the team (alphabetical slot), so switching metric never repaints a line.
+  const lines = (data?.teams ?? []).slice(0, MAX_LINES).map((t, i) => ({ id: t.id, name: t.name, color: `var(--series-${i + 1})`, values: t[metric] }));
+  const empty = lines.every((l) => l.values.every((v) => v == null || v === 0));
+
+  return (
+    <Card role="region" aria-labelledby="trends-title">
+      <CardHeader className="flex-wrap">
+        <div>
+          <CardTitle id="trends-title" className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-success/12 text-success"><Pulse weight="duotone" className="size-4" aria-hidden /></span>Trends</CardTitle>
+          <CardDescription>{m.note}</CardDescription>
+        </div>
+        {courses.length > 1 && (
+          <div className="w-full sm:w-48">
+            <Select value={courseId} onValueChange={(v) => { setCourseId(v); setData(undefined); }}>
+              <SelectTrigger aria-label="Course"><SelectValue /></SelectTrigger>
+              <SelectContent>{courses.map(([id, code]) => <SelectItem key={id} value={id}>{code}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Segmented label="Measure" value={metric} onChange={setMetric}
+          options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: METRICS[k].label }))} />
+        {data === undefined ? <Skeleton className="h-64" /> : data === null ? (
+          <p className="text-sm text-muted-foreground">Trends could not be loaded.</p>
+        ) : !data.teams.length ? (
+          <p className="text-sm text-muted-foreground">No teams in this course yet.</p>
+        ) : (
+          <>
+            <LineChart label={`${m.label} by team, last ${data.weeks.length} weeks`} labels={data.weeks} formatLabel={weekLabel}
+              series={lines} max={m.max} suffix={m.suffix} />
+            {empty && <p className="text-xs text-muted-foreground">Nothing recorded for this measure yet.</p>}
+            {data.teams.length > MAX_LINES && <p className="text-xs text-muted-foreground">Showing the first {MAX_LINES} of {data.teams.length} teams.</p>}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 /** How evenly completed work is shared: the gap between the busiest member's share and an equal share. */
 function balance(team: Team): { label: string; variant: "success" | "warning" | "danger" | "muted"; note: string } {
@@ -255,6 +321,9 @@ export function AnalyticsPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Over time ─────────────────────────────────────────────────────────────── */}
+      <Trends teams={teams} />
 
       {/* ── Who is doing the work ─────────────────────────────────────────────────── */}
       <Card>

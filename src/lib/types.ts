@@ -382,3 +382,9 @@ export interface OfficeHourSlot {
   topic: string;
   bookedByName: string | null;
 }
+
+/** Weekly history for one course's teams (oldest week first; null = no data for that week yet). */
+export interface CourseTrends {
+  weeks: string[]; // Mondays, YYYY-MM-DD
+  teams: { id: string; name: string; done: number[]; messages: number[]; health: (number | null)[]; progress: (number | null)[] }[];
+}
