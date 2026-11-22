@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useT } from "@/components/locale";
 
 export const notificationIcon: Record<string, { icon: Icon; className: string }> = {
   task: { icon: CheckCircle, className: "bg-primary/10 text-primary" },
@@ -30,6 +31,7 @@ export const notificationIcon: Record<string, { icon: Icon; className: string }>
 };
 
 export function NotificationBell() {
+  const { t } = useT();
   const user = useUser();
   const router = useRouter();
   const notifications = useAppStore((s) => s.notifications);
@@ -40,9 +42,9 @@ export function NotificationBell() {
 
   return (
     <Popover>
-      <Tooltip label="Notifications">
+      <Tooltip label={t("Notifications")}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="relative" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
+          <Button variant="ghost" size="icon" className="relative" aria-label={unread ? t("Notifications, {n} unread", { n: unread }) : t("Notifications")}>
             <Bell weight={unread ? "fill" : "regular"} className="size-5" />
             {unread > 0 && (
               <span className="absolute right-1.5 top-1.5 flex size-2.5">
@@ -55,18 +57,18 @@ export function NotificationBell() {
       </Tooltip>
       <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] overflow-hidden p-0">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-          <p className="text-sm font-bold">Notifications</p>
+          <p className="text-sm font-bold">{t("Notifications")}</p>
           {unread > 0 && (
             <button type="button" onClick={markAll} className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-primary hover:underline">
-              <Checks className="size-3.5" aria-hidden /> Mark all read
+              <Checks className="size-3.5" aria-hidden /> {t("Mark all read")}
             </button>
           )}
         </div>
         {latest.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
             <BellSlash weight="duotone" className="size-8 text-muted-foreground" aria-hidden />
-            <p className="text-sm font-semibold">You're all caught up</p>
-            <p className="text-xs text-muted-foreground">New tasks, messages and reviews show up here.</p>
+            <p className="text-sm font-semibold">{t("You're all caught up")}</p>
+            <p className="text-xs text-muted-foreground">{t("New tasks, messages and reviews show up here.")}</p>
           </div>
         ) : (
           <ul className="max-h-96 divide-y overflow-y-auto scroll-thin">
@@ -91,7 +93,7 @@ export function NotificationBell() {
                         {n.description && <span className="block truncate text-xs text-muted-foreground">{n.description}</span>}
                         <span className="mt-0.5 block text-[0.6875rem] text-muted-foreground">{timeAgo(n.createdAt)}</span>
                       </span>
-                      {!n.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-warm" aria-label="Unread" />}
+                      {!n.read && <span className="mt-2 size-2 shrink-0 rounded-full bg-warm" aria-label={t("Unread")} />}
                     </button>
                   </PopoverClose>
                 </li>
@@ -102,7 +104,7 @@ export function NotificationBell() {
         <div className="border-t p-2">
           <PopoverClose asChild>
             <Button asChild variant="ghost" size="sm" className="w-full">
-              <Link href={`${homeFor(user.role)}/notifications`}>View all notifications</Link>
+              <Link href={`${homeFor(user.role)}/notifications`}>{t("View all notifications")}</Link>
             </Button>
           </PopoverClose>
         </div>
@@ -112,12 +114,13 @@ export function NotificationBell() {
 }
 
 export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sidebar?: "wide" | "collapsed" }) {
+  const { t } = useT();
   const user = useUser();
   const { theme, setTheme } = useTheme();
   return (
     <DropdownMenu>
       {sidebar === "wide" ? (
-        <DropdownMenuTrigger className="tap flex w-full items-center gap-3 rounded-2xl bg-sidebar-accent/70 p-2.5 text-left shadow-soft transition-colors hover:bg-sidebar-accent" aria-label={`Account menu for ${user.name}`}>
+        <DropdownMenuTrigger className="tap flex w-full items-center gap-3 rounded-2xl bg-sidebar-accent/70 p-2.5 text-left shadow-soft transition-colors hover:bg-sidebar-accent" aria-label={t("Account menu for {name}", { name: user.name })}>
           <Avatar name={user.name} id={user.id} size="sm" className="size-9" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-bold">{user.name}</span>
@@ -126,7 +129,7 @@ export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sideba
           <CaretUpDown className="size-4 shrink-0 text-sidebar-muted" aria-hidden />
         </DropdownMenuTrigger>
       ) : (
-        <DropdownMenuTrigger className={cn("tap flex items-center rounded-full p-0.5 transition-shadow hover:ring-4", sidebar ? "hover:ring-sidebar-accent" : "ml-1 hover:ring-primary/15")} aria-label={`Account menu for ${user.name}`}>
+        <DropdownMenuTrigger className={cn("tap flex items-center rounded-full p-0.5 transition-shadow hover:ring-4", sidebar ? "hover:ring-sidebar-accent" : "ml-1 hover:ring-primary/15")} aria-label={t("Account menu for {name}", { name: user.name })}>
           <Avatar name={user.name} id={user.id} size="sm" className="size-9" />
         </DropdownMenuTrigger>
       )}
@@ -140,17 +143,17 @@ export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sideba
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={`${homeFor(user.role)}/profile`}><UserCircle aria-hidden /> Your profile</Link>
+          <Link href={`${homeFor(user.role)}/profile`}><UserCircle aria-hidden /> {t("Your profile")}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("Theme")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light"><Sun aria-hidden /> Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark"><Moon aria-hidden /> Dark</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system"><Desktop aria-hidden /> System</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="light"><Sun aria-hidden /> {t("Light")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark"><Moon aria-hidden /> {t("Dark")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system"><Desktop aria-hidden /> {t("System")}</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem destructive onSelect={onSignOut}><SignOut aria-hidden /> Sign out</DropdownMenuItem>
+        <DropdownMenuItem destructive onSelect={onSignOut}><SignOut aria-hidden /> {t("Sign out")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -158,6 +161,7 @@ export function UserMenu({ onSignOut, sidebar }: { onSignOut: () => void; sideba
 
 /** Phone/tablet header. On desktop the sidebar carries search, notifications and the account menu. */
 export function Topbar({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useT();
   const user = useUser();
   const pathname = usePathname();
   const setCommandOpen = useAppStore((s) => s.setCommandOpen);
@@ -165,12 +169,12 @@ export function Topbar({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-xl sm:px-5 lg:hidden">
-      <Link href={`${homeFor(user.role)}/courses`} className="rounded-xl" aria-label="Course dashboard">
+      <Link href={`${homeFor(user.role)}/courses`} className="rounded-xl" aria-label={t("Course dashboard")}>
         <Logo label={false} />
       </Link>
-      <p className="min-w-0 flex-1 truncate text-sm font-bold">{current?.label ?? "ScholarSync"}</p>
-      <Tooltip label="Search">
-        <Button variant="ghost" size="icon" onClick={() => setCommandOpen(true)} aria-label="Search">
+      <p className="min-w-0 flex-1 truncate text-sm font-bold">{current ? t(current.label) : t("ScholarSync")}</p>
+      <Tooltip label={t("Search")}>
+        <Button variant="ghost" size="icon" onClick={() => setCommandOpen(true)} aria-label={t("Search")}>
           <MagnifyingGlass className="size-5" />
         </Button>
       </Tooltip>

@@ -216,6 +216,7 @@ export interface UserProfile {
   emailDigest: boolean;
   avatarPath: string | null;
   githubLogin: string | null;
+  locale: "en" | "bn";
 }
 
 export interface ConflictAlert {

@@ -7,6 +7,8 @@ import { removePushSubscription, savePushSubscription } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/components/locale";
+import { t } from "@/lib/i18n";
 
 // The browser's install prompt fires once, early; keep it for whenever the user asks to install.
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
@@ -47,6 +49,7 @@ function readState(): Promise<State> {
 
 /** Profile card: turn phone/desktop alerts on or off for this browser, and install the app. */
 export function AlertsCard() {
+  const { t } = useT();
   const [state, setState] = React.useState<State>("loading");
   const [busy, setBusy] = React.useState(false);
   const canInstall = React.useSyncExternalStore(subscribeInstall, () => !!installPrompt, () => false);
@@ -59,7 +62,7 @@ export function AlertsCard() {
   }, []);
 
   async function turnOn() {
-    if (!publicKey) return void toast.error("Alerts aren't set up on this server yet.");
+    if (!publicKey) return void toast.error(t("Alerts aren't set up on this server yet."));
     setBusy(true);
     try {
       const permission = await Notification.requestPermission();
@@ -72,10 +75,10 @@ export function AlertsCard() {
       const json = sub.toJSON();
       await savePushSubscription({ endpoint: json.endpoint!, keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth }, userAgent: navigator.userAgent.slice(0, 300) });
       setState("on");
-      toast.success("Alerts are on", { description: "You'll get mentions, assignments, due dates and feedback on this device." });
+      toast.success(t("Alerts are on"), { description: t("You'll get mentions, assignments, due dates and feedback on this device.") });
     } catch (err) {
       console.error("Turning alerts on failed:", err);
-      toast.error("Couldn't turn alerts on", { description: "Your browser may not support them. Try Chrome, Edge, Firefox or the installed app." });
+      toast.error(t("Couldn't turn alerts on"), { description: t("Your browser may not support them. Try Chrome, Edge, Firefox or the installed app.") });
     } finally {
       setBusy(false);
     }
@@ -90,10 +93,10 @@ export function AlertsCard() {
         await sub.unsubscribe();
       }
       setState("off");
-      toast("Alerts are off on this device");
+      toast(t("Alerts are off on this device"));
     } catch (err) {
       console.error("Turning alerts off failed:", err);
-      toast.error("Couldn't turn alerts off");
+      toast.error(t("Couldn't turn alerts off"));
     } finally {
       setBusy(false);
     }
@@ -110,12 +113,12 @@ export function AlertsCard() {
 
   const on = state === "on";
   const note: Record<State, string> = {
-    loading: "Checking this device…",
-    unsupported: "This browser can't show alerts. Chrome, Edge and Firefox can, and so can the installed app.",
-    "ios-install": "On iPhone and iPad, add ScholarSync to your Home Screen first, then turn alerts on from there.",
-    blocked: "Alerts are blocked for this site. Allow notifications in your browser's site settings, then come back.",
-    off: "Get mentions, new assignments, due dates and feedback here, even when ScholarSync is closed.",
-    on: "On for this device. Routine chat messages stay quiet; @mentions still come through.",
+    loading: t("Checking this device…"),
+    unsupported: t("This browser can't show alerts. Chrome, Edge and Firefox can, and so can the installed app."),
+    "ios-install": t("On iPhone and iPad, add ScholarSync to your Home Screen first, then turn alerts on from there."),
+    blocked: t("Alerts are blocked for this site. Allow notifications in your browser's site settings, then come back."),
+    off: t("Get mentions, new assignments, due dates and feedback here, even when ScholarSync is closed."),
+    on: t("On for this device. Routine chat messages stay quiet; @mentions still come through."),
   };
 
   return (
@@ -124,7 +127,7 @@ export function AlertsCard() {
         <div className="min-w-0 flex-1">
           <p id="alerts-label" className="flex items-center gap-2 text-sm font-bold">
             {on ? <BellRinging weight="duotone" className="size-4 text-primary" aria-hidden /> : <BellSlash weight="duotone" className="size-4 text-primary" aria-hidden />}
-            Alerts on this device
+            {t("Alerts on this device")}
           </p>
           <p className="text-xs text-muted-foreground" role="status">{note[state]}</p>
         </div>
@@ -137,16 +140,16 @@ export function AlertsCard() {
       </div>
       {state === "ios-install" && (
         <p className="mt-3 flex items-start gap-2 rounded-xl bg-muted px-3 py-2 text-xs">
-          <Export className="mt-0.5 size-4 shrink-0" aria-hidden />Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. Open ScholarSync from the new icon.
+          <Export className="mt-0.5 size-4 shrink-0" aria-hidden />{t("Tap")} <strong>{t("Share")}</strong>{t(", then")} <strong>{t("Add to Home Screen")}</strong>{t(". Open ScholarSync from the new icon.")}
         </p>
       )}
       {canInstall && (
         <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={install}>
-          <DownloadSimple aria-hidden /> Install the app
+          <DownloadSimple aria-hidden /> {t("Install the app")}
         </Button>
       )}
       {!canInstall && state !== "ios-install" && (
-        <p className="mt-3 flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground"><DeviceMobile className="size-3.5" aria-hidden />On a phone, use your browser&apos;s menu to add ScholarSync to your Home Screen.</p>
+        <p className="mt-3 flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground"><DeviceMobile className="size-3.5" aria-hidden />{t("On a phone, use your browser's menu to add ScholarSync to your Home Screen.")}</p>
       )}
     </Card>
   );

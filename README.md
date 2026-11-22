@@ -116,6 +116,7 @@ ScholarSync/
 │   │           └── teams/                Old URL, redirects into the workspace
 │   ├── components/
 │   │   ├── providers.tsx                 Theme, motion, tooltip and toast providers
+│   │   ├── locale.tsx · language-switch.tsx  useT() (the page's language) and the English / বাংলা switch
 │   │   ├── app/                          App shell
 │   │   │   ├── app-shell.tsx             Layout: icon rail (desktop), top bar + tab bar (phones)
 │   │   │   ├── sidebar.tsx · topbar.tsx
@@ -140,6 +141,8 @@ ScholarSync/
 │   │   ├── ai.ts                         Gemini calls (JSON schema output, chat treated as untrusted data)
 │   │   ├── store.ts                      Zustand store: calls Server Actions, subscribes to Realtime
 │   │   ├── session.ts                    Signed-in profile for server layouts (cached per request)
+│   │   ├── i18n/                         index.ts (t, tn, msg) · bn.ts (Bangla) · notices.ts (notification text)
+│   │   ├── locale-server.ts              The request's language; translated page titles
 │   │   ├── supabase/                     client.ts (browser) · server.ts (server)
 │   │   ├── types.ts                      Shared types: tasks, chat, teams, notifications, files
 │   │   └── utils.ts                      cn(), initials and name helpers
@@ -195,7 +198,7 @@ Phone and desktop alerts need a VAPID key pair: run `npx web-push generate-vapid
 
 ### End-to-end tests
 
-Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, the student workspace and My week, the profile photo, installing and alerts, course management, hand-ins, team chat, live updates, the stand-up, grading and the gradebook export, offline mode, the at-risk page, contribution reports, GitHub, the team charter, office hours and tasks from meeting notes. Every row in the results table below names what it checks.
+Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, the student workspace and My week, the profile photo, installing and alerts, course management, hand-ins, team chat, live updates, the stand-up, grading and the gradebook export, offline mode, the at-risk page, contribution reports, GitHub, the team charter, office hours, tasks from meeting notes and the Bangla interface. Every row in the results table below names what it checks.
 
 ```bash
 npx playwright install chromium    # once
@@ -232,10 +235,12 @@ Tests that change data never touch the seed accounts' teams. They make their own
 | A 390 × 844 touch screen (the `phone` project) with the seed accounts, read only | Layout on phones. It caught three overflows, now fixed: the AI matching intro, the instructor's course page grid and the team cards' buttons |
 | A fake push service (`https://push.e2e.invalid/<uuid>`) | Test browsers have none; the alerts test replaces `PushManager` with it |
 | Wrong password `not-the-password` | The sign-in error message |
+| A new `e2e-…` account that switches to বাংলা on its profile, then signs in from a second, fresh browser | The language test: the saved language follows the account. A seed account is never switched, since that would change its emails. |
+| A signed-out browser with the `lang=bn` cookie, cleared at the end | Picking বাংলা on the sign-in page |
 
 All seed accounts use the password `password123`.
 
-**Latest run:** 40 of 40 passed in 3 min, with the AI test skipped as usual (2026-11-22, Chromium; desktop 1440 × 900, phone 390 × 844, and the offline test against a production build; local Supabase with the seed). Unit checks: 12 of 12 passed.
+**Latest run:** 42 of 42 passed in 3 min, with the AI test skipped as usual (2026-11-22, Chromium; desktop 1440 × 900, phone 390 × 844, and the offline test against a production build; local Supabase with the seed). Unit checks: 13 of 13 passed.
 
 | Area | Test | Result |
 |---|---|---|
@@ -273,6 +278,8 @@ All seed accounts use the password `password123`.
 | Trends | With 10 weeks of history added for a throwaway course (two tasks, one finished two weeks ago, three messages last week, health 70 then 55) and a second, empty team: the instructor picks the course, both teams are in the legend, and the table view shows completion 0% → 50%, one task done, three messages and health 70 → 55 in the right weeks, with no data for the empty team; the arrow keys read a week aloud | ✅ Pass |
 | At risk | A falling-behind case added for a throwaway student raises the At risk nav badge by one, live, and shows on the instructor's At risk page with its signals, team and stage; when it resolves it moves to Recovered without a reload and the badge drops back; students can't open the page | ✅ Pass |
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
+| Language | A new student switches to বাংলা in Profile: the page reloads with `lang="bn"`, Bangla navigation, headings and tab title, on every page, with no hydration errors; signing in from a fresh browser switches it to Bangla too (saved on the account); switching back gives English | ✅ Pass |
+| | A visitor picks বাংলা on the sign-in page: the form and the landing page are in Bangla | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
 | | AI team matching page opens | ✅ Pass |
@@ -329,6 +336,7 @@ Where the code differs from the diagram, and why:
 - **Offline mode.** The service worker keeps the last copy of each `/student` and `/instructor` page and its scripts, always network-first, so online nothing stale is shown. The store saves what the board, chat (latest 100 messages per team), team list, files, notifications and My week last loaded, per user, in `localStorage` (`src/lib/offline.ts`), and uses it when the server can't be reached. A banner says the app is offline. Chat messages written offline wait in an outbox, shown as "Waiting to send", and go out in order when the connection returns. A Web Lock stops two tabs sending one twice, and a message the server then refuses is shown back to its writer. Files, tasks and other changes still need the connection. Signing out deletes every saved page and copy on the device. Offline only works in a production build: the dev server's hot-reload client won't start without its websocket.
 - **Trends** (`0032_health_history.sql`): a card on Analytics with one line per team over the last 10 weeks, for one course at a time. It shows board completion at each week's end (each task's status then, rebuilt from `task_events`), tasks finished, messages, or the AI health score. Health history starts when the migration runs: a trigger keeps the last score of each day in `team_health_history`, since the nightly job overwrites `teams.health_score`. Lines use eight series colours (`--series-1`…`8`), each with its own dark-mode step and validated for colour-blind separation on the card in both themes. Each team keeps its colour when you switch measures. The chart has a legend, labels at the line ends, a tooltip that follows the pointer or the arrow keys, and a table view. It shows up to 8 teams; the rest are left out, and a note says so.
 - **Error monitoring** (Sentry, `@sentry/nextjs` 11.11.0; `src/instrumentation.ts`, `src/instrumentation-client.ts`, `src/lib/monitoring.ts`): off until `NEXT_PUBLIC_SENTRY_DSN` is set. It reports errors from pages, route handlers, Server Actions and the proxy (`onRequestError`), uncaught browser errors, errors shown on the error page, and background jobs that failed every retry: a job on Inngest's `inngest/function.failed` event reports them, tagged with the job and run. `scrub()` keeps people out of reports: no IP address, cookies, headers, query strings or request bodies, and only the user id (no name or email). Rejected input (zod errors) is dropped. Source maps are not uploaded (`withSentryConfig` is not used), so browser stack traces stay minified in production. Checked on 2026-11-22 against a stand-in Sentry endpoint: a Server Action error, a browser error and a sync job that failed all retries each arrived once, without any of those fields.
+- **Language** (English and বাংলা; `src/lib/i18n/`, `0033_locale.sql`): every screen, dialog, toast, page title, notification, push alert and email. Text is keyed by its English, so code stays readable and anything missing falls back to English; `bn.ts` holds the Bangla. Components translate with `useT()` (the language comes from the root layout, so the server and the browser render the same words); toasts and the store use the global `t()`, which reads `<html lang>`. Plurals use `tn()`. Constant lists of labels mark their text with `msg()` and translate where it is shown. The choice is the `lang` cookie (first visit: the browser's language) plus `users.locale`: a new browser switches to the account's language after sign-in, and a choice made on the sign-in page is saved to the account. Emails and push alerts use the recipient's `users.locale`. Notifications are written in English by SQL triggers, so `notices.ts` matches each one back to its template when it is read and fills in names, numbers and dates in the reader's language. Dates use `bn-BD` (Bangla digits and month names); counts shown on their own stay in Latin digits. CSV exports stay in English, so LMS imports keep their column names. `src/lib/i18n.check.mjs` finds every text the code translates and fails if one has no Bangla or its `{placeholders}` differ. While server rendering, the language for `t()` outside components is one module-wide value: two requests in different languages at the same moment could swap a date, which React repairs on hydration.
 - **Gradebook export.** The grading card's *Export gradebook* button downloads a CSV with one row per enrolled student, keyed by email, for importing into Moodle or Canvas: each rubric criterion's points, the team grade, the saved contribution factor and the final grade (team grade × factor, capped at 100). Blank cells mean not graded. The course page's contribution report is the longer version with tasks, chat and reviews.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
 - **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
@@ -358,6 +366,7 @@ Where the code differs from the diagram, and why:
 21. ✅ Phone-sized tests
 22. ✅ Course trends over time
 23. ✅ Error monitoring (Sentry)
+24. ✅ Bangla interface (বাংলা)
 
 ## License
 

@@ -23,20 +23,23 @@ import { AnimatedNumber, EASE, Stagger, StaggerItem } from "@/components/ui/moti
 import { Progress, ProgressRing } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { intl, msg, t, tn } from "@/lib/i18n";
 
 const METRICS = {
-  progress: { label: "Completion", suffix: "%", max: 100, note: "Share of the team's tasks done at the end of each week." },
-  done: { label: "Tasks done", suffix: "", max: undefined, note: "Tasks finished each week." },
-  messages: { label: "Messages", suffix: "", max: undefined, note: "Team chat messages each week. A sudden drop often means a stuck team." },
-  health: { label: "Health", suffix: "", max: 100, note: "The nightly AI health score at the end of each week. Recorded since 22 Nov 2026." },
+  progress: { label: msg("Completion"), suffix: "%", max: 100, note: msg("Share of the team's tasks done at the end of each week.") },
+  done: { label: msg("Tasks done"), suffix: "", max: undefined, note: msg("Tasks finished each week.") },
+  messages: { label: msg("Messages"), suffix: "", max: undefined, note: msg("Team chat messages each week. A sudden drop often means a stuck team.") },
+  health: { label: msg("Health"), suffix: "", max: 100, note: msg("The nightly AI health score at the end of each week. Recorded since 22 Nov 2026.") },
 } as const;
 type Metric = keyof typeof METRICS;
 const MAX_LINES = 8; // the categorical palette has eight validated slots
-const weekLabel = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
+const weekLabel = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(intl(), { month: "short", day: "numeric" });
 
 /** Each team's last 10 weeks, one line per team, for one course at a time. */
 function Trends({ teams }: { teams: Team[] }) {
-  const courses = [...new Map(teams.map((t) => [t.courseId, t.courseCode])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const { t } = useT();
+  const courses = [...new Map(teams.map((tt) => [tt.courseId, tt.courseCode])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const [courseId, setCourseId] = React.useState(courses[0]?.[0] ?? "");
   const [metric, setMetric] = React.useState<Metric>("progress");
   const [data, setData] = React.useState<CourseTrends | null | undefined>(undefined);
@@ -48,38 +51,38 @@ function Trends({ teams }: { teams: Team[] }) {
 
   const m = METRICS[metric];
   // Colour follows the team (alphabetical slot), so switching metric never repaints a line.
-  const lines = (data?.teams ?? []).slice(0, MAX_LINES).map((t, i) => ({ id: t.id, name: t.name, color: `var(--series-${i + 1})`, values: t[metric] }));
+  const lines = (data?.teams ?? []).slice(0, MAX_LINES).map((tt, i) => ({ id: tt.id, name: tt.name, color: `var(--series-${i + 1})`, values: tt[metric] }));
   const empty = lines.every((l) => l.values.every((v) => v == null || v === 0));
 
   return (
     <Card role="region" aria-labelledby="trends-title">
       <CardHeader className="flex-wrap">
         <div>
-          <CardTitle id="trends-title" className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-success/12 text-success"><Pulse weight="duotone" className="size-4" aria-hidden /></span>Trends</CardTitle>
-          <CardDescription>{m.note}</CardDescription>
+          <CardTitle id="trends-title" className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-success/12 text-success"><Pulse weight="duotone" className="size-4" aria-hidden /></span>{t("Trends")}</CardTitle>
+          <CardDescription>{t(m.note)}</CardDescription>
         </div>
         {courses.length > 1 && (
           <div className="w-full sm:w-48">
             <Select value={courseId} onValueChange={(v) => { setCourseId(v); setData(undefined); }}>
-              <SelectTrigger aria-label="Course"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={t("Course")}><SelectValue /></SelectTrigger>
               <SelectContent>{courses.map(([id, code]) => <SelectItem key={id} value={id}>{code}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <Segmented label="Measure" value={metric} onChange={setMetric}
-          options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: METRICS[k].label }))} />
+        <Segmented label={t("Measure")} value={metric} onChange={setMetric}
+          options={(Object.keys(METRICS) as Metric[]).map((k) => ({ value: k, label: t(METRICS[k].label) }))} />
         {data === undefined ? <Skeleton className="h-64" /> : data === null ? (
-          <p className="text-sm text-muted-foreground">Trends could not be loaded.</p>
+          <p className="text-sm text-muted-foreground">{t("Trends could not be loaded.")}</p>
         ) : !data.teams.length ? (
-          <p className="text-sm text-muted-foreground">No teams in this course yet.</p>
+          <p className="text-sm text-muted-foreground">{t("No teams in this course yet.")}</p>
         ) : (
           <>
-            <LineChart label={`${m.label} by team, last ${data.weeks.length} weeks`} labels={data.weeks} formatLabel={weekLabel}
+            <LineChart label={t("{label} by team, last {count} weeks", { label: t(m.label), count: data.weeks.length })} labels={data.weeks} formatLabel={weekLabel}
               series={lines} max={m.max} suffix={m.suffix} />
-            {empty && <p className="text-xs text-muted-foreground">Nothing recorded for this measure yet.</p>}
-            {data.teams.length > MAX_LINES && <p className="text-xs text-muted-foreground">Showing the first {MAX_LINES} of {data.teams.length} teams.</p>}
+            {empty && <p className="text-xs text-muted-foreground">{t("Nothing recorded for this measure yet.")}</p>}
+            {data.teams.length > MAX_LINES && <p className="text-xs text-muted-foreground">{t("Showing the first {n} of {total} teams.", { n: MAX_LINES, total: data.teams.length })}</p>}
           </>
         )}
       </CardContent>
@@ -91,26 +94,26 @@ function Trends({ teams }: { teams: Team[] }) {
 function balance(team: Team): { label: string; variant: "success" | "warning" | "danger" | "muted"; note: string } {
   const shares = team.members.map((m) => m.contribution);
   const total = shares.reduce((a, b) => a + b, 0);
-  if (!team.members.length || total === 0) return { label: "No data yet", variant: "muted", note: "No tasks have been completed yet." };
+  if (!team.members.length || total === 0) return { label: t("No data yet"), variant: "muted", note: t("No tasks have been completed yet.") };
   const fair = 100 / team.members.length;
   const gap = Math.max(...shares) - fair;
   const idle = shares.filter((s) => s === 0).length;
-  if (gap <= 15 && !idle) return { label: "Balanced", variant: "success", note: "Work is shared evenly across the team." };
-  if (gap <= 35) return { label: "Slightly uneven", variant: "warning", note: idle ? `${idle} ${idle === 1 ? "member has" : "members have"} not completed a task yet.` : "One member is carrying a bit more than the rest." };
-  return { label: "Uneven", variant: "danger", note: "One member is doing most of the completed work. Worth a check-in." };
+  if (gap <= 15 && !idle) return { label: t("Balanced"), variant: "success", note: t("Work is shared evenly across the team.") };
+  if (gap <= 35) return { label: t("Slightly uneven"), variant: "warning", note: idle ? tn(idle, "{n} member has not completed a task yet.", "{n} members have not completed a task yet.") : t("One member is carrying a bit more than the rest.") };
+  return { label: t("Uneven"), variant: "danger", note: t("One member is doing most of the completed work. Worth a check-in.") };
 }
 
 type SortKey = "name" | "members" | "progress" | "health" | "tasks" | "messages";
 const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
-  { key: "name", label: "Team" },
-  { key: "members", label: "Members", numeric: true },
-  { key: "progress", label: "Progress" },
-  { key: "health", label: "Health" },
-  { key: "tasks", label: "Tasks", numeric: true },
-  { key: "messages", label: "Messages", numeric: true },
+  { key: "name", label: msg("Team") },
+  { key: "members", label: msg("Members"), numeric: true },
+  { key: "progress", label: msg("Progress") },
+  { key: "health", label: msg("Health") },
+  { key: "tasks", label: msg("Tasks"), numeric: true },
+  { key: "messages", label: msg("Messages"), numeric: true },
 ];
-const valueOf = (t: Team, k: SortKey) =>
-  k === "name" ? t.name : k === "members" ? t.members.length : k === "progress" ? t.progress : k === "health" ? t.healthScore : k === "tasks" ? t._count?.tasks ?? 0 : t._count?.messages ?? 0;
+const valueOf = (tt: Team, k: SortKey) =>
+  k === "name" ? tt.name : k === "members" ? tt.members.length : k === "progress" ? tt.progress : k === "health" ? tt.healthScore : k === "tasks" ? tt._count?.tasks ?? 0 : tt._count?.messages ?? 0;
 
 // Member slots in the "who is doing the work" split, in the validated chart order.
 const memberColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
@@ -134,12 +137,13 @@ const cardTint = { success: "bg-sage", warning: "bg-butter", danger: "bg-rose" }
 
 /** Per-team summary card: health ring, progress and activity, linking to the team's workspace. */
 function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
+  const { t } = useT();
   const h = healthInfo(team.healthScore);
   return (
     <Link href={`/instructor?team=${team.id}`} className="group block h-full rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <Card interactive className={cn("relative h-full overflow-hidden border-transparent p-5", cardTint[h.tone])}>
         <div className="flex items-start gap-4">
-          <ProgressRing value={team.healthScore} size={64} stroke={7} color={toneVar[h.tone]} track="var(--glass-strong)" label={`${team.name} health score`}>
+          <ProgressRing value={team.healthScore} size={64} stroke={7} color={toneVar[h.tone]} track="var(--glass-strong)" label={t("{name} health score", { name: team.name })}>
             <span className="text-base font-extrabold tabular-nums">{team.healthScore}</span>
           </ProgressRing>
           <div className="min-w-0 flex-1">
@@ -149,19 +153,19 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <HealthBadge score={team.healthScore} showScore={false} />
-              {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{alerts} {alerts === 1 ? "alert" : "alerts"}</Badge>}
+              {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{alerts} {alerts === 1 ? t("alert") : t("alerts")}</Badge>}
             </div>
           </div>
         </div>
         <div className="mt-5">
           <div className="mb-1.5 flex items-baseline justify-between text-xs">
-            <span className="font-semibold text-foreground/70">Progress</span>
+            <span className="font-semibold text-foreground/70">{t("Progress")}</span>
             <span className="font-extrabold tabular-nums">{team.progress}%</span>
           </div>
-          <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5 bg-glass-strong" />
+          <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5 bg-glass-strong" />
         </div>
         <dl className="mt-4 grid grid-cols-3 divide-x divide-foreground/10 rounded-xl bg-glass-strong py-2 text-center">
-          {([["Members", team.members.length], ["Tasks", team._count?.tasks ?? 0], ["Messages", team._count?.messages ?? 0]] as const).map(([k, v]) => (
+          {([[t("Members"), team.members.length], [t("Tasks"), team._count?.tasks ?? 0], [t("Messages"), team._count?.messages ?? 0]] as const).map(([k, v]) => (
             <div key={k}>
               <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{k}</dt>
               <dd className="text-sm font-extrabold tabular-nums">{v}</dd>
@@ -174,6 +178,7 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
 }
 
 export function AnalyticsPanel() {
+  const { t } = useT();
   const teams = useAppStore((s) => s.teams);
   const loaded = useAppStore((s) => s.loaded.teams);
   const alerts = useAppStore((s) => s.conflictAlerts);
@@ -192,22 +197,22 @@ export function AnalyticsPanel() {
   if (teams.length === 0) {
     return (
       <Page>
-        <h1 className="text-2xl font-extrabold sm:text-[1.75rem]">Analytics</h1>
-        <Card><EmptyState icon={ChartLineUp} title="Nothing to chart yet" description="Analytics appear as soon as you have teams working on tasks."><Button asChild variant="warm"><Link href="/instructor/matching">Form teams with AI</Link></Button></EmptyState></Card>
+        <h1 className="text-2xl font-extrabold sm:text-[1.75rem]">{t("Analytics")}</h1>
+        <Card><EmptyState icon={ChartLineUp} title={t("Nothing to chart yet")} description={t("Analytics appear as soon as you have teams working on tasks.")}><Button asChild variant="warm"><Link href="/instructor/matching">{t("Form teams with AI")}</Link></Button></EmptyState></Card>
       </Page>
     );
   }
 
-  const avg = (f: (t: Team) => number) => Math.round(teams.reduce((n, t) => n + f(t), 0) / teams.length);
-  const sum = (f: (t: Team) => number) => teams.reduce((n, t) => n + f(t), 0);
+  const avg = (f: (tt: Team) => number) => Math.round(teams.reduce((n, tt) => n + f(tt), 0) / teams.length);
+  const sum = (f: (tt: Team) => number) => teams.reduce((n, tt) => n + f(tt), 0);
   const openFor = (id: string) => alerts.filter((a) => a.teamId === id && !a.isResolved).length;
   const openTotal = alerts.filter((a) => !a.isResolved).length;
   const byAttention = [...teams].sort((a, b) => a.healthScore - b.healthScore || a.progress - b.progress);
   const worst = byAttention[0];
   const worstHealth = healthInfo(worst.healthScore);
-  const avgHealth = avg((t) => t.healthScore);
+  const avgHealth = avg((tt) => tt.healthScore);
   const avgHealthInfo = healthInfo(avgHealth);
-  const focus = teams.find((t) => t.id === teamId) ?? worst;
+  const focus = teams.find((tt) => tt.id === teamId) ?? worst;
   const bal = balance(focus);
   const members = [...focus.members].sort((a, b) => b.contribution - a.contribution);
   const sorted = [...teams].sort((a, b) => {
@@ -231,10 +236,10 @@ export function AnalyticsPanel() {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-              <Pulse weight="bold" className="size-3.5" aria-hidden /> Course pulse · {teams.length} {teams.length === 1 ? "team" : "teams"}
+              <Pulse weight="bold" className="size-3.5" aria-hidden /> {t("Course pulse ·")} {teams.length} {teams.length === 1 ? t("team") : t("teams")}
             </p>
-            <h1 id="analytics-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Analytics</h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">How your teams are progressing, collaborating and sharing the work.</p>
+            <h1 id="analytics-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">{t("Analytics")}</h1>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">{t("How your teams are progressing, collaborating and sharing the work.")}</p>
 
             {/* Insight callout: the team to look at first */}
             <div className="mt-6 flex max-w-xl flex-wrap items-start gap-3 rounded-2xl border border-glass-border bg-glass p-4 sm:flex-nowrap">
@@ -243,17 +248,17 @@ export function AnalyticsPanel() {
               </span>
               <div className="min-w-0 flex-1 basis-[calc(100%-3rem)] sm:basis-auto">
                 <p className="font-bold text-foreground">
-                  {worstHealth.tone === "success" ? "Every team is on track" : `${worst.name} needs a look`}
+                  {worstHealth.tone === "success" ? t("Every team is on track") : t("{name} needs a look", { name: worst.name })}
                 </p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {worstHealth.tone === "success"
-                    ? `The lowest health score is ${worst.healthScore}, at ${worst.name}.`
-                    : `Health ${worst.healthScore} (${worstHealth.label.toLowerCase()}), ${worst.progress}% done${openFor(worst.id) ? `, ${openFor(worst.id)} open ${openFor(worst.id) === 1 ? "alert" : "alerts"}` : ""}.`}
+                    ? t("The lowest health score is {healthScore}, at {name}.", { healthScore: worst.healthScore, name: worst.name })
+                    : t("Health {score} ({label}), {progress}% done", { score: worst.healthScore, label: worstHealth.label.toLowerCase(), progress: worst.progress }) + (openFor(worst.id) ? tn(openFor(worst.id), ", {n} open alert", ", {n} open alerts") : "") + t(".")}
                 </p>
               </div>
               {worstHealth.tone !== "success" && (
                 <Button asChild size="sm" variant="warm" className="ml-12 shrink-0 sm:ml-0 sm:self-center">
-                  <Link href={`/instructor?team=${worst.id}`}>Open <ArrowRight aria-hidden /></Link>
+                  <Link href={`/instructor?team=${worst.id}`}>{t("Open")} <ArrowRight aria-hidden /></Link>
                 </Button>
               )}
             </div>
@@ -262,19 +267,19 @@ export function AnalyticsPanel() {
           <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
             <div className="flex flex-col items-center">
               <ProgressRing value={avgHealth} size={148} stroke={12} color={heroRing[avgHealthInfo.tone]}
-                track="var(--glass-strong)" label="Average team health">
+                track="var(--glass-strong)" label={t("Average team health")}>
                 <span className="flex flex-col items-center">
                   <span className="text-4xl font-extrabold tabular-nums text-foreground"><AnimatedNumber value={avgHealth} /></span>
-                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">avg health</span>
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{t("avg health")}</span>
                 </span>
               </ProgressRing>
               <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Heartbeat weight="fill" className="size-3.5 text-brand" aria-hidden />{avgHealthInfo.label}</p>
             </div>
             <div className="grid w-full grid-cols-2 gap-3 sm:w-72">
-              <HeroStat icon={ChartLineUp} label="Avg progress" value={avg((t) => t.progress)} suffix="%" hint="Tasks completed" />
-              <HeroStat icon={ListChecks} label="Tasks" value={sum((t) => t._count?.tasks ?? 0)} hint="Across all boards" />
-              <HeroStat icon={ChatsCircle} label="Messages" value={sum((t) => t._count?.messages ?? 0)} hint="Across all chats" />
-              <HeroStat icon={Warning} label="Open alerts" value={openTotal} hint={openTotal ? "Waiting for you" : "All clear"} />
+              <HeroStat icon={ChartLineUp} label={t("Avg progress")} value={avg((tt) => tt.progress)} suffix="%" hint={t("Tasks completed")} />
+              <HeroStat icon={ListChecks} label={t("Tasks")} value={sum((tt) => tt._count?.tasks ?? 0)} hint={t("Across all boards")} />
+              <HeroStat icon={ChatsCircle} label={t("Messages")} value={sum((tt) => tt._count?.messages ?? 0)} hint={t("Across all chats")} />
+              <HeroStat icon={Warning} label={t("Open alerts")} value={openTotal} hint={openTotal ? t("Waiting for you") : t("All clear")} />
             </div>
           </div>
         </div>
@@ -284,12 +289,12 @@ export function AnalyticsPanel() {
       <section aria-labelledby="teams-glance" className="space-y-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 id="teams-glance" className="text-lg font-extrabold">Teams at a glance</h2>
-            <p className="text-sm text-muted-foreground">Ordered by who needs attention first. Select a team to open its workspace.</p>
+            <h2 id="teams-glance" className="text-lg font-extrabold">{t("Teams at a glance")}</h2>
+            <p className="text-sm text-muted-foreground">{t("Ordered by who needs attention first. Select a team to open its workspace.")}</p>
           </div>
         </div>
         <Stagger className={cn("grid gap-4 sm:grid-cols-2", teams.length >= 3 && "xl:grid-cols-3")}>
-          {byAttention.map((t) => <StaggerItem key={t.id} className="h-full"><TeamCard team={t} alerts={openFor(t.id)} /></StaggerItem>)}
+          {byAttention.map((tt) => <StaggerItem key={tt.id} className="h-full"><TeamCard team={tt} alerts={openFor(tt.id)} /></StaggerItem>)}
         </Stagger>
       </section>
 
@@ -298,26 +303,26 @@ export function AnalyticsPanel() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><ChartLineUp weight="duotone" className="size-4" aria-hidden /></span>Progress and health</CardTitle>
-              <CardDescription>Both on a 0–100 scale. Far along but unhealthy can mean one person is doing everything.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><ChartLineUp weight="duotone" className="size-4" aria-hidden /></span>{t("Progress and health")}</CardTitle>
+              <CardDescription>{t("Both on a 0–100 scale. Far along but unhealthy can mean one person is doing everything.")}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            <GroupedBars label="Progress and health score by team" max={100} series={[{ name: "Progress (%)", color: "var(--chart-1)" }, { name: "Health score", color: "var(--chart-2)" }]}
-              rows={[...teams].sort((a, b) => b.healthScore - a.healthScore).map((t) => ({ id: t.id, label: t.name, values: [t.progress, t.healthScore] }))} />
+            <GroupedBars label={t("Progress and health score by team")} max={100} series={[{ name: "Progress (%)", color: "var(--chart-1)" }, { name: "Health score", color: "var(--chart-2)" }]}
+              rows={[...teams].sort((a, b) => b.healthScore - a.healthScore).map((tt) => ({ id: tt.id, label: tt.name, values: [tt.progress, tt.healthScore] }))} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <div>
-              <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-info/12 text-info"><ChatsCircle weight="duotone" className="size-4" aria-hidden /></span>Activity</CardTitle>
-              <CardDescription>Tasks on the board and messages in chat. Quiet teams are often stuck teams.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-info/12 text-info"><ChatsCircle weight="duotone" className="size-4" aria-hidden /></span>{t("Activity")}</CardTitle>
+              <CardDescription>{t("Tasks on the board and messages in chat. Quiet teams are often stuck teams.")}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            <GroupedBars label="Tasks and messages by team" series={[{ name: "Tasks", color: "var(--chart-3)" }, { name: "Messages", color: "var(--chart-4)" }]}
-              rows={[...teams].sort((a, b) => (b._count?.messages ?? 0) - (a._count?.messages ?? 0)).map((t) => ({ id: t.id, label: t.name, values: [t._count?.tasks ?? 0, t._count?.messages ?? 0] }))} />
+            <GroupedBars label={t("Tasks and messages by team")} series={[{ name: "Tasks", color: "var(--chart-3)" }, { name: "Messages", color: "var(--chart-4)" }]}
+              rows={[...teams].sort((a, b) => (b._count?.messages ?? 0) - (a._count?.messages ?? 0)).map((tt) => ({ id: tt.id, label: tt.name, values: [tt._count?.tasks ?? 0, tt._count?.messages ?? 0] }))} />
           </CardContent>
         </Card>
       </div>
@@ -329,13 +334,13 @@ export function AnalyticsPanel() {
       <Card>
         <CardHeader className="flex-wrap">
           <div>
-            <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-warm/15 text-warm-text"><Scales weight="duotone" className="size-4" aria-hidden /></span>Who is doing the work</CardTitle>
-            <CardDescription>Each member&apos;s share of the team&apos;s completed tasks.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-warm/15 text-warm-text"><Scales weight="duotone" className="size-4" aria-hidden /></span>{t("Who is doing the work")}</CardTitle>
+            <CardDescription>{t("Each member's share of the team's completed tasks.")}</CardDescription>
           </div>
           <div className="w-full sm:w-56">
             <Select value={focus.id} onValueChange={setTeamId}>
-              <SelectTrigger aria-label="Team"><SelectValue /></SelectTrigger>
-              <SelectContent>{byName.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              <SelectTrigger aria-label={t("Team")}><SelectValue /></SelectTrigger>
+              <SelectContent>{byName.map((tt) => <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </CardHeader>
@@ -348,7 +353,7 @@ export function AnalyticsPanel() {
           {/* One bar split by member share: the proportions at a glance */}
           {members.some((m) => m.contribution > 0) ? (
             <div key={focus.id} className="flex h-4 w-full overflow-hidden rounded-full bg-muted" role="img"
-              aria-label={`Share of completed tasks: ${members.map((m) => `${m.name} ${m.contribution}%`).join(", ")}`}>
+              aria-label={t("Share of completed tasks: {list}", { list: members.map((m) => `${m.name} ${m.contribution}%`).join(", ") })}>
               {members.map((m, i) => m.contribution > 0 && (
                 <motion.span key={m.userId} className="h-full border-r-2 border-card last:border-r-0" style={{ backgroundColor: memberColor(i) }}
                   initial={{ width: 0 }} animate={{ width: `${m.contribution}%` }} transition={{ duration: 0.8, delay: i * 0.06, ease: EASE }} />
@@ -358,7 +363,7 @@ export function AnalyticsPanel() {
             <div className="h-4 w-full rounded-full bg-[repeating-linear-gradient(-45deg,var(--muted),var(--muted)_6px,transparent_6px,transparent_12px)]" aria-hidden />
           )}
 
-          {members.length === 0 ? <p className="text-sm text-muted-foreground">This team has no members.</p> : (
+          {members.length === 0 ? <p className="text-sm text-muted-foreground">{t("This team has no members.")}</p> : (
             <ul key={focus.id} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {members.map((m, i) => (
                 <li key={m.userId} className="flex items-center gap-3 rounded-2xl border bg-background/60 p-3">
@@ -368,7 +373,7 @@ export function AnalyticsPanel() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{m.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{m.skills.slice(0, 2).join(" · ") || "No skills listed"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{m.skills.slice(0, 2).join(" · ") || t("No skills listed")}</p>
                   </div>
                   <span className="text-lg font-extrabold tabular-nums">{m.contribution}<span className="text-xs font-bold text-muted-foreground">%</span></span>
                 </li>
@@ -382,8 +387,8 @@ export function AnalyticsPanel() {
       <Card className="overflow-hidden">
         <CardHeader className="pb-4">
           <div>
-            <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><UsersThree weight="duotone" className="size-4" aria-hidden /></span>All teams</CardTitle>
-            <CardDescription>The same numbers as a table. Select a column heading to sort.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><UsersThree weight="duotone" className="size-4" aria-hidden /></span>{t("All teams")}</CardTitle>
+            <CardDescription>{t("The same numbers as a table. Select a column heading to sort.")}</CardDescription>
           </div>
         </CardHeader>
         <div className="overflow-x-auto scroll-thin">
@@ -405,24 +410,24 @@ export function AnalyticsPanel() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {sorted.map((t) => (
-                <tr key={t.id} className="transition-colors hover:bg-accent/40">
+              {sorted.map((tt) => (
+                <tr key={tt.id} className="transition-colors hover:bg-accent/40">
                   <th scope="row" className="px-5 py-3.5 text-left font-bold">
-                    <Link href={`/instructor?team=${t.id}`} className="inline-flex items-center gap-2 rounded underline-offset-4 hover:text-primary hover:underline">
-                      <span className="flex size-7 items-center justify-center rounded-lg bg-sidebar text-xs font-extrabold text-brand" aria-hidden>{t.name.replace(/^team\s+/i, "").charAt(0).toUpperCase()}</span>
-                      {t.name}
+                    <Link href={`/instructor?team=${tt.id}`} className="inline-flex items-center gap-2 rounded underline-offset-4 hover:text-primary hover:underline">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-sidebar text-xs font-extrabold text-brand" aria-hidden>{tt.name.replace(/^team\s+/i, "").charAt(0).toUpperCase()}</span>
+                      {tt.name}
                     </Link>
                   </th>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{t.members.length}</td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{tt.members.length}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      <Progress value={t.progress} label={`${t.name} progress`} className="h-1.5 w-24" />
-                      <span className="w-9 text-right font-semibold tabular-nums">{t.progress}%</span>
+                      <Progress value={tt.progress} label={t("{name} progress", { name: tt.name })} className="h-1.5 w-24" />
+                      <span className="w-9 text-right font-semibold tabular-nums">{tt.progress}%</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5"><HealthBadge score={t.healthScore} /></td>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{t._count?.tasks ?? 0}</td>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{t._count?.messages ?? 0}</td>
+                  <td className="px-5 py-3.5"><HealthBadge score={tt.healthScore} /></td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{tt._count?.tasks ?? 0}</td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{tt._count?.messages ?? 0}</td>
                 </tr>
               ))}
             </tbody>

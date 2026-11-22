@@ -4,8 +4,10 @@ import * as React from "react";
 import * as Sentry from "@sentry/nextjs";
 import { ArrowsClockwise, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/components/locale";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const { t } = useT();
   // A render error caught here never reaches window.onerror, so report it (no-op without a DSN).
   React.useEffect(() => { Sentry.captureException(error); }, [error]);
   return (
@@ -13,13 +15,13 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
       <span className="mb-6 flex size-16 items-center justify-center rounded-3xl bg-destructive/12 text-destructive">
         <WarningCircle weight="duotone" className="size-8" aria-hidden />
       </span>
-      <h1 className="text-2xl font-extrabold sm:text-3xl">Something went wrong on our side</h1>
+      <h1 className="text-2xl font-extrabold sm:text-3xl">{t("Something went wrong on our side")}</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Your work is safe. Try again, and if it keeps happening check that the database is running.
+        {t("Your work is safe. Try again, and if it keeps happening check that the database is running.")}
       </p>
-      {error.digest && <p className="mt-2 text-xs text-muted-foreground">Reference: {error.digest}</p>}
+      {error.digest && <p className="mt-2 text-xs text-muted-foreground">{t("Reference: {digest}", { digest: error.digest })}</p>}
       <Button size="lg" className="mt-8" onClick={reset}>
-        <ArrowsClockwise aria-hidden /> Try again
+        <ArrowsClockwise aria-hidden /> {t("Try again")}
       </Button>
     </main>
   );

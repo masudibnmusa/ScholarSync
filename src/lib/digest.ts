@@ -14,7 +14,7 @@ const MAX_ITEMS = 20;
  * The daily job marks them emailed; a sample (from the profile page) leaves them as they are.
  */
 export async function sendDigestTo(userId: string, { sample = false } = {}): Promise<number> {
-  const [u] = await db.select({ name: users.name, email: users.email, role: users.role, on: users.emailDigest }).from(users).where(eq(users.id, userId));
+  const [u] = await db.select({ name: users.name, email: users.email, role: users.role, on: users.emailDigest, locale: users.locale }).from(users).where(eq(users.id, userId));
   if (!u || (!sample && !u.on)) return 0;
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const rows = await db.select().from(notifications)
@@ -24,7 +24,7 @@ export async function sendDigestTo(userId: string, { sample = false } = {}): Pro
 
   const base = appUrl();
   const items = rows.map((n) => ({ title: n.title, body: n.body, href: base + notificationHref(n.type, u.role, n.link) }));
-  const sent = await sendEmail({ to: u.email, ...buildDigest(u.name, items, `${base}/${u.role}/profile`) });
+  const sent = await sendEmail({ to: u.email, ...buildDigest(u.name, items, `${base}/${u.role}/profile`, u.locale) });
   if (!sent) return 0;
   if (!sample) await db.update(notifications).set({ emailedAt: new Date().toISOString() }).where(inArray(notifications.id, rows.map((n) => n.id)));
   return rows.length;

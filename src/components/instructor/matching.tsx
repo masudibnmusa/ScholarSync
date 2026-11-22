@@ -20,13 +20,15 @@ import { Card } from "@/components/ui/card";
 import { AnimatedNumber, EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { ProgressRing } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT } from "@/components/locale";
+import { t, msg } from "@/lib/i18n";
 
 const steps = [
-  { icon: IdentificationCard, title: "Profiles", body: "Skills and availability from each student." },
-  { icon: Sparkle, title: "AI proposes", body: "Complementary skills, overlapping free time." },
-  { icon: ThumbsUp, title: "You approve", body: "Rename, regenerate or create. Nothing saves until you do." },
+  { icon: IdentificationCard, title: msg("Profiles"), body: msg("Skills and availability from each student.") },
+  { icon: Sparkle, title: msg("AI proposes"), body: msg("Complementary skills, overlapping free time.") },
+  { icon: ThumbsUp, title: msg("You approve"), body: msg("Rename, regenerate or create. Nothing saves until you do.") },
 ];
-const thinking = ["Reading skills and availability…", "Pairing complementary strengths…", "Checking schedules overlap…", "Scoring each team…"];
+const thinking = [msg("Reading skills and availability…"), msg("Pairing complementary strengths…"), msg("Checking schedules overlap…"), msg("Scoring each team…")];
 const PRESETS = [2, 3, 4, 5];
 
 type Result = { courseId: string; courseTitle: string; proposals: (MatchProposal & { key: string })[] };
@@ -34,9 +36,9 @@ type State = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: 
 
 /** Fit score in words, so the ring's colour is never the only signal. */
 function fitOf(score: number) {
-  if (score >= 80) return { label: "Great fit", color: "var(--success)", text: "text-success" };
-  if (score >= 60) return { label: "Good fit", color: "var(--warm)", text: "text-warm-text" };
-  return { label: "Fair fit", color: "var(--warning)", text: "text-warning" };
+  if (score >= 80) return { label: t("Great fit"), color: "var(--success)", text: "text-success" };
+  if (score >= 60) return { label: t("Good fit"), color: "var(--warm)", text: "text-warm-text" };
+  return { label: t("Fair fit"), color: "var(--warning)", text: "text-warning" };
 }
 
 /** Which step of the flow is current: 1 (set up), 2 (AI working / proposals ready), 3 (created). */
@@ -45,6 +47,7 @@ function stepFor(kind: State["kind"]) {
 }
 
 function Stepper({ current }: { current: number }) {
+  const { t } = useT();
   return (
     <ol className="grid gap-4 sm:grid-cols-3 sm:gap-0">
       {steps.map((s, i) => {
@@ -64,8 +67,8 @@ function Stepper({ current }: { current: number }) {
               {done ? <Check weight="bold" className="size-5" aria-hidden /> : <s.icon weight="duotone" className="size-5" aria-hidden />}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground"><span className="text-muted-foreground">Step {n} · </span>{s.title}{done && <span className="sr-only"> (done)</span>}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{s.body}</p>
+              <p className="text-sm font-bold text-foreground"><span className="text-muted-foreground">{t("Step")} {n} · </span>{t(s.title)}{done && <span className="sr-only"> {t("(done)")}</span>}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{t(s.body)}</p>
             </div>
           </li>
         );
@@ -75,6 +78,7 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Thinking() {
+  const { t } = useT();
   const [i, setI] = React.useState(0);
   React.useEffect(() => {
     const t = setInterval(() => setI((n) => (n + 1) % thinking.length), 1800);
@@ -90,21 +94,22 @@ function Thinking() {
           <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 6, ease: "linear" }} className="absolute inset-1 rounded-full border-2 border-dashed border-primary/40" aria-hidden />
           <span className="relative flex size-14 items-center justify-center rounded-full bg-warm text-warm-foreground shadow-lift"><Sparkle weight="fill" className="size-7" aria-hidden /></span>
         </div>
-        <h2 className="mt-6 text-xl font-extrabold">Building balanced teams</h2>
+        <h2 className="mt-6 text-xl font-extrabold">{t("Building balanced teams")}</h2>
         <AnimatePresence mode="wait">
-          <motion.p key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }} className="mt-1 text-sm text-muted-foreground">{thinking[i]}</motion.p>
+          <motion.p key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }} className="mt-1 text-sm text-muted-foreground">{t(thinking[i])}</motion.p>
         </AnimatePresence>
         {/* indeterminate shimmer bar */}
         <div className="mt-5 h-1.5 w-56 overflow-hidden rounded-full bg-muted" aria-hidden>
           <motion.span className="block h-full w-1/3 rounded-full bg-gradient-to-r from-primary to-warm" animate={{ x: ["-100%", "300%"] }} transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }} />
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">This usually takes a few seconds.</p>
+        <p className="mt-4 text-xs text-muted-foreground">{t("This usually takes a few seconds.")}</p>
       </div>
     </Card>
   );
 }
 
 function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; index: number; onRename: (name: string) => void }) {
+  const { t } = useT();
   const fit = fitOf(p.score);
   const invalid = !p.name.trim();
   return (
@@ -113,14 +118,14 @@ function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; 
       <div className="relative flex items-start gap-3 bg-gradient-to-br from-secondary via-secondary/60 to-transparent p-5 pb-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar text-sm font-extrabold text-brand shadow-soft" aria-hidden>{index + 1}</span>
         <div className="min-w-0 flex-1">
-          <label htmlFor={`team-name-${index}`} className="text-[0.6875rem] font-bold uppercase tracking-wider text-muted-foreground">Team name</label>
+          <label htmlFor={`team-name-${index}`} className="text-[0.6875rem] font-bold uppercase tracking-wider text-muted-foreground">{t("Team name")}</label>
           <input id={`team-name-${index}`} value={p.name} maxLength={100} onChange={(e) => onRename(e.target.value)} aria-invalid={invalid}
             className={cn("-mx-1.5 mt-0.5 block w-[calc(100%+0.75rem)] rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-lg font-extrabold outline-none transition-colors hover:border-input focus:border-ring focus:bg-card focus:ring-[3px] focus:ring-ring/25",
               invalid && "border-destructive bg-card")} />
-          {invalid && <p className="mt-1 text-xs font-semibold text-destructive">Give this team a name.</p>}
+          {invalid && <p className="mt-1 text-xs font-semibold text-destructive">{t("Give this team a name.")}</p>}
         </div>
         <div className="flex flex-col items-center">
-          <ProgressRing value={p.score} size={58} stroke={6} label={`Fit score for ${p.name || `team ${index + 1}`}`} color={fit.color}>
+          <ProgressRing value={p.score} size={58} stroke={6} label={t("Fit score for {name}", { name: p.name || t("team {n}", { n: index + 1 }) })} color={fit.color}>
             <span className="text-sm font-extrabold tabular-nums"><AnimatedNumber value={p.score} /></span>
           </ProgressRing>
           <span className={cn("mt-1 text-[0.6875rem] font-bold", fit.text)}>{fit.label}</span>
@@ -145,7 +150,7 @@ function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; 
 
       {p.strengths.length > 0 && (
         <div className="mx-5 mb-5 mt-4 rounded-xl bg-warm/[0.07] p-3.5 ring-1 ring-warm/20">
-          <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-wider text-warm-text"><Sparkle weight="fill" className="size-3.5" aria-hidden />Why this works</p>
+          <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-wider text-warm-text"><Sparkle weight="fill" className="size-3.5" aria-hidden />{t("Why this works")}</p>
           <ul className="space-y-1.5">
             {p.strengths.map((s) => (
               <li key={s} className="flex gap-2 text-sm leading-snug"><CheckCircle weight="fill" className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />{s}</li>
@@ -159,6 +164,7 @@ function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; 
 }
 
 export function MatchingPanel() {
+  const { t } = useT();
   const fetchTeams = useAppStore((s) => s.fetchTeams);
   const [size, setSize] = React.useState(3);
   const [state, setState] = React.useState<State>({ kind: "idle" });
@@ -187,7 +193,7 @@ export function MatchingPanel() {
       requestAnimationFrame(() => headingRef.current?.focus());
     } catch (err) {
       console.error("Team matching failed:", err);
-      setState({ kind: "error", message: "The AI service didn't answer. It's often busy for a moment; try again. If it keeps failing, check GEMINI_API_KEY." });
+      setState({ kind: "error", message: t("The AI service didn't answer. It's often busy for a moment; try again. If it keeps failing, check GEMINI_API_KEY.") });
     }
   }
 
@@ -195,8 +201,8 @@ export function MatchingPanel() {
     if (state.kind !== "ready") return;
     const { result } = state;
     const names = result.proposals.map((p) => p.name.trim());
-    if (names.some((n) => !n)) return void toast.error("Every team needs a name");
-    if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) return void toast.error("Team names must be different");
+    if (names.some((n) => !n)) return void toast.error(t("Every team needs a name"));
+    if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) return void toast.error(t("Team names must be different"));
     setCreating(true);
     try {
       await applyTeamMatching(result.courseId, result.proposals.map((p) => ({ name: p.name.trim(), memberIds: p.members.map((m) => m.id) })));
@@ -205,7 +211,7 @@ export function MatchingPanel() {
     } catch (err) {
       console.error("Creating teams failed:", err);
       const dup = err instanceof Error && /duplicate|unique/i.test(err.message);
-      toast.error("Could not create the teams", { description: dup ? "A team with one of these names already exists in the course. Rename it and try again." : "Nothing was saved. Please try again." });
+      toast.error(t("Could not create the teams"), { description: dup ? t("A team with one of these names already exists in the course. Rename it and try again.") : t("Nothing was saved. Please try again.") });
     }
     setCreating(false);
   }
@@ -232,10 +238,10 @@ export function MatchingPanel() {
           <div className="min-w-0 space-y-7">
             <div>
               <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-                <Sparkle weight="fill" className="size-3.5" aria-hidden /> Powered by AI · you stay in control
+                <Sparkle weight="fill" className="size-3.5" aria-hidden /> {t("Powered by AI · you stay in control")}
               </p>
-              <h1 id="matching-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">AI team matching</h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">Group the students who aren&apos;t on a team yet into balanced teams, in seconds.</p>
+              <h1 id="matching-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">{t("AI team matching")}</h1>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">{t("Group the students who aren't on a team yet into balanced teams, in seconds.")}</p>
             </div>
             <Stepper current={stepFor(state.kind)} />
           </div>
@@ -244,25 +250,25 @@ export function MatchingPanel() {
           <div className="rounded-2xl border border-glass-border bg-glass p-5 backdrop-blur-sm">
             {courses.length > 0 && (
               <div className="mb-4">
-                <p id="course-label" className="mb-2 text-sm font-bold text-foreground">Course</p>
+                <p id="course-label" className="mb-2 text-sm font-bold text-foreground">{t("Course")}</p>
                 <Select value={courseId} onValueChange={pickCourse} disabled={busy}>
                   <SelectTrigger aria-labelledby="course-label" className="border-glass-border bg-glass text-foreground hover:border-primary/40 [&_svg]:text-muted-foreground"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.unplaced} without a team)</SelectItem>)}
+                    {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.unplaced} {t("without a team)")}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            <p id="size-label" className="text-sm font-bold text-foreground">Students per team</p>
+            <p id="size-label" className="text-sm font-bold text-foreground">{t("Students per team")}</p>
             <div className="mt-3 flex items-center justify-between gap-2" role="group" aria-labelledby="size-label">
-              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label="Fewer students per team" disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
+              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label={t("Fewer students per team")} disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
               <output aria-live="polite" className="flex flex-col items-center">
                 <span className="text-4xl font-extrabold tabular-nums text-foreground">{size}</span>
-                <span className="text-[0.6875rem] font-semibold text-muted-foreground">per team</span>
+                <span className="text-[0.6875rem] font-semibold text-muted-foreground">{t("per team")}</span>
               </output>
-              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label="More students per team" disabled={size >= 8 || busy} onClick={() => setSize((n) => n + 1)}><Plus weight="bold" /></Button>
+              <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label={t("More students per team")} disabled={size >= 8 || busy} onClick={() => setSize((n) => n + 1)}><Plus weight="bold" /></Button>
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-1.5" role="group" aria-label="Quick sizes">
+            <div className="mt-3 grid grid-cols-4 gap-1.5" role="group" aria-label={t("Quick sizes")}>
               {PRESETS.map((n) => (
                 <button key={n} type="button" disabled={busy} onClick={() => setSize(n)} aria-pressed={size === n}
                   className={cn("h-9 rounded-lg text-sm font-bold transition-colors disabled:opacity-50", size === n ? "bg-primary text-primary-foreground" : "bg-glass text-muted-foreground hover:bg-glass-strong hover:text-foreground")}>
@@ -272,9 +278,9 @@ export function MatchingPanel() {
             </div>
             <Button variant="warm" size="lg" className="mt-4 w-full" loading={busy} onClick={generate}>
               {!busy && <Sparkle weight="fill" aria-hidden />}
-              {state.kind === "ready" ? "Regenerate" : "Generate teams"}
+              {state.kind === "ready" ? t("Regenerate") : t("Generate teams")}
             </Button>
-            <p className="mt-2.5 text-center text-[0.6875rem] text-muted-foreground">Uneven numbers get a few larger teams, never one of a single student.</p>
+            <p className="mt-2.5 text-center text-[0.6875rem] text-muted-foreground">{t("Uneven numbers get a few larger teams, never one of a single student.")}</p>
           </div>
         </div>
       </motion.section>
@@ -284,18 +290,18 @@ export function MatchingPanel() {
         <motion.div key={state.kind} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: EASE }} className="space-y-5">
           {state.kind === "idle" && (
             <Card className="border-dashed bg-transparent shadow-none">
-              <EmptyState icon={UsersThree} title="No proposals yet" description="Pick how many students each team should have, then generate. You'll see every proposed team, its fit score and why it works before anything is created." />
+              <EmptyState icon={UsersThree} title={t("No proposals yet")} description={t("Pick how many students each team should have, then generate. You'll see every proposed team, its fit score and why it works before anything is created.")} />
             </Card>
           )}
 
           {state.kind === "loading" && <Thinking />}
 
           {state.kind === "error" && (
-            <Card><EmptyState icon={WarningCircle} title="Matching didn't finish" description={state.message}><Button onClick={generate}><ArrowsClockwise aria-hidden /> Try again</Button></EmptyState></Card>
+            <Card><EmptyState icon={WarningCircle} title={t("Matching didn't finish")} description={state.message}><Button onClick={generate}><ArrowsClockwise aria-hidden /> {t("Try again")}</Button></EmptyState></Card>
           )}
 
           {state.kind === "no-course" && (
-            <Card><EmptyState icon={UsersThree} title="You don't have a course yet" description="Matching works on the students enrolled in your course. Create one from your dashboard; students join it there."><Button asChild><Link href="/instructor/courses">Go to dashboard <ArrowRight aria-hidden /></Link></Button></EmptyState></Card>
+            <Card><EmptyState icon={UsersThree} title={t("You don't have a course yet")} description={t("Matching works on the students enrolled in your course. Create one from your dashboard; students join it there.")}><Button asChild><Link href="/instructor/courses">{t("Go to dashboard")} <ArrowRight aria-hidden /></Link></Button></EmptyState></Card>
           )}
 
           {state.kind === "created" && (
@@ -305,26 +311,26 @@ export function MatchingPanel() {
                 <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 240, damping: 14 }} className="flex size-16 items-center justify-center rounded-full bg-success/12 text-success">
                   <Confetti weight="duotone" className="size-9" aria-hidden />
                 </motion.span>
-                <h2 className="mt-4 text-xl font-extrabold">{state.count} {state.count === 1 ? "team" : "teams"} created</h2>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">Students now see their team, chat and tasks the next time they open ScholarSync.</p>
-                <Button asChild className="mt-5"><Link href="/instructor">View teams <ArrowRight aria-hidden /></Link></Button>
+                <h2 className="mt-4 text-xl font-extrabold">{state.count} {state.count === 1 ? t("team") : t("teams")} {t("created")}</h2>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("Students now see their team, chat and tasks the next time they open ScholarSync.")}</p>
+                <Button asChild className="mt-5"><Link href="/instructor">{t("View teams")} <ArrowRight aria-hidden /></Link></Button>
               </div>
             </Card>
           )}
 
           {state.kind === "ready" && !ready && (
-            <Card><EmptyState icon={CheckCircle} title="Everyone already has a team" description={`No unplaced students in ${state.result.courseTitle}. When new students enrol, come back to match them.`}><Button asChild variant="outline"><Link href="/instructor">View teams</Link></Button></EmptyState></Card>
+            <Card><EmptyState icon={CheckCircle} title={t("Everyone already has a team")} description={t("No unplaced students in {courseTitle}. When new students enrol, come back to match them.", { courseTitle: state.result.courseTitle })}><Button asChild variant="outline"><Link href="/instructor">{t("View teams")}</Link></Button></EmptyState></Card>
           )}
 
           {ready && (
             <>
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <h2 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold outline-none">{ready.proposals.length} proposed {ready.proposals.length === 1 ? "team" : "teams"}</h2>
-                  <p className="text-sm text-muted-foreground">{ready.courseTitle} · rename any team before creating.</p>
+                  <h2 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold outline-none">{ready.proposals.length} {t("proposed")} {ready.proposals.length === 1 ? t("team") : t("teams")}</h2>
+                  <p className="text-sm text-muted-foreground">{ready.courseTitle} {t("· rename any team before creating.")}</p>
                 </div>
                 <dl className="flex divide-x rounded-2xl border bg-card shadow-soft">
-                  {([["Teams", ready.proposals.length], ["Students", placed], ["Avg fit", avgFit]] as const).map(([k, v]) => (
+                  {([[t("Teams"), ready.proposals.length], [t("Students"), placed], [t("Avg fit"), avgFit]] as const).map(([k, v]) => (
                     <div key={k} className="px-4 py-2 text-center">
                       <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{k}</dt>
                       <dd className="text-lg font-extrabold tabular-nums"><AnimatedNumber value={v} /></dd>
@@ -343,9 +349,9 @@ export function MatchingPanel() {
               <div className="sticky bottom-4 z-30">
                 <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-2xl border bg-card/95 p-2.5 shadow-lift backdrop-blur sm:gap-3 sm:p-3 sm:pl-4">
                   <span className="hidden sm:block"><AvatarStack people={ready.proposals.flatMap((p) => p.members)} max={5} /></span>
-                  <p className="hidden min-w-0 flex-1 text-sm sm:block"><span className="font-bold">{placed} students</span> <span className="text-muted-foreground">into {ready.proposals.length} {ready.proposals.length === 1 ? "team" : "teams"}</span></p>
-                  <Button variant="outline" className="flex-1 sm:flex-none" onClick={generate}><ArrowsClockwise aria-hidden /> Regenerate</Button>
-                  <Button className="flex-1 sm:flex-none" onClick={() => setConfirm(true)} loading={creating}>{!creating && <CheckCircle weight="fill" aria-hidden />} Create {ready.proposals.length === 1 ? "team" : "teams"}</Button>
+                  <p className="hidden min-w-0 flex-1 text-sm sm:block"><span className="font-bold">{placed} {t("students")}</span> <span className="text-muted-foreground">{t("into")} {ready.proposals.length} {ready.proposals.length === 1 ? t("team") : t("teams")}</span></p>
+                  <Button variant="outline" className="flex-1 sm:flex-none" onClick={generate}><ArrowsClockwise aria-hidden /> {t("Regenerate")}</Button>
+                  <Button className="flex-1 sm:flex-none" onClick={() => setConfirm(true)} loading={creating}>{!creating && <CheckCircle weight="fill" aria-hidden />} {t("Create")} {ready.proposals.length === 1 ? t("team") : t("teams")}</Button>
                 </div>
               </div>
             </>
@@ -353,8 +359,8 @@ export function MatchingPanel() {
         </motion.div>
       </AnimatePresence>
 
-      <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Create these teams?" confirmLabel="Create teams" destructive={false}
-        description="Students are placed straight away and get access to their team's chat, tasks and files. Teams can't be undone from here."
+      <ConfirmDialog open={confirm} onOpenChange={setConfirm} title={t("Create these teams?")} confirmLabel={t("Create teams")} destructive={false}
+        description={t("Students are placed straight away and get access to their team's chat, tasks and files. Teams can't be undone from here.")}
         onConfirm={create} />
     </Page>
   );

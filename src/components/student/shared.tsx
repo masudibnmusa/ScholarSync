@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlays";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import {intl, t } from "@/lib/i18n";
 
 /** The selected team plus whether the first load has finished (to tell "loading" from "no team"). */
 export function useTeam() {
@@ -30,23 +32,24 @@ export function useTeam() {
 
 /** The team's avatars; pressing them lists every member with skills, availability and share of finished tasks. */
 export function MembersButton({ team, align = "start" }: { team: Team; align?: "start" | "end" }) {
+  const { t, tn } = useT();
   const user = useUser();
   const health = healthInfo(team.healthScore);
   const n = team.members.length;
   return (
     <Popover>
-      <PopoverTrigger className="flex items-center gap-2 rounded-full p-1 pr-2.5 transition-colors hover:bg-accent data-[state=open]:bg-accent" aria-label={`${n} team ${n === 1 ? "member" : "members"}. Show all`}>
+      <PopoverTrigger className="flex items-center gap-2 rounded-full p-1 pr-2.5 transition-colors hover:bg-accent data-[state=open]:bg-accent" aria-label={tn(n, "{n} team member. Show all", "{n} team members. Show all")}>
         <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} />
         <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">{n}</span>
         <CaretDown weight="bold" className="size-3 text-muted-foreground" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align={align} className="w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-0">
         <div className="flex items-baseline justify-between gap-3 border-b px-4 py-3">
-          <p className="text-sm font-bold">{team.name} · {n} {n === 1 ? "member" : "members"}</p>
+          <p className="text-sm font-bold">{team.name} · {n} {n === 1 ? t("member") : t("members")}</p>
           <span className={cn("text-xs font-semibold", toneText[health.tone])}>{health.label}</span>
         </div>
         {n === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No members yet.</p>
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t("No members yet.")}</p>
         ) : (
           <ul className="max-h-[min(26rem,60dvh)] divide-y overflow-y-auto scroll-thin">
             {team.members.map((m) => {
@@ -56,14 +59,14 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
                   <div className="flex items-center gap-3">
                     <Avatar name={m.name} id={m.userId} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{m.name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</p>
+                      <p className="truncate text-sm font-semibold">{m.name}{me && <span className="font-normal text-muted-foreground"> {t("(you)")}</span>}</p>
                       {m.availability && <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Clock className="size-3 shrink-0" aria-hidden />{m.availability}</p>}
                     </div>
                     <span className="text-sm font-bold tabular-nums">{m.contribution}%</span>
                   </div>
-                  <Progress value={m.contribution} label={`${m.name}: share of completed tasks`} color={me ? "var(--warm)" : "var(--primary)"} className="mt-2 h-1.5" />
+                  <Progress value={m.contribution} label={t("{name}: share of completed tasks", { name: m.name })} color={me ? "var(--warm)" : "var(--primary)"} className="mt-2 h-1.5" />
                   {m.skills.length > 0 && (
-                    <ul className="mt-2 flex flex-wrap gap-1" aria-label={`${m.name}'s skills`}>
+                    <ul className="mt-2 flex flex-wrap gap-1" aria-label={t("{name}'s skills", { name: m.name })}>
                       {m.skills.slice(0, 4).map((sk) => <li key={sk} className="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground">{sk}</li>)}
                       {m.skills.length > 4 && <li className="px-1 py-0.5 text-[0.6875rem] text-muted-foreground">+{m.skills.length - 4}</li>}
                     </ul>
@@ -73,27 +76,29 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
             })}
           </ul>
         )}
-        <p className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">% is each member&apos;s share of the team&apos;s completed tasks.</p>
+        <p className="border-t bg-muted/40 px-4 py-2 text-xs text-muted-foreground">{t("% is each member's share of the team's completed tasks.")}</p>
       </PopoverContent>
     </Popover>
   );
 }
 
 export function NoTeam() {
+  const { t } = useT();
   return (
     <EmptyState
       icon={UsersThree}
-      title="You're not on a team yet"
-      description="Your instructor forms the teams for each course. Once you're placed, your chat, board and files appear here. Meanwhile, fill in your profile so matching works well."
+      title={t("You're not on a team yet")}
+      description={t("Your instructor forms the teams for each course. Once you're placed, your chat, board and files appear here. Meanwhile, fill in your profile so matching works well.")}
     >
-      <Button asChild><Link href="/student/profile">Complete your profile</Link></Button>
+      <Button asChild><Link href="/student/profile">{t("Complete your profile")}</Link></Button>
     </EmptyState>
   );
 }
 
 export function PanelSkeleton() {
+  const { t } = useT();
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading">
+    <div className="space-y-4" aria-busy="true" aria-label={t("Loading")}>
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-80" />
     </div>
@@ -113,10 +118,11 @@ function RecapList({ icon: IconCmp, title, items, tone }: { icon: Icon; title: s
   );
 }
 
-export const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+export const weekLabel = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(intl(), { day: "numeric", month: "short", timeZone: "UTC" });
 
 /** The team's weekly AI recap. Opens from the header, or from a notification link with ?recap=1. */
 export function WeeklyRecapButton({ team }: { team: Team }) {
+  const { t } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -148,12 +154,12 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
     setRefreshing(true);
     try {
       const result = await refreshWeeklySummary(team.id);
-      if (result === "quiet") toast.info("Not much happened this week yet. Try again after some chat or board activity.");
-      else if (result === "cooldown") toast.info("This recap was made a few minutes ago.");
+      if (result === "quiet") toast.info(t("Not much happened this week yet. Try again after some chat or board activity."));
+      else if (result === "cooldown") toast.info(t("This recap was made a few minutes ago."));
       setRecap(await getWeeklySummary(team.id));
     } catch (err) {
       console.error("Refreshing the recap failed:", err);
-      toast.error("Could not write the recap. The AI may be busy; try again in a minute.");
+      toast.error(t("Could not write the recap. The AI may be busy; try again in a minute."));
     }
     setRefreshing(false);
   }
@@ -161,37 +167,37 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label="Weekly recap">
+        <Button variant="outline" aria-label={t("Weekly recap")}>
           <ClipboardText weight="duotone" aria-hidden />
-          <span className="hidden xl:inline">Weekly recap</span>
-          <span className="hidden sm:inline xl:hidden">Recap</span>
+          <span className="hidden xl:inline">{t("Weekly recap")}</span>
+          <span className="hidden sm:inline xl:hidden">{t("Recap")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-sky text-info"><ClipboardText weight="fill" className="size-4" aria-hidden /></span>
-            {team.name}&apos;s weekly recap
+            {team.name}{t("'s weekly recap")}
           </DialogTitle>
           <DialogDescription>
-            {recap ? `Week of ${weekLabel(recap.weekStart)} · written by AI ${timeAgo(recap.generatedAt)}` : "Every Monday the AI reads the week's chat and board and sums it up."}
+            {recap ? t("Week of {week} · written by AI {when}", { week: weekLabel(recap.weekStart), when: timeAgo(recap.generatedAt) }) : t("Every Monday the AI reads the week's chat and board and sums it up.")}
           </DialogDescription>
         </DialogHeader>
         {recap === undefined ? (
           <div className="space-y-3" aria-busy="true"><Skeleton className="h-16" /><Skeleton className="h-24" /></div>
         ) : recap === null ? (
-          <EmptyState icon={ClipboardText} title="No recap yet" description="The first one arrives on Monday, or write one now from this week's activity." className="py-6" />
+          <EmptyState icon={ClipboardText} title={t("No recap yet")} description={t("The first one arrives on Monday, or write one now from this week's activity.")} className="py-6" />
         ) : (
           <div className="space-y-4">
             <p className="rounded-2xl bg-sky/60 px-4 py-3 text-[0.9375rem] leading-relaxed">{recap.summary}</p>
-            <RecapList icon={CheckCircle} title="Done" items={recap.done} tone="text-success" />
-            <RecapList icon={WarningCircle} title="Late or at risk" items={recap.late} tone="text-warning" />
-            <RecapList icon={ChatTeardropText} title="Decided" items={recap.decisions} tone="text-info" />
+            <RecapList icon={CheckCircle} title={t("Done")} items={recap.done} tone="text-success" />
+            <RecapList icon={WarningCircle} title={t("Late or at risk")} items={recap.late} tone="text-warning" />
+            <RecapList icon={ChatTeardropText} title={t("Decided")} items={recap.decisions} tone="text-info" />
           </div>
         )}
         <div className="flex justify-end">
           <Button variant="secondary" onClick={refresh} loading={refreshing} disabled={recap === undefined}>
-            {!refreshing && <ArrowClockwise aria-hidden />} {recap ? "Refresh from this week" : "Write it now"}
+            {!refreshing && <ArrowClockwise aria-hidden />} {recap ? t("Refresh from this week") : t("Write it now")}
           </Button>
         </div>
       </DialogContent>
@@ -201,6 +207,7 @@ export function WeeklyRecapButton({ team }: { team: Team }) {
 
 /** AI reads everyone's availability and suggests times; picking one posts a proposal to the team chat. */
 export function MeetingButton({ team }: { team: Team }) {
+  const { t } = useT();
   const sendMessage = useAppStore((s) => s.sendMessage);
   const [open, setOpen] = React.useState(false);
   const [slots, setSlots] = React.useState<MeetingSlot[] | null | undefined>(undefined); // undefined = not asked, null = loading
@@ -212,7 +219,7 @@ export function MeetingButton({ team }: { team: Team }) {
       setSlots(await suggestMeetingTimes(team.id));
     } catch (err) {
       console.error("Suggesting meeting times failed:", err);
-      toast.error("Could not suggest times. The AI may be busy; try again in a minute.");
+      toast.error(t("Could not suggest times. The AI may be busy; try again in a minute."));
       setSlots(undefined);
     }
   }
@@ -225,7 +232,7 @@ export function MeetingButton({ team }: { team: Team }) {
   async function propose(s: MeetingSlot) {
     setPosting(s.date + s.start);
     if (await sendMessage(team.id, proposalMessage(s, team.members.length))) {
-      toast.success("Proposal posted to the team chat");
+      toast.success(t("Proposal posted to the team chat"));
       setOpen(false);
     }
     setPosting(null);
@@ -235,32 +242,32 @@ export function MeetingButton({ team }: { team: Team }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label="Find a meeting time">
+        <Button variant="outline" aria-label={t("Find a meeting time")}>
           <CalendarPlus weight="duotone" aria-hidden />
-          <span className="hidden xl:inline">Find a time</span>
-          <span className="hidden sm:inline xl:hidden">Meet</span>
+          <span className="hidden xl:inline">{t("Find a time")}</span>
+          <span className="hidden sm:inline xl:hidden">{t("Meet")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-butter text-warm-text"><CalendarPlus weight="fill" className="size-4" aria-hidden /></span>
-            Find a meeting time
+            {t("Find a meeting time")}
           </DialogTitle>
-          <DialogDescription>The AI matches everyone&apos;s availability from their profiles. Pick a time to propose it in the team chat.</DialogDescription>
+          <DialogDescription>{t("The AI matches everyone's availability from their profiles. Pick a time to propose it in the team chat.")}</DialogDescription>
         </DialogHeader>
-        <ul className="flex flex-wrap gap-1.5" aria-label="Member availability">
+        <ul className="flex flex-wrap gap-1.5" aria-label={t("Member availability")}>
           {team.members.map((m) => (
             <li key={m.userId} className="flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2.5 text-xs">
               <Avatar name={m.name} id={m.userId} size="xs" /><span className="font-semibold">{firstName(m.name)}</span>
-              <span className="text-muted-foreground">{m.availability.trim() || "not set"}</span>
+              <span className="text-muted-foreground">{m.availability.trim() || t("not set")}</span>
             </li>
           ))}
         </ul>
         {slots === null || slots === undefined ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-16" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
         ) : slots.length === 0 ? (
-          <EmptyState icon={CalendarPlus} title="No good time found" description="Ask teammates to add their availability on their profile, then try again." className="py-6" />
+          <EmptyState icon={CalendarPlus} title={t("No good time found")} description={t("Ask teammates to add their availability on their profile, then try again.")} className="py-6" />
         ) : (
           <ul className="space-y-2">
             {slots.map((s, i) => {
@@ -270,12 +277,12 @@ export function MeetingButton({ team }: { team: Team }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[0.9375rem] font-bold">{slotLabel(s)}</p>
                     <p className={cn("text-xs font-semibold", all ? "text-success" : "text-warm-text")}>
-                      {all ? "Works for everyone" : `${s.attendees.length} of ${team.members.length}: ${s.attendees.map(firstName).join(", ") || "unclear"}`}
+                      {all ? t("Works for everyone") : `${s.attendees.length} of ${team.members.length}: ${s.attendees.map(firstName).join(", ") || "unclear"}`}
                     </p>
                     {s.note && <p className="mt-0.5 text-xs text-muted-foreground">{s.note}</p>}
                   </div>
                   <Button size="sm" variant={i === 0 ? "default" : "secondary"} loading={posting === s.date + s.start} disabled={!!posting} onClick={() => propose(s)}>
-                    Propose
+                    {t("Propose")}
                   </Button>
                 </li>
               );
@@ -283,8 +290,8 @@ export function MeetingButton({ team }: { team: Team }) {
           </ul>
         )}
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">{unknown.length ? `${unknown.length} without availability, treated as flexible.` : "Check the time with everyone in chat."}</p>
-          <Button variant="ghost" size="sm" onClick={find} disabled={slots === null}><ArrowClockwise aria-hidden />Try again</Button>
+          <p className="text-xs text-muted-foreground">{unknown.length ? t("{count} without availability, treated as flexible.", { count: unknown.length }) : t("Check the time with everyone in chat.")}</p>
+          <Button variant="ghost" size="sm" onClick={find} disabled={slots === null}><ArrowClockwise aria-hidden />{t("Try again")}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -292,6 +299,7 @@ export function MeetingButton({ team }: { team: Team }) {
 }
 
 export function AiSuggestionsButton() {
+  const { t } = useT();
   const suggestions = useAppStore((s) => s.taskSuggestions);
   const accept = useAppStore((s) => s.acceptSuggestion);
   const dismiss = useAppStore((s) => s.dismissSuggestion);
@@ -309,8 +317,8 @@ export function AiSuggestionsButton() {
       <DialogTrigger asChild>
         <Button variant={count ? "warm" : "outline"} className="relative">
           <Sparkle weight="fill" aria-hidden />
-          <span className="hidden xl:inline">AI suggestions</span>
-          <span className="xl:hidden">AI</span>
+          <span className="hidden xl:inline">{t("AI suggestions")}</span>
+          <span className="xl:hidden">{t("AI")}</span>
           {count > 0 && <span className="rounded-full bg-warm-foreground/15 px-1.5 text-xs font-extrabold tabular-nums">{count}</span>}
         </Button>
       </DialogTrigger>
@@ -318,15 +326,15 @@ export function AiSuggestionsButton() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-warm/15 text-warm-text"><Sparkle weight="fill" className="size-4" aria-hidden /></span>
-            Tasks found in your chat
+            {t("Tasks found in your chat")}
           </DialogTitle>
-          <DialogDescription>The AI reads new team messages and suggests tasks. Nothing is added until you say so.</DialogDescription>
+          <DialogDescription>{t("The AI reads new team messages and suggests tasks. Nothing is added until you say so.")}</DialogDescription>
         </DialogHeader>
 
         {count === 0 ? (
           <div className="rounded-2xl border border-dashed px-6 py-10 text-center">
-            <p className="text-sm font-semibold">No suggestions right now</p>
-            <p className="mt-1 text-sm text-muted-foreground">Keep chatting. When someone says "I'll do X by Friday", it shows up here.</p>
+            <p className="text-sm font-semibold">{t("No suggestions right now")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("Keep chatting. When someone says \"I'll do X by Friday\", it shows up here.")}</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -343,8 +351,8 @@ export function AiSuggestionsButton() {
                     </p>
                   )}
                   <div className="mt-3 flex gap-2">
-                    <Button size="sm" loading={busy === s.id} onClick={() => act(s.id, accept)}><Check weight="bold" aria-hidden /> Add to board</Button>
-                    <Button size="sm" variant="ghost" disabled={busy === s.id} onClick={() => act(s.id, dismiss)}><X aria-hidden /> Dismiss</Button>
+                    <Button size="sm" loading={busy === s.id} onClick={() => act(s.id, accept)}><Check weight="bold" aria-hidden /> {t("Add to board")}</Button>
+                    <Button size="sm" variant="ghost" disabled={busy === s.id} onClick={() => act(s.id, dismiss)}><X aria-hidden /> {t("Dismiss")}</Button>
                   </div>
                 </motion.li>
               ))}

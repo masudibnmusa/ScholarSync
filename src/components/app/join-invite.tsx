@@ -11,8 +11,11 @@ import { accentOf } from "@/components/app/courses";
 import { EmptyState, Logo } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/components/locale";
+import { t } from "@/lib/i18n";
 
 export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | null; role: string; joinCode: string }) {
+  const { t } = useT();
   const router = useRouter();
   const [joining, setJoining] = React.useState(false);
   const home = `/${role}/courses`;
@@ -22,11 +25,11 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
     setJoining(true);
     try {
       const id = await joinCourseByCode(joinCode);
-      toast.success(`Joined ${invite.code}`);
+      toast.success(t("Joined {code}", { code: invite.code }));
       router.replace(`/student/courses/${id}`);
     } catch (err) {
       console.error("Joining by invite failed:", err);
-      toast.error("Could not join the course", { description: err instanceof Error ? err.message : undefined });
+      toast.error(t("Could not join the course"), { description: err instanceof Error ? t(err.message) : undefined });
       setJoining(false);
     }
   }
@@ -34,12 +37,12 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
   let body: React.ReactNode;
   if (!invite) {
     body = (
-      <EmptyState icon={LinkBreak} title="This invite doesn't work" description="The code may be mistyped, or the course was deleted. Ask your instructor for a new link.">
-        <Button asChild><Link href={home}>Go to your courses</Link></Button>
+      <EmptyState icon={LinkBreak} title={t("This invite doesn't work")} description={t("The code may be mistyped, or the course was deleted. Ask your instructor for a new link.")}>
+        <Button asChild><Link href={home}>{t("Go to your courses")}</Link></Button>
       </EmptyState>
     );
   } else {
-    const open = <Button asChild><Link href={`/${role}/courses/${invite.id}`}>Open the course</Link></Button>;
+    const open = <Button asChild><Link href={`/${role}/courses/${invite.id}`}>{t("Open the course")}</Link></Button>;
     body = (
       <div>
         <div className="relative h-24 overflow-hidden rounded-t-[inherit]" style={{ background: accentOf(invite.code) }}>
@@ -51,20 +54,20 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
           </div>
         </div>
         <div className="p-6">
-          <p className="text-sm font-semibold text-muted-foreground">You&apos;re invited to join</p>
+          <p className="text-sm font-semibold text-muted-foreground">{t("You're invited to join")}</p>
           <h1 className="mt-1 text-2xl font-extrabold">{invite.title}</h1>
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground"><ChalkboardTeacher className="size-4" aria-hidden /> Taught by {invite.instructorName}</p>
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground"><ChalkboardTeacher className="size-4" aria-hidden /> {t("Taught by")} {invite.instructorName}</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             {invite.isMine ? (
-              <><p className="w-full text-sm text-muted-foreground">This is the invite link for your own course. Share it with your students.</p>{open}</>
+              <><p className="w-full text-sm text-muted-foreground">{t("This is the invite link for your own course. Share it with your students.")}</p>{open}</>
             ) : role === "instructor" ? (
-              <><p className="w-full text-sm text-muted-foreground">Invite links are for students. Instructors can browse the course from the dashboard.</p><Button asChild variant="outline"><Link href={home}>Back to dashboard</Link></Button></>
+              <><p className="w-full text-sm text-muted-foreground">{t("Invite links are for students. Instructors can browse the course from the dashboard.")}</p><Button asChild variant="outline"><Link href={home}>{t("Back to dashboard")}</Link></Button></>
             ) : invite.enrolled ? (
-              <><p className="w-full text-sm text-muted-foreground">You&apos;re already in this course.</p>{open}</>
+              <><p className="w-full text-sm text-muted-foreground">{t("You're already in this course.")}</p>{open}</>
             ) : !invite.open ? (
-              <><p className="w-full text-sm text-muted-foreground">This course isn&apos;t accepting new students right now. Ask your instructor to add you.</p><Button asChild variant="outline"><Link href={home}>Go to your courses</Link></Button></>
+              <><p className="w-full text-sm text-muted-foreground">{t("This course isn't accepting new students right now. Ask your instructor to add you.")}</p><Button asChild variant="outline"><Link href={home}>{t("Go to your courses")}</Link></Button></>
             ) : (
-              <Button size="lg" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} Join course</Button>
+              <Button size="lg" loading={joining} onClick={join}>{!joining && <SignIn aria-hidden />} {t("Join course")}</Button>
             )}
           </div>
         </div>
@@ -74,7 +77,7 @@ export function JoinInvite({ invite, role, joinCode }: { invite: CourseInvite | 
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-background px-4 py-10">
-      <Link href={home} className="rounded-xl" aria-label="ScholarSync home"><Logo /></Link>
+      <Link href={home} className="rounded-xl" aria-label={t("ScholarSync home")}><Logo /></Link>
       <Card className="w-full max-w-md overflow-hidden">{body}</Card>
     </main>
   );

@@ -3,13 +3,15 @@
 import * as React from "react";
 import * as A from "@radix-ui/react-alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/components/locale";
 
 /** Confirmation for actions that are hard to undo. Focus starts on Cancel so Enter never confirms by accident. */
 export function ConfirmDialog({
-  open, onOpenChange, title, description, confirmLabel = "Delete", destructive = true, onConfirm,
+  open, onOpenChange, title, description, confirmLabel, destructive = true, onConfirm,
 }: {
   open: boolean; onOpenChange: (open: boolean) => void; title: string; description: string; confirmLabel?: string; destructive?: boolean; onConfirm: () => void;
 }) {
+  const { t } = useT();
   return (
     <A.Root open={open} onOpenChange={onOpenChange}>
       <A.Portal>
@@ -21,10 +23,10 @@ export function ConfirmDialog({
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <A.Cancel asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">{t("Cancel")}</Button>
             </A.Cancel>
             <A.Action asChild>
-              <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm}>{confirmLabel}</Button>
+              <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm}>{confirmLabel ?? t("Delete")}</Button>
             </A.Action>
           </div>
         </A.Content>

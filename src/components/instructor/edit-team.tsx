@@ -14,9 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t, tn } from "@/lib/i18n";
 
 /** Create a team (no `team`), or rename one, change its description, and pick its members from everyone enrolled in the course. */
 function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; courseId: string; courseCode: string; onDone: () => void }) {
+  const { t, tn } = useT();
   const fetchTeams = useAppStore((s) => s.fetchTeams);
   const selectedId = useAppStore((s) => s.selectedTeam?.id);
   const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
@@ -36,7 +39,7 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
     getCourseRoster(courseId).then(setRoster, (err) => {
       console.error("Loading roster failed:", err);
       setRoster([]);
-      setError("Could not load the course's students.");
+      setError(t("Could not load the course's students."));
     });
   }, [courseId]);
 
@@ -57,19 +60,19 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return setError("Give the team a name.");
-    if (!members.size) return setError("A team needs at least one member.");
+    if (!name.trim()) return setError(t("Give the team a name."));
+    if (!members.size) return setError(t("A team needs at least one member."));
     setSaving(true);
     setError(null);
     try {
       if (team) await updateTeam(team.id, { name, description, memberIds: [...members] });
       else await createTeam(courseId, { name, description, memberIds: [...members] });
       await fetchTeams();
-      toast.success(`${name.trim()} ${team ? "updated" : "created"}`, { description: moving.length ? `${moving.length} ${moving.length === 1 ? "student" : "students"} moved from another team.` : undefined });
+      toast.success(`${name.trim()} ${team ? "updated" : "created"}`, { description: moving.length ? tn(moving.length, "{n} student moved from another team.", "{n} students moved from another team.") : undefined });
       onDone();
     } catch (err) {
       console.error("Update team failed:", err);
-      setError(err instanceof Error && /duplicate|unique/i.test(err.message) ? "Another team in this course already has that name." : "Could not save the team. Please try again.");
+      setError(err instanceof Error && /duplicate|unique/i.test(err.message) ? t("Another team in this course already has that name.") : t("Could not save the team. Please try again."));
     }
     setSaving(false);
   }
@@ -83,38 +86,38 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
       if (selectedId === team.id) setSelectedTeam(null);
       await fetchTeams();
       router.replace(pathname, { scroll: false }); // drop a ?team= that pointed at it
-      toast.success(`${team.name} deleted`, { description: "Its students are back to “no team” and can be matched again." });
+      toast.success(`${team.name} deleted`, { description: t("Its students are back to “no team” and can be matched again.") });
       onDone();
     } catch (err) {
       console.error("Delete team failed:", err);
-      setError("Could not delete the team. Nothing was removed; please try again.");
+      setError(t("Could not delete the team. Nothing was removed; please try again."));
       setDeleting(false);
     }
   }
 
   return (
     <form onSubmit={save} className="space-y-4" noValidate>
-      <Field label="Team name" htmlFor="team-name">
-        <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Team Atlas" autoFocus={!team} aria-invalid={(!!team && !name.trim()) || undefined} />
+      <Field label={t("Team name")} htmlFor="team-name">
+        <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder={t("Team Atlas")} autoFocus={!team} aria-invalid={(!!team && !name.trim()) || undefined} />
       </Field>
-      <Field label="Project or description" htmlFor="team-description" optional>
-        <Textarea id="team-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} className="min-h-16" placeholder="What this team is building…" />
+      <Field label={t("Project or description")} htmlFor="team-description" optional>
+        <Textarea id="team-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} className="min-h-16" placeholder={t("What this team is building…")} />
       </Field>
 
       <fieldset className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
-          <legend className="text-sm font-semibold">Members</legend>
-          <span className="text-xs font-semibold text-muted-foreground">{members.size} selected</span>
+          <legend className="text-sm font-semibold">{t("Members")}</legend>
+          <span className="text-xs font-semibold text-muted-foreground">{members.size} {t("selected")}</span>
         </div>
         <div className="relative">
           <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search students, skills or teams" aria-label="Search students" className="h-9 pl-10 md:h-9" />
+          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search students, skills or teams")} aria-label={t("Search students")} className="h-9 pl-10 md:h-9" />
         </div>
         <div className="max-h-72 overflow-y-auto rounded-2xl border scroll-thin">
           {roster === null ? (
             <div className="space-y-2 p-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-11 rounded-xl" />)}</div>
           ) : list.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">{roster.length ? "No student matches." : "No students are enrolled in this course."}</p>
+            <p className="p-6 text-center text-sm text-muted-foreground">{roster.length ? t("No student matches.") : t("No students are enrolled in this course.")}</p>
           ) : (
             <ul className="divide-y">
               {list.map((st) => {
@@ -133,7 +136,7 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
                         st.teamId === teamId ? "bg-secondary text-secondary-foreground"
                           : elsewhere ? (checked ? "bg-warm/15 text-warm-text" : "bg-muted text-muted-foreground")
                             : "bg-success/12 text-success")}>
-                        {st.teamId === teamId ? "This team" : elsewhere ? (checked ? `Moves from ${st.teamName}` : st.teamName) : "No team"}
+                        {st.teamId === teamId ? t("This team") : elsewhere ? (checked ? t("Moves from {teamName}", { teamName: st.teamName }) : st.teamName) : t("No team")}
                       </span>
                     </label>
                   </li>
@@ -145,7 +148,7 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
         {moving.length > 0 && (
           <p className="flex items-start gap-1.5 text-xs text-warm-text">
             <ArrowsLeftRight className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            {moving.map((m) => m.name).join(", ")} will leave {moving.length === 1 ? "their current team" : "their current teams"}. A student is on one team per course.
+            {tn(moving.length, "{names} will leave their current team. A student is on one team per course.", "{names} will leave their current teams. A student is on one team per course.", { names: moving.map((m) => m.name).join(", ") })}
           </p>
         )}
       </fieldset>
@@ -154,17 +157,17 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
       <DialogFooter className={team ? "sm:justify-between" : undefined}>
         {team && (
           <Button type="button" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" loading={deleting} disabled={saving} onClick={() => setConfirmDelete(true)}>
-            {!deleting && <Trash aria-hidden />} Delete team
+            {!deleting && <Trash aria-hidden />} {t("Delete team")}
           </Button>
         )}
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
-          <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
-          <Button type="submit" loading={saving} disabled={roster === null || deleting}>{!saving && (team ? <PencilSimple aria-hidden /> : <Plus weight="bold" aria-hidden />)} {team ? "Save changes" : "Create team"}</Button>
+          <Button type="button" variant="outline" onClick={onDone}>{t("Cancel")}</Button>
+          <Button type="submit" loading={saving} disabled={roster === null || deleting}>{!saving && (team ? <PencilSimple aria-hidden /> : <Plus weight="bold" aria-hidden />)} {team ? t("Save changes") : t("Create team")}</Button>
         </div>
       </DialogFooter>
       {team && (
-        <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={`Delete ${team.name}?`} confirmLabel="Delete team"
-          description={`This permanently deletes the team's tasks, chat, files and peer reviews. Its ${team.members.length} ${team.members.length === 1 ? "student stays" : "students stay"} enrolled in ${courseCode} without a team, ready to be matched again. This can't be undone.`}
+        <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={t("Delete {name}?", { name: team.name })} confirmLabel={t("Delete team")}
+          description={tn(team.members.length, "This permanently deletes the team's tasks, chat, files and peer reviews. Its {n} student stays enrolled in {courseCode} without a team, ready to be matched again. This can't be undone.", "This permanently deletes the team's tasks, chat, files and peer reviews. Its {n} students stay enrolled in {courseCode} without a team, ready to be matched again. This can't be undone.", { courseCode })}
           onConfirm={remove} />
       )}
     </form>
@@ -172,15 +175,16 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
 }
 
 export function EditTeamButton({ team }: { team: Team }) {
+  const { t } = useT();
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}><PencilSimple aria-hidden /> Edit team</Button>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}><PencilSimple aria-hidden /> {t("Edit team")}</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Edit {team.name}</DialogTitle>
-            <DialogDescription>{team.courseCode} · Members keep their tasks, chat and files; removed students lose access to them.</DialogDescription>
+            <DialogTitle>{t("Edit")} {team.name}</DialogTitle>
+            <DialogDescription>{team.courseCode} {t("· Members keep their tasks, chat and files; removed students lose access to them.")}</DialogDescription>
           </DialogHeader>
           {/* Mounted only while open, so it always starts from the team's current data. */}
           {open && <EditTeamForm team={team} courseId={team.courseId} courseCode={team.courseCode} onDone={() => setOpen(false)} />}
@@ -192,15 +196,16 @@ export function EditTeamButton({ team }: { team: Team }) {
 
 /** Instructor: make a team by hand and pick its members, without AI matching. */
 export function NewTeamButton({ courseId, courseCode }: { courseId: string; courseCode: string }) {
+  const { t } = useT();
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}><Plus weight="bold" aria-hidden /> New team</Button>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}><Plus weight="bold" aria-hidden /> {t("New team")}</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>New team in {courseCode}</DialogTitle>
-            <DialogDescription>Name it and pick its members. A student already on a team moves to this one.</DialogDescription>
+            <DialogTitle>{t("New team in")} {courseCode}</DialogTitle>
+            <DialogDescription>{t("Name it and pick its members. A student already on a team moves to this one.")}</DialogDescription>
           </DialogHeader>
           {open && <EditTeamForm courseId={courseId} courseCode={courseCode} onDone={() => setOpen(false)} />}
         </DialogContent>

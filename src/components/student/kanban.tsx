@@ -25,14 +25,16 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MeetingNotesButton } from "@/components/student/meeting-notes";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import {intl, msg, t } from "@/lib/i18n";
 
 type Status = KanbanTask["status"];
 
 // List order: work in flight first, then what's waiting, then what's finished.
 const statuses: { id: Status; label: string; icon: Icon; pill: string; order: number }[] = [
-  { id: "todo", label: "To do", icon: CircleDashed, pill: "bg-muted text-muted-foreground", order: 1 },
-  { id: "in-progress", label: "In progress", icon: Spinner, pill: "bg-warm/15 text-warm-text", order: 0 },
-  { id: "done", label: "Done", icon: CheckCircle, pill: "bg-success/12 text-success", order: 2 },
+  { id: "todo", label: msg("To do"), icon: CircleDashed, pill: "bg-muted text-muted-foreground", order: 1 },
+  { id: "in-progress", label: msg("In progress"), icon: Spinner, pill: "bg-warm/15 text-warm-text", order: 0 },
+  { id: "done", label: msg("Done"), icon: CheckCircle, pill: "bg-success/12 text-success", order: 2 },
 ];
 const statusOf = (id: Status) => statuses.find((x) => x.id === id)!;
 
@@ -42,6 +44,7 @@ const UNASSIGNED = "none"; // Radix Select reserves the empty string
 // ─── Checklist (inside the edit dialog) ───────────────────────────────────
 
 function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
+  const { t } = useT();
   const fetchTasks = useAppStore((s) => s.fetchTasks);
   const [items, setItems] = React.useState<ChecklistItem[] | null>(null);
   const [draft, setDraft] = React.useState("");
@@ -65,7 +68,7 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
 
   function toggle(item: ChecklistItem) {
     setItems((list) => list?.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)) ?? null);
-    run(() => setChecklistItemDone(item.id, !item.done), "Could not update the step");
+    run(() => setChecklistItemDone(item.id, !item.done), t("Could not update the step"));
   }
 
   function add(e: React.FormEvent) {
@@ -73,14 +76,14 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
     const body = draft.trim();
     if (!body) return;
     setDraft("");
-    run(() => addChecklistItem(task.id, body), "Could not add the step");
+    run(() => addChecklistItem(task.id, body), t("Could not add the step"));
   }
 
   const done = items?.filter((i) => i.done).length ?? 0;
   return (
     <section aria-labelledby="task-checklist-title" className="border-t pt-4">
       <h3 id="task-checklist-title" className="flex items-center gap-1.5 text-sm font-bold">
-        <ListChecks weight="duotone" className="size-4 text-primary" aria-hidden /> Checklist
+        <ListChecks weight="duotone" className="size-4 text-primary" aria-hidden /> {t("Checklist")}
         {!!items?.length && <span className="font-semibold text-muted-foreground">{done}/{items.length}</span>}
       </h3>
       {items && items.length > 0 && (
@@ -96,9 +99,9 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
             <li key={i.id} className="group/step flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-accent/40">
               <input type="checkbox" id={`step-${i.id}`} checked={i.done} onChange={() => toggle(i)} className="size-4 shrink-0 accent-[var(--color-success)]" />
               <label htmlFor={`step-${i.id}`} className={cn("min-w-0 flex-1 break-words text-sm", i.done && "text-muted-foreground line-through")}>{i.body}</label>
-              <button type="button" onClick={() => run(() => deleteChecklistItem(i.id), "Could not delete the step")}
+              <button type="button" onClick={() => run(() => deleteChecklistItem(i.id), t("Could not delete the step"))}
                 className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/step:opacity-100 max-md:opacity-100"
-                aria-label={`Delete step: ${i.body}`}>
+                aria-label={t("Delete step: {body}", { body: i.body })}>
                 <Trash className="size-3.5" aria-hidden />
               </button>
             </li>
@@ -106,9 +109,9 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
         </ul>
       )}
       <form onSubmit={add} className="mt-2 flex gap-2">
-        <label htmlFor="task-step" className="sr-only">Add a step</label>
-        <Input id="task-step" value={draft} maxLength={200} placeholder="Add a step…" className="h-9 flex-1" onChange={(e) => setDraft(e.target.value)} />
-        <Button type="submit" variant="secondary" size="sm" className="h-9" disabled={!draft.trim()}><Plus aria-hidden />Add</Button>
+        <label htmlFor="task-step" className="sr-only">{t("Add a step")}</label>
+        <Input id="task-step" value={draft} maxLength={200} placeholder={t("Add a step…")} className="h-9 flex-1" onChange={(e) => setDraft(e.target.value)} />
+        <Button type="submit" variant="secondary" size="sm" className="h-9" disabled={!draft.trim()}><Plus aria-hidden />{t("Add")}</Button>
       </form>
     </section>
   );
@@ -116,22 +119,23 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
 
 // ─── History (inside the edit dialog) ─────────────────────────────────────
 
-const statusName = (v: string | null) => ({ todo: "To do", in_progress: "In progress", done: "Done" })[v ?? ""] ?? v ?? "none";
-const dateName = (v: string | null) => (v ? new Date(`${v}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "no date");
+const statusName = (v: string | null) => ({ todo: t("To do"), in_progress: t("In progress"), done: t("Done") })[v ?? ""] ?? v ?? "none";
+const dateName = (v: string | null) => (v ? new Date(`${v}T00:00:00`).toLocaleDateString(intl(), { day: "numeric", month: "short" }) : t("no date"));
 
 function describe(e: TaskEvent) {
   switch (e.field) {
-    case "created": return <>created the task</>;
-    case "status": return <>moved it from <b>{statusName(e.oldValue)}</b> to <b>{statusName(e.newValue)}</b></>;
-    case "assignee": return e.newValue ? <>assigned it to <b>{e.newValue}</b></> : <>unassigned <b>{e.oldValue ?? "it"}</b></>;
-    case "due_date": return <>changed the due date from <b>{dateName(e.oldValue)}</b> to <b>{dateName(e.newValue)}</b></>;
-    case "priority": return <>set priority to <b>{e.newValue}</b></>;
-    case "title": return <>renamed it from <b>{e.oldValue}</b></>;
+    case "created": return <>{t("created the task")}</>;
+    case "status": return <>{t("moved it from")} <b>{statusName(e.oldValue)}</b> {t("to")} <b>{statusName(e.newValue)}</b></>;
+    case "assignee": return e.newValue ? <>{t("assigned it to")} <b>{e.newValue}</b></> : <>{t("unassigned")} <b>{e.oldValue ?? t("it")}</b></>;
+    case "due_date": return <>{t("changed the due date from")} <b>{dateName(e.oldValue)}</b> {t("to")} <b>{dateName(e.newValue)}</b></>;
+    case "priority": return <>{t("set priority to")} <b>{e.newValue}</b></>;
+    case "title": return <>{t("renamed it from")} <b>{e.oldValue}</b></>;
   }
 }
 
 /** Who changed what, newest first. Collapsed by default: it is for "wait, who moved this?" moments. */
 function TaskHistory({ task }: { task: KanbanTask }) {
+  const { t } = useT();
   const [open, setOpen] = React.useState(false);
   const [events, setEvents] = React.useState<TaskEvent[] | null>(null);
 
@@ -144,7 +148,7 @@ function TaskHistory({ task }: { task: KanbanTask }) {
     <section className="border-t pt-3">
       <button type="button" onClick={toggle} aria-expanded={open} aria-controls="task-history"
         className="flex w-full items-center gap-1.5 rounded-md text-sm font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
-        <ClockCounterClockwise weight="duotone" className="size-4 text-primary" aria-hidden /> History
+        <ClockCounterClockwise weight="duotone" className="size-4 text-primary" aria-hidden /> {t("History")}
         <CaretDown className={cn("ml-auto size-4 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden />
       </button>
       {open && (
@@ -154,11 +158,11 @@ function TaskHistory({ task }: { task: KanbanTask }) {
               {events.map((e) => (
                 <li key={e.id} className="relative text-sm">
                   <span className="absolute -left-[1.3rem] top-1.5 size-2 rounded-full bg-border ring-2 ring-card" aria-hidden />
-                  <span className="font-semibold">{e.actorName ?? "ScholarSync"}</span> {describe(e)}
+                  <span className="font-semibold">{e.actorName ?? t("ScholarSync")}</span> {describe(e)}
                   <time dateTime={e.createdAt} className="ml-1.5 text-xs text-muted-foreground">{timeAgo(e.createdAt)}</time>
                 </li>
               ))}
-              {!events.some((e) => e.field === "created") && <li className="text-xs text-muted-foreground">Changes before history was switched on weren&apos;t recorded.</li>}
+              {!events.some((e) => e.field === "created") && <li className="text-xs text-muted-foreground">{t("Changes before history was switched on weren't recorded.")}</li>}
             </ol>
           )}
         </div>
@@ -170,6 +174,7 @@ function TaskHistory({ task }: { task: KanbanTask }) {
 // ─── Comments (inside the edit dialog) ───────────────────────────────────
 
 function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
+  const { t } = useT();
   const user = useUser();
   const fetchTasks = useAppStore((s) => s.fetchTasks);
   const [comments, setComments] = React.useState<TaskComment[] | null>(null);
@@ -199,20 +204,20 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
     e.preventDefault();
     if (!draft.trim() || posting) return;
     setPosting(true);
-    if (await run(() => addTaskComment(task.id, draft), "Could not post the comment")) setDraft("");
+    if (await run(() => addTaskComment(task.id, draft), t("Could not post the comment"))) setDraft("");
     setPosting(false);
   }
 
   return (
     <section aria-labelledby="task-comments-title" className="border-t pt-4">
       <h3 id="task-comments-title" className="flex items-center gap-1.5 text-sm font-bold">
-        <ChatCircle weight="duotone" className="size-4 text-primary" aria-hidden /> Comments
+        <ChatCircle weight="duotone" className="size-4 text-primary" aria-hidden /> {t("Comments")}
         {comments && comments.length > 0 && <span className="font-semibold text-muted-foreground">{comments.length}</span>}
       </h3>
       {!comments ? (
         <div className="mt-3 space-y-2" aria-busy="true"><Skeleton className="h-12" /></div>
       ) : comments.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">No comments yet. Ask a question or leave an update for the team.</p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("No comments yet. Ask a question or leave an update for the team.")}</p>
       ) : (
         <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto pr-1 scroll-thin">
           {comments.map((c) => (
@@ -220,12 +225,12 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
               <Avatar name={c.authorName} id={c.authorId} size="xs" className="mt-0.5" />
               <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-muted px-3 py-2">
                 <p className="flex items-baseline gap-2 text-xs">
-                  <span className="font-bold">{c.authorId === user.id ? "You" : c.authorName}</span>
+                  <span className="font-bold">{c.authorId === user.id ? t("You") : c.authorName}</span>
                   <time dateTime={c.createdAt} className="text-muted-foreground">{timeAgo(c.createdAt)}</time>
                   {c.authorId === user.id && (
-                    <button type="button" onClick={() => run(() => deleteTaskComment(c.id), "Could not delete the comment")}
+                    <button type="button" onClick={() => run(() => deleteTaskComment(c.id), t("Could not delete the comment"))}
                       className="ml-auto rounded text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover/comment:opacity-100"
-                      aria-label="Delete your comment">
+                      aria-label={t("Delete your comment")}>
                       <Trash className="size-3.5" aria-hidden />
                     </button>
                   )}
@@ -237,11 +242,11 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
         </ul>
       )}
       <form onSubmit={post} className="mt-3 flex items-end gap-2">
-        <label htmlFor="task-comment" className="sr-only">Add a comment</label>
-        <Textarea id="task-comment" value={draft} maxLength={2000} rows={1} placeholder="Add a comment…" className="min-h-10 flex-1 resize-none"
+        <label htmlFor="task-comment" className="sr-only">{t("Add a comment")}</label>
+        <Textarea id="task-comment" value={draft} maxLength={2000} rows={1} placeholder={t("Add a comment…")} className="min-h-10 flex-1 resize-none"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post(e); }} />
-        <Button type="submit" variant="secondary" loading={posting} disabled={!draft.trim()}>Comment</Button>
+        <Button type="submit" variant="secondary" loading={posting} disabled={!draft.trim()}>{t("Comment")}</Button>
       </form>
     </section>
   );
@@ -251,6 +256,7 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
 
 // The form mounts with the dialog content, so it always starts from the task being edited (or blank).
 function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTask | null; team: Team }) {
+  const { t } = useT();
   const createTask = useAppStore((s) => s.createTask);
   const updateTask = useAppStore((s) => s.updateTask);
   const user = useUser();
@@ -264,7 +270,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) {
-      setError("Give the task a short title.");
+      setError(t("Give the task a short title."));
       document.getElementById("task-title")?.focus();
       return;
     }
@@ -281,52 +287,52 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
   return (
     <>
         <DialogHeader>
-          <DialogTitle>{task ? "Edit task" : "New task"}</DialogTitle>
-          <DialogDescription>{task ? "Changes show up on everyone's board right away." : `Add a task to ${team.name}'s board.`}</DialogDescription>
+          <DialogTitle>{task ? t("Edit task") : t("New task")}</DialogTitle>
+          <DialogDescription>{task ? t("Changes show up on everyone's board right away.") : t("Add a task to {name}'s board.", { name: team.name })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={save} noValidate className="space-y-4">
-          <Field label="Title" htmlFor="task-title" error={error}>
-            <Input id="task-title" value={form.title} maxLength={200} autoFocus placeholder="e.g. Draft the project proposal"
+          <Field label={t("Title")} htmlFor="task-title" error={error}>
+            <Input id="task-title" value={form.title} maxLength={200} autoFocus placeholder={t("e.g. Draft the project proposal")}
               onChange={(e) => { setForm({ ...form, title: e.target.value }); setError(null); }} aria-invalid={!!error} aria-describedby={error ? "task-title-error" : undefined} />
           </Field>
-          <Field label="Description" htmlFor="task-description" optional>
-            <Textarea id="task-description" value={form.description} maxLength={4000} placeholder="What does done look like?" onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <Field label={t("Description")} htmlFor="task-description" optional>
+            <Textarea id="task-description" value={form.description} maxLength={4000} placeholder={t("What does done look like?")} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Assignee" htmlFor="task-assignee">
+            <Field label={t("Assignee")} htmlFor="task-assignee">
               <Select value={form.assigneeId || UNASSIGNED} onValueChange={(v) => setForm({ ...form, assigneeId: v === UNASSIGNED ? "" : v })}>
                 <SelectTrigger id="task-assignee"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {team.members.map((m) => <SelectItem key={m.userId} value={m.userId}>{m.name}{m.userId === user.id ? " (you)" : ""}</SelectItem>)}
+                  <SelectItem value={UNASSIGNED}>{t("Unassigned")}</SelectItem>
+                  {team.members.map((m) => <SelectItem key={m.userId} value={m.userId}>{m.name}{m.userId === user.id ? t(" (you)") : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Due date" htmlFor="task-due" optional>
+            <Field label={t("Due date")} htmlFor="task-due" optional>
               <Input id="task-due" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
             </Field>
-            <Field label="Priority" htmlFor="task-priority">
+            <Field label={t("Priority")} htmlFor="task-priority">
               <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as KanbanTask["priority"] })}>
                 <SelectTrigger id="task-priority"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="high">{t("High")}</SelectItem>
+                  <SelectItem value="medium">{t("Medium")}</SelectItem>
+                  <SelectItem value="low">{t("Low")}</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
             {task && (
-              <Field label="Status" htmlFor="task-status">
+              <Field label={t("Status")} htmlFor="task-status">
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
                   <SelectTrigger id="task-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>{statuses.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{statuses.map((c) => <SelectItem key={c.id} value={c.id}>{t(c.label)}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" loading={saving}>{task ? "Save changes" : "Create task"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={saving}>{task ? t("Save changes") : t("Create task")}</Button>
           </DialogFooter>
         </form>
         {task && <TaskChecklist task={task} team={team} />}
@@ -350,26 +356,27 @@ export function TaskDialog({ open, onOpenChange, task, team }: { open: boolean; 
 
 /** Status beside each task. Students change it from the pill; instructors only see it. */
 function StatusPill({ task, onChange }: { task: KanbanTask; onChange?: (s: Status) => void }) {
+  const { t } = useT();
   const st = statusOf(task.status);
   const body = (
     <>
       <st.icon weight={task.status === "done" ? "fill" : "bold"} className="size-3.5 shrink-0" aria-hidden />
-      <span>{st.label}</span>
+      <span>{t(st.label)}</span>
     </>
   );
   const pill = "inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-bold md:w-[8.75rem]";
-  if (!onChange) return <span className={cn(pill, st.pill)}>{body}<span className="sr-only">, status</span></span>;
+  if (!onChange) return <span className={cn(pill, st.pill)}>{body}<span className="sr-only">{t(", status")}</span></span>;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger aria-label={`Status: ${st.label}. Change status of ${task.title}`}
+      <DropdownMenuTrigger aria-label={t("Status: {label}. Change status of {title}", { label: t(st.label), title: task.title })}
         className={cn(pill, st.pill, "tap transition-[filter,box-shadow] hover:brightness-95 focus-visible:ring-[3px] focus-visible:ring-ring/40 outline-none")}>
         {body}<CaretDown weight="bold" className="ml-auto size-3 shrink-0 opacity-70" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Set status</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("Set status")}</DropdownMenuLabel>
         {statuses.map((x) => (
           <DropdownMenuItem key={x.id} onSelect={() => onChange(x.id)}>
-            <x.icon aria-hidden /> {x.label}
+            <x.icon aria-hidden /> {t(x.label)}
             {x.id === task.status && <Check weight="bold" className="ml-auto" aria-hidden />}
           </DropdownMenuItem>
         ))}
@@ -388,8 +395,9 @@ function Assignee({ task }: { task: KanbanTask }) {
 }
 
 function Due({ task }: { task: KanbanTask }) {
+  const { t } = useT();
   const due = task.status === "done" ? null : dueInfo(task.dueDate);
-  if (!due) return <span className="text-xs text-muted-foreground/70">{task.status === "done" ? "—" : "No date"}</span>;
+  if (!due) return <span className="text-xs text-muted-foreground/70">{task.status === "done" ? "—" : t("No date")}</span>;
   return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold", toneText[due.tone])}><CalendarBlank className="size-3.5 shrink-0" aria-hidden />{due.label}</span>;
 }
 
@@ -401,6 +409,7 @@ const priorityCell = (task: KanbanTask) => (
 const COLS = "md:grid md:grid-cols-[minmax(0,1fr)_6rem_11rem_8rem_8.75rem_2rem] md:items-center md:gap-4";
 
 function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?: () => void; onDelete?: () => void; onMove?: (s: Status) => void }) {
+  const { t } = useT();
   const done = task.status === "done";
   const title = (
     <>
@@ -410,12 +419,12 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
         <span className="mt-1 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
           {task.checklistTotal > 0 && (
             <span className={cn("inline-flex items-center gap-1", task.checklistDone === task.checklistTotal && "text-success")}>
-              <ListChecks className="size-3.5" aria-hidden />{task.checklistDone}/{task.checklistTotal}<span className="sr-only"> steps done</span>
+              <ListChecks className="size-3.5" aria-hidden />{task.checklistDone}/{task.checklistTotal}<span className="sr-only"> {t("steps done")}</span>
             </span>
           )}
           {task.commentCount > 0 && (
             <span className="inline-flex items-center gap-1">
-              <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? "comment" : "comments"}</span>
+              <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? t("comment") : t("comments")}</span>
             </span>
           )}
         </span>
@@ -427,7 +436,7 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
       className={cn("group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-accent/40", COLS, done && "bg-muted/30")}>
       <div className="min-w-0 flex-1">
         {onEdit
-          ? <button type="button" onClick={onEdit} className="block w-full min-w-0 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40" aria-label={`${task.title}. Edit task`}>{title}</button>
+          ? <button type="button" onClick={onEdit} className="block w-full min-w-0 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40" aria-label={t("{title}. Edit task", { title: task.title })}>{title}</button>
           : title}
         {/* Phones: details under the title */}
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 md:hidden">
@@ -442,13 +451,13 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
       <div className="shrink-0">
         {onEdit && onDelete && (
           <DropdownMenu>
-            <DropdownMenuTrigger aria-label={`Actions for ${task.title}`} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground opacity-60 transition-[opacity,background-color] hover:bg-accent hover:text-foreground hover:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100">
+            <DropdownMenuTrigger aria-label={t("Actions for {title}", { title: task.title })} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground opacity-60 transition-[opacity,background-color] hover:bg-accent hover:text-foreground hover:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100">
               <DotsThree weight="bold" className="size-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onEdit}><PencilSimple aria-hidden /> Edit</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onEdit}><PencilSimple aria-hidden /> {t("Edit")}</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem destructive onSelect={onDelete}><Trash aria-hidden /> Delete</DropdownMenuItem>
+              <DropdownMenuItem destructive onSelect={onDelete}><Trash aria-hidden /> {t("Delete")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -465,6 +474,7 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
  * (Named TaskBoard for its callers; it replaced the three-column board.)
  */
 export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { scope?: "all" | "mine"; query?: string; readOnly?: boolean; onEdit?: (task: KanbanTask | null) => void }) {
+  const { t } = useT();
   const user = useUser();
   const tasks = useAppStore((s) => s.kanbanTasks);
   const team = useAppStore((s) => s.selectedTeam);
@@ -477,7 +487,7 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
 
   if (!tasksLoaded) {
     return (
-      <div className="space-y-2 rounded-3xl border bg-card p-4" aria-busy="true" aria-label="Loading tasks">
+      <div className="space-y-2 rounded-3xl border bg-card p-4" aria-busy="true" aria-label={t("Loading tasks")}>
         {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
       </div>
     );
@@ -485,8 +495,8 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
 
   const q = query.trim().toLowerCase();
   const visible = tasks
-    .filter((t) => (scope === "all" || t.assigneeId === user.id) && (!q || `${t.title} ${t.description} ${t.assigneeName}`.toLowerCase().includes(q)))
-    .map((t, i) => ({ t, i }))
+    .filter((tt) => (scope === "all" || tt.assigneeId === user.id) && (!q || `${tt.title} ${tt.description} ${tt.assigneeName}`.toLowerCase().includes(q)))
+    .map((tt, i) => ({ t: tt, i }))
     .sort((a, b) => statusOf(a.t.status).order - statusOf(b.t.status).order || a.i - b.i) // stable within a status
     .map(({ t }) => t);
   const editable = !readOnly && !!onEdit;
@@ -494,7 +504,7 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
   const move = (task: KanbanTask, status: Status) => {
     if (task.status === status) return;
     updateTask(task.id, { status });
-    setAnnouncement(`"${task.title}" is now ${statusOf(status).label}.`);
+    setAnnouncement(t("\"{title}\" is now {label}.", { title: task.title, label: t(statusOf(status).label) }));
   };
 
   return (
@@ -503,37 +513,37 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
         {/* Totals per status */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
           <ListChecks weight="duotone" className="size-5 text-primary" aria-hidden />
-          <h2 className="mr-1 text-sm font-extrabold">Tasks</h2>
+          <h2 className="mr-1 text-sm font-extrabold">{t("Tasks")}</h2>
           {statuses.slice().sort((a, b) => a.order - b.order).map((x) => (
             <span key={x.id} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums", x.pill)}>
-              <x.icon weight="bold" className="size-3" aria-hidden />{tasks.filter((t) => t.status === x.id).length}<span className="font-semibold">{x.label.toLowerCase()}</span>
+              <x.icon weight="bold" className="size-3" aria-hidden />{tasks.filter((tt) => tt.status === x.id).length}<span className="font-semibold">{t(x.label).toLowerCase()}</span>
             </span>
           ))}
           {editable && (
             <div className="ml-auto flex gap-1">
               {team && !team.courseArchived && <MeetingNotesButton team={team} />}
-              <Button size="sm" variant="ghost" onClick={() => onEdit(null)}><Plus weight="bold" aria-hidden /> Add task</Button>
+              <Button size="sm" variant="ghost" onClick={() => onEdit(null)}><Plus weight="bold" aria-hidden /> {t("Add task")}</Button>
             </div>
           )}
         </div>
 
         {/* Column labels (md and up) */}
         <div className={cn("hidden shrink-0 border-b bg-muted/40 px-4 py-2 text-[0.6875rem] font-bold uppercase tracking-wider text-muted-foreground", COLS)} aria-hidden>
-          <span>Task</span><span>Priority</span><span>Assignee</span><span>Due</span><span>Status</span><span />
+          <span>{t("Task")}</span><span>{t("Priority")}</span><span>{t("Assignee")}</span><span>{t("Due")}</span><span>{t("Status")}</span><span />
         </div>
 
         {visible.length === 0 ? (
           <EmptyState icon={ListChecks} className="py-12"
-            title={tasks.length === 0 ? "No tasks yet" : "No tasks match"}
-            description={tasks.length === 0 ? (editable ? "Add the first task, or let the AI suggest some from your chat." : "This team hasn't added any tasks.") : "Try another filter."} />
+            title={tasks.length === 0 ? t("No tasks yet") : t("No tasks match")}
+            description={tasks.length === 0 ? (editable ? t("Add the first task, or let the AI suggest some from your chat.") : t("This team hasn't added any tasks.")) : t("Try another filter.")} />
         ) : (
-          <ul className="min-h-0 flex-1 divide-y overflow-y-auto scroll-thin" aria-label="Tasks">
+          <ul className="min-h-0 flex-1 divide-y overflow-y-auto scroll-thin" aria-label={t("Tasks")}>
             <AnimatePresence initial={false}>
-              {visible.map((t) => (
-                <TaskRow key={t.id} task={t}
-                  onEdit={editable ? () => onEdit?.(t) : undefined}
-                  onDelete={editable ? () => setDeleting(t) : undefined}
-                  onMove={readOnly ? undefined : (s) => move(t, s)} />
+              {visible.map((tt) => (
+                <TaskRow key={tt.id} task={tt}
+                  onEdit={editable ? () => onEdit?.(tt) : undefined}
+                  onDelete={editable ? () => setDeleting(tt) : undefined}
+                  onMove={readOnly ? undefined : (s) => move(tt, s)} />
               ))}
             </AnimatePresence>
           </ul>
@@ -543,9 +553,9 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
-        title="Delete this task?"
-        description={deleting ? `"${deleting.title}" will be removed for the whole team. This can't be undone.` : ""}
-        confirmLabel="Delete task"
+        title={t("Delete this task?")}
+        description={deleting ? t("\"{title}\" will be removed for the whole team. This can't be undone.", { title: deleting.title }) : ""}
+        confirmLabel={t("Delete task")}
         onConfirm={() => { if (deleting) deleteTask(deleting.id); setDeleting(null); }}
       />
     </>

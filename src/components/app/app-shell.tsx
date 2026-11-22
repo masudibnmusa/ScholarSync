@@ -19,8 +19,12 @@ import { Topbar } from "@/components/app/topbar";
 import { UserProvider, useUser } from "@/components/app/user-context";
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from "@/components/ui/dialog";
 import { EASE } from "@/components/ui/motion";
+import { useT } from "@/components/locale";
+import { setLanguage } from "@/app/actions";
+import { isLocale } from "@/lib/i18n";
 
 function MobileNav() {
+  const { t } = useT();
   const pathname = usePathname();
   const user = useUser();
   const counts = useBadgeCounts();
@@ -34,7 +38,7 @@ function MobileNav() {
   const tab = "tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[0.6875rem] font-semibold transition-colors";
 
   return (
-    <nav aria-label="Main" className="z-30 flex shrink-0 items-stretch gap-1 border-t bg-card/95 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl lg:hidden">
+    <nav aria-label={t("Main")} className="z-30 flex shrink-0 items-stretch gap-1 border-t bg-card/95 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl lg:hidden">
       {primary.map((n) => {
         const active = isActive(pathname, n.href);
         const count = n.badge ? counts[n.badge] : 0;
@@ -45,8 +49,8 @@ function MobileNav() {
               <n.icon weight={active ? "fill" : "regular"} className="size-6" aria-hidden />
               {count > 0 && <span className="absolute -right-1 -top-0.5 size-2.5 rounded-full bg-warm ring-2 ring-card" />}
             </span>
-            <span className="max-w-full truncate">{n.short ?? n.label}</span>
-            {count > 0 && <span className="sr-only">, {count} new</span>}
+            <span className="max-w-full truncate">{t(n.short ?? n.label)}</span>
+            {count > 0 && <span className="sr-only">, {count} {t("new")}</span>}
           </Link>
         );
       })}
@@ -58,11 +62,11 @@ function MobileNav() {
               <DotsThreeOutline weight={moreActive ? "fill" : "regular"} className="size-6" aria-hidden />
               {moreCount > 0 && <span className="absolute -right-1 -top-0.5 size-2.5 rounded-full bg-warm ring-2 ring-card" />}
             </span>
-            More
+            {t("More")}
           </button>
           <SheetContent side="bottom" className="bg-sidebar p-4 pt-5 text-sidebar-foreground">
-            <DialogTitle className="mb-3 px-3 text-sm font-bold">More</DialogTitle>
-            <DialogDescription className="sr-only">Other sections of your workspace</DialogDescription>
+            <DialogTitle className="mb-3 px-3 text-sm font-bold">{t("More")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("Other sections of your workspace")}</DialogDescription>
             <NavLinks items={secondary} pillId="sheet-pill" onNavigate={() => setMoreOpen(false)} />
           </SheetContent>
         </Dialog>
@@ -79,17 +83,19 @@ const subscribeOnline = (cb: () => void) => {
 
 /** Shown while the device is offline: the page shows the last copy saved on this device. */
 function OfflineBanner() {
+  const { t } = useT();
   const online = React.useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   if (online) return null;
   return (
     <div role="status" className="flex items-center gap-2 border-b bg-butter px-4 py-2 text-sm text-foreground sm:px-6 lg:px-8">
       <WifiSlash weight="bold" className="size-4 shrink-0" aria-hidden />
-      <p><span className="font-bold">You&apos;re offline.</span> Showing what this device saw last. Messages you write are sent when you&apos;re back.</p>
+      <p><span className="font-bold">{t("You're offline.")}</span> {t("Showing what this device saw last. Messages you write are sent when you're back.")}</p>
     </div>
   );
 }
 
 export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfile; sidebarCollapsed: boolean; children: React.ReactNode }) {
+  const { locale, t } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const mainRef = React.useRef<HTMLElement>(null);
@@ -101,9 +107,17 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
     Sentry.setUser({ id: user.id }); // the id only: no name or email leaves the app
   }, [user]);
 
+  // The language follows the person: a new browser (no "lang" cookie yet) switches to their saved one, and a choice
+  // made while signed out (on the sign-in page) is saved to the profile so emails follow it.
+  React.useEffect(() => {
+    const cookie = document.cookie.match(/(?:^|;\s*)lang=(\w+)/)?.[1];
+    if (!cookie && user.locale !== locale) setLanguage(user.locale).then(() => window.location.reload(), () => {});
+    else if (isLocale(cookie) && cookie !== user.locale) setLanguage(cookie).catch(() => {});
+  }, [user.locale, locale]);
+
   const signOut = React.useCallback(async () => {
     await useAppStore.getState().logout();
-    toast.success("Signed out");
+    toast.success(t("Signed out"));
     router.replace("/");
     router.refresh();
   }, [router]);
@@ -123,7 +137,7 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
   return (
     <UserProvider user={user}>
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground">
-        Skip to content
+        {t("Skip to content")}
       </a>
       <div className="flex h-dvh overflow-hidden bg-background">
         <Sidebar onSignOut={signOut} initialCollapsed={sidebarCollapsed} />

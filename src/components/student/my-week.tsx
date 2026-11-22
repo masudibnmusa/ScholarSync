@@ -15,11 +15,13 @@ import { Segmented } from "@/components/ui/segmented";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
+import { useT } from "@/components/locale";
+import {intl, msg, t } from "@/lib/i18n";
 
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const hrefOf = (i: WeekItem) => (i.kind === "task" ? `/student?team=${i.teamId}&task=${i.id}` : `/student/courses/${i.courseId}`);
 
-const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const clock = (iso: string) => new Date(iso).toLocaleTimeString(intl(), { hour: "numeric", minute: "2-digit" });
 const KIND = {
   task: { icon: CheckSquare, tile: "bg-peach text-warm-text", chip: "bg-peach text-warm-text", dot: "bg-primary" },
   milestone: { icon: Flag, tile: "bg-butter text-warm-text", chip: "bg-sky text-info", dot: "bg-info" },
@@ -30,11 +32,13 @@ const KIND = {
 function whenOf(item: WeekItem) {
   if (item.kind !== "office-hours") return dueInfo(item.date);
   const soon = dueInfo(item.date);
-  const day = soon?.label === "Due today" ? "Today" : soon?.label === "Due tomorrow" ? "Tomorrow" : new Date(item.startsAt!).toLocaleDateString([], { month: "short", day: "numeric" });
-  return { label: `${day}, ${clock(item.startsAt!)}`, tone: soon?.tone === "warning" ? "warning" as const : "muted" as const };
+  const n = daysUntil(item.date);
+  const day = n === 0 ? t("Today") : n === 1 ? t("Tomorrow") : new Date(item.startsAt!).toLocaleDateString(intl(), { month: "short", day: "numeric" });
+  return { label: t("{day}, {time}", { day, time: clock(item.startsAt!) }), tone: soon?.tone === "warning" ? "warning" as const : "muted" as const };
 }
 
 function ItemRow({ item }: { item: WeekItem }) {
+  const { t } = useT();
   const due = whenOf(item);
   const Icon = KIND[item.kind].icon;
   return (
@@ -44,7 +48,7 @@ function ItemRow({ item }: { item: WeekItem }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold group-hover:text-primary">
-          {item.kind === "milestone" && <span className="text-muted-foreground">Milestone · </span>}{item.title}
+          {item.kind === "milestone" && <span className="text-muted-foreground">{t("Milestone ·")} </span>}{item.title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{item.teamName} · {item.courseCode}{item.location ? ` · ${item.location}` : ""}</span>
       </span>
@@ -55,11 +59,12 @@ function ItemRow({ item }: { item: WeekItem }) {
 }
 
 const LIST_DAYS = 21;
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS = [msg("Mon"), msg("Tue"), msg("Wed"), msg("Thu"), msg("Fri"), msg("Sat"), msg("Sun")];
 const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** Month grid (weeks start Monday). Items sit on their due date; phones get dots instead of titles. */
 function MonthView({ items }: { items: WeekItem[] }) {
+  const { t } = useT();
   const [month, setMonth] = React.useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const today = isoOf(new Date());
   const lead = (month.getDay() + 6) % 7;
@@ -75,13 +80,13 @@ function MonthView({ items }: { items: WeekItem[] }) {
   return (
     <Card className="p-3 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex-1 text-base font-bold" aria-live="polite">{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
-        <Button variant="ghost" size="sm" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today</Button>
-        <Button variant="outline" size="icon" className="size-8" onClick={() => shift(-1)} aria-label="Previous month"><CaretLeft aria-hidden /></Button>
-        <Button variant="outline" size="icon" className="size-8" onClick={() => shift(1)} aria-label="Next month"><CaretRight aria-hidden /></Button>
+        <h2 className="flex-1 text-base font-bold" aria-live="polite">{month.toLocaleDateString(intl(), { month: "long", year: "numeric" })}</h2>
+        <Button variant="ghost" size="sm" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }}>{t("Today")}</Button>
+        <Button variant="outline" size="icon" className="size-8" onClick={() => shift(-1)} aria-label={t("Previous month")}><CaretLeft aria-hidden /></Button>
+        <Button variant="outline" size="icon" className="size-8" onClick={() => shift(1)} aria-label={t("Next month")}><CaretRight aria-hidden /></Button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-[0.6875rem] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
-        {WEEKDAYS.map((d) => <span key={d} className="py-1">{d}</span>)}
+        {WEEKDAYS.map((d) => <span key={d} className="py-1">{t(d)}</span>)}
       </div>
       <ol className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
@@ -90,7 +95,7 @@ function MonthView({ items }: { items: WeekItem[] }) {
           const late = date < today;
           return (
             <li key={date} className={cn("flex min-h-14 flex-col gap-1 rounded-xl p-1 sm:min-h-24 sm:p-1.5", date === today ? "bg-primary/8 ring-1 ring-primary/30" : "bg-muted/40")}
-              aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}${list.length ? `, ${list.length} due` : ""}`}>
+              aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(intl(), { weekday: "long", day: "numeric", month: "long" })}${list.length ? `, ${list.length} due` : ""}`}>
               <span className={cn("text-xs font-bold tabular-nums", date === today ? "text-primary" : "text-muted-foreground")}>{Number(date.slice(8))}</span>
               {/* Phones: one dot per item */}
               {list.length > 0 && (
@@ -107,16 +112,16 @@ function MonthView({ items }: { items: WeekItem[] }) {
                     {x.kind === "office-hours" && <span className="mr-0.5 font-bold">{clock(x.startsAt!)}</span>}{x.title}
                   </Link>
                 ))}
-                {list.length > 3 && <span className="px-1.5 text-[0.6875rem] font-semibold text-muted-foreground">+{list.length - 3} more</span>}
+                {list.length > 3 && <span className="px-1.5 text-[0.6875rem] font-semibold text-muted-foreground">+{list.length - 3} {t("more")}</span>}
               </span>
             </li>
           );
         })}
       </ol>
       <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary" />Your tasks</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-info" />Milestones</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-destructive" />Overdue</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary" />{t("Your tasks")}</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-info" />{t("Milestones")}</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-destructive" />{t("Overdue")}</span>
       </p>
     </Card>
   );
@@ -150,11 +155,12 @@ function Watch({ now }: { now: Date }) {
 
 /** Live clock and this month at a glance: today highlighted, a dot on each day something is due. */
 function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () => void }) {
+  const { t } = useT();
   const ms = useNowSecond();
   if (!ms) return <Card className="h-[26rem] p-5" aria-hidden><Skeleton className="size-full" /></Card>;
   const now = new Date(ms);
   const today = isoOf(now);
-  const parts = Object.fromEntries(new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).formatToParts(now).map((p) => [p.type, p.value]));
+  const parts = Object.fromEntries(new Intl.DateTimeFormat(intl(), { hour: "numeric", minute: "2-digit", second: "2-digit" }).formatToParts(now).map((p) => [p.type, p.value]));
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " ");
 
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -165,7 +171,7 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
 
   return (
     <Card className="overflow-hidden lg:sticky lg:top-6">
-      <section aria-label="Current time" className="flex items-center gap-4 bg-gradient-to-br from-sage/70 to-peach/50 p-5">
+      <section aria-label={t("Current time")} className="flex items-center gap-4 bg-gradient-to-br from-sage/70 to-peach/50 p-5">
         <Watch now={now} />
         <div className="min-w-0">
           <time dateTime={now.toISOString()} className="block font-display font-bold leading-none tracking-tight tabular-nums">
@@ -173,21 +179,21 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
             <span className="ml-0.5 text-base text-muted-foreground">:{parts.second}</span>
             {parts.dayPeriod && <span className="ml-1 text-sm font-semibold text-muted-foreground">{parts.dayPeriod}</span>}
           </time>
-          <p className="mt-2 text-sm font-bold">{now.toLocaleDateString(undefined, { weekday: "long" })}</p>
-          <p className="text-sm text-muted-foreground">{now.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</p>
-          <p className="mt-1 truncate text-[0.6875rem] font-semibold text-muted-foreground" title="Your time zone">{zone}</p>
+          <p className="mt-2 text-sm font-bold">{now.toLocaleDateString(intl(), { weekday: "long" })}</p>
+          <p className="text-sm text-muted-foreground">{now.toLocaleDateString(intl(), { day: "numeric", month: "long", year: "numeric" })}</p>
+          <p className="mt-1 truncate text-[0.6875rem] font-semibold text-muted-foreground" title={t("Your time zone")}>{zone}</p>
         </div>
       </section>
 
-      <section aria-label="This month" className="p-4">
+      <section aria-label={t("This month")} className="p-4">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-bold">{now.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
+          <h2 className="text-sm font-bold">{now.toLocaleDateString(intl(), { month: "long", year: "numeric" })}</h2>
           <button type="button" onClick={onOpenMonth} className="tap inline-flex items-center gap-0.5 rounded-lg px-1.5 py-1 text-xs font-semibold text-primary hover:bg-accent">
-            Month view<CaretRight className="size-3" aria-hidden />
+            {t("Month view")}<CaretRight className="size-3" aria-hidden />
           </button>
         </div>
         <div className="grid grid-cols-7 text-center text-[0.625rem] font-bold uppercase tracking-wider text-muted-foreground" aria-hidden>
-          {WEEKDAYS.map((d) => <span key={d} className="py-1">{d.slice(0, 2)}</span>)}
+          {WEEKDAYS.map((d) => <span key={d} className="py-1">{t(d).slice(0, 2)}</span>)}
         </div>
         <ol className="grid grid-cols-7 gap-y-0.5 text-center">
           {Array.from({ length: lead }, (_, i) => <li key={`pad-${i}`} aria-hidden />)}
@@ -197,7 +203,7 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
             const isToday = date === today;
             return (
               <li key={date} aria-current={isToday ? "date" : undefined}
-                aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}${isToday ? ", today" : ""}${list.length ? `, ${list.length} due` : ""}`}
+                aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(intl(), { weekday: "long", day: "numeric", month: "long" })}${isToday ? ", today" : ""}${list.length ? `, ${list.length} due` : ""}`}
                 title={list.map((x) => x.title).join("\n") || undefined}
                 className="relative grid h-9 place-items-center">
                 <span className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold tabular-nums",
@@ -214,6 +220,7 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
 
 /** Every dated thing a student owes, across all their teams, grouped by when it is due. */
 export function MyWeek() {
+  const { t } = useT();
   const user = useUser();
   const [all, setAll] = React.useState<WeekItem[] | null>(null);
   const [view, setView] = React.useState<"list" | "month">("list");
@@ -233,17 +240,17 @@ export function MyWeek() {
     return out;
   }, [items]);
 
-  const overdue = groups.find((g) => g.label === "Overdue")?.items.length ?? 0;
+  const overdue = groups.find((g) => g.label === t("Overdue"))?.items.length ?? 0;
   const thisWeek = (items ?? []).filter((i) => weekBucket(i.date) !== "Next week" && weekBucket(i.date) !== "Later").length;
 
   return (
     <Page>
-      <PageHeader title="My week"
-        description={!items ? " " : items.length === 0 ? "Nothing dated is waiting on you." : `${thisWeek} due this week${overdue ? `, ${overdue} overdue` : ""}, across all your teams.`}>
+      <PageHeader title={t("My week")}
+        description={!items ? " " : items.length === 0 ? t("Nothing dated is waiting on you.") : (overdue ? t("{thisWeek} due this week, {overdue} overdue, across all your teams.", { thisWeek, overdue }) : t("{thisWeek} due this week, across all your teams.", { thisWeek }))}>
         <div className="flex items-center gap-2">
-          <Segmented label="View" value={view} onChange={setView} options={[{ value: "list", label: "List" }, { value: "month", label: "Month" }]} />
+          <Segmented label={t("View")} value={view} onChange={setView} options={[{ value: "list", label: t("List") }, { value: "month", label: t("Month") }]} />
           <Button variant="outline" asChild>
-            <a href="/api/calendar" download title="Add your due dates to Google Calendar, Outlook or Apple Calendar"><DownloadSimple aria-hidden /><span className="hidden sm:inline">Export .ics</span><span className="sm:hidden">.ics</span></a>
+            <a href="/api/calendar" download title={t("Add your due dates to Google Calendar, Outlook or Apple Calendar")}><DownloadSimple aria-hidden /><span className="hidden sm:inline">{t("Export .ics")}</span><span className="sm:hidden">{t(".ics")}</span></a>
           </Button>
         </div>
       </PageHeader>
@@ -255,12 +262,12 @@ export function MyWeek() {
       {!items ? (
         <Card className="space-y-3 p-5" aria-busy="true"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></Card>
       ) : items.length === 0 ? (
-        <Card><EmptyState icon={CalendarCheck} title="You're all caught up" description="Tasks assigned to you with a due date, your teams' milestones and booked office hours show up here." /></Card>
+        <Card><EmptyState icon={CalendarCheck} title={t("You're all caught up")} description={t("Tasks assigned to you with a due date, your teams' milestones and booked office hours show up here.")} /></Card>
       ) : (
         <div className="space-y-5">
           {groups.map((g) => (
             <section key={g.label} aria-labelledby={`week-${g.label}`}>
-              <h2 id={`week-${g.label}`} className={cn("mb-2 flex items-center gap-2 text-sm font-bold", g.label === "Overdue" && "text-destructive")}>
+              <h2 id={`week-${g.label}`} className={cn("mb-2 flex items-center gap-2 text-sm font-bold", g.label === t("Overdue") && "text-destructive")}>
                 {g.label}<span className="font-semibold text-muted-foreground">{g.items.length}</span>
               </h2>
               <Card className="divide-y overflow-hidden">

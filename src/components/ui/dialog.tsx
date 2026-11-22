@@ -4,6 +4,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/locale";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -16,6 +17,7 @@ const closeButton =
   "tap absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground";
 
 export function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  const { t } = useT();
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={overlay} />
@@ -28,7 +30,7 @@ export function DialogContent({ className, children, ...props }: React.Component
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className={closeButton} aria-label="Close">
+        <DialogPrimitive.Close className={closeButton} aria-label={t("Close")}>
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -56,6 +58,7 @@ export function DialogDescription({ className, ...props }: React.ComponentProps<
 export function SheetContent({
   className, children, side = "right", ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { side?: "left" | "right" | "bottom" }) {
+  const { t } = useT();
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={overlay} />
@@ -70,7 +73,7 @@ export function SheetContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className={closeButton} aria-label="Close">
+        <DialogPrimitive.Close className={closeButton} aria-label={t("Close")}>
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

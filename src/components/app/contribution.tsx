@@ -15,11 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { translateReason } from "@/lib/i18n/notices";
+import { intl } from "@/lib/i18n";
 
 type Team = NonNullable<Contribution["team"]>;
 const share = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-const shortDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
+const shortDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(intl(), { month: "short", day: "numeric" });
 
 function Section({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -38,12 +41,13 @@ const WEEK_SERIES = [
 
 /** Two columns per week (tasks, messages), scaled to the busiest week. */
 function WeekColumns({ weeks }: { weeks: Team["weeks"] }) {
+  const { t } = useT();
   const top = Math.max(1, ...weeks.flatMap((w) => [w.tasks, w.messages]));
   return (
-    <figure aria-label="Weekly activity">
+    <figure aria-label={t("Weekly activity")}>
       <div className="flex h-40 items-end gap-1.5 border-b border-border/70 sm:gap-3">
         {weeks.map((w) => (
-          <div key={w.week} role="img" aria-label={`Week of ${shortDay(w.week)}: ${w.tasks} tasks done, ${w.messages} messages`}
+          <div key={w.week} role="img" aria-label={t("Week of {date}: {tasks} tasks done, {messages} messages", { date: shortDay(w.week), tasks: w.tasks, messages: w.messages })}
             className="flex h-full min-w-0 flex-1 items-end justify-center gap-0.5 sm:gap-1">
             {WEEK_SERIES.map((s) => (
               <span key={s.key} className="relative flex h-full max-w-4 flex-1 items-end">
@@ -63,20 +67,21 @@ function WeekColumns({ weeks }: { weeks: Team["weeks"] }) {
 }
 
 function TaskList({ tasks }: { tasks: Team["tasks"] }) {
-  if (!tasks.length) return <p className="text-sm text-muted-foreground">No tasks assigned yet.</p>;
+  const { t } = useT();
+  if (!tasks.length) return <p className="text-sm text-muted-foreground">{t("No tasks assigned yet.")}</p>;
   return (
-    <ul className="divide-y" aria-label="Assigned tasks">
-      {tasks.map((t) => {
-        const late = t.dueDate && (t.doneAt ? t.doneAt.slice(0, 10) > t.dueDate : t.dueDate < new Date().toISOString().slice(0, 10));
+    <ul className="divide-y" aria-label={t("Assigned tasks")}>
+      {tasks.map((tt) => {
+        const late = tt.dueDate && (tt.doneAt ? tt.doneAt.slice(0, 10) > tt.dueDate : tt.dueDate < new Date().toISOString().slice(0, 10));
         return (
-          <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{t.title}</span>
+          <li key={tt.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tt.title}</span>
             <span className="text-xs text-muted-foreground">
-              {t.status === "done" ? (t.doneAt ? `Done ${timeAgo(t.doneAt)}` : "Done") : t.dueDate ? `Due ${shortDay(t.dueDate)}` : "No due date"}
+              {tt.status === "done" ? (tt.doneAt ? t("Done {when}", { when: timeAgo(tt.doneAt) }) : t("Done")) : tt.dueDate ? t("Due {date}", { date: shortDay(tt.dueDate) }) : t("No due date")}
             </span>
-            {t.status === "done"
-              ? <Badge variant={late ? "warning" : "success"}>{late ? "Done late" : "Done"}</Badge>
-              : <Badge variant={late ? "danger" : "muted"}>{late ? "Overdue" : t.status === "in-progress" ? "In progress" : "To do"}</Badge>}
+            {tt.status === "done"
+              ? <Badge variant={late ? "warning" : "success"}>{late ? t("Done late") : t("Done")}</Badge>
+              : <Badge variant={late ? "danger" : "muted"}>{late ? t("Overdue") : tt.status === "in-progress" ? t("In progress") : t("To do")}</Badge>}
           </li>
         );
       })}
@@ -85,12 +90,13 @@ function TaskList({ tasks }: { tasks: Team["tasks"] }) {
 }
 
 function PeerReviews({ peer }: { peer: NonNullable<Team["peer"]> }) {
-  if (!peer.n) return <p className="text-sm text-muted-foreground">No teammate has reviewed this student yet.</p>;
+  const { t, tn } = useT();
+  if (!peer.n) return <p className="text-sm text-muted-foreground">{t("No teammate has reviewed this student yet.")}</p>;
   return (
     <div className="space-y-4">
       <p className="flex items-baseline gap-2">
         <span className="font-display text-3xl font-semibold">{peer.avg}</span>
-        <span className="text-sm text-muted-foreground">of 5, from {peer.n} review{peer.n === 1 ? "" : "s"}</span>
+        <span className="text-sm text-muted-foreground">{tn(peer.n, "of 5, from {n} review", "of 5, from {n} reviews")}</span>
       </p>
       {Object.keys(peer.categories).length > 0 && (
         <dl className="grid gap-2 sm:grid-cols-2">
@@ -108,7 +114,7 @@ function PeerReviews({ peer }: { peer: NonNullable<Team["peer"]> }) {
         </dl>
       )}
       {peer.feedback.length > 0 && (
-        <ul className="space-y-2" aria-label="Written feedback">
+        <ul className="space-y-2" aria-label={t("Written feedback")}>
           {peer.feedback.map((f, i) => (
             <li key={i} className="flex gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5 text-sm">
               <Quotes weight="fill" className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -127,6 +133,7 @@ function PeerReviews({ peer }: { peer: NonNullable<Team["peer"]> }) {
  * the student can check about themselves. Peer reviews and at-risk signals are shown to the instructor only.
  */
 export function ContributionReport({ courseId, userId }: { courseId: string; userId?: string }) {
+  const { locale, t, tn } = useT();
   const me = useUser();
   const instructor = me.role === "instructor";
   const id = userId ?? me.id;
@@ -139,7 +146,7 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
   const back = `/${me.role}/courses/${courseId}`;
   const backLink = (
     <Link href={back} className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-      <ArrowLeft className="size-4" aria-hidden /> {data?.course.code ?? "Course"}
+      <ArrowLeft className="size-4" aria-hidden /> {data?.course.code ?? t("Course")}
     </Link>
   );
 
@@ -147,8 +154,8 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
   if (data === null) {
     return (
       <Page>
-        <Card><EmptyState icon={UsersThree} title="Report not available" description="Only the student and the course instructor can see a contribution report.">
-          <Button asChild><Link href={back}>Back to the course</Link></Button>
+        <Card><EmptyState icon={UsersThree} title={t("Report not available")} description={t("Only the student and the course instructor can see a contribution report.")}>
+          <Button asChild><Link href={back}>{t("Back to the course")}</Link></Button>
         </EmptyState></Card>
       </Page>
     );
@@ -170,35 +177,35 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
       <header className="flex flex-wrap items-center gap-4">
         <Avatar id={data.student.id} name={data.student.name} size="lg" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-extrabold sm:text-[2rem]"><span className="highlight">{self ? "Your contribution" : data.student.name}</span></h1>
+          <h1 className="text-2xl font-extrabold sm:text-[2rem]"><span className="highlight">{self ? t("Your contribution") : data.student.name}</span></h1>
           <p className="mt-1 text-sm text-muted-foreground sm:text-[0.9375rem]">
             {team ? `${team.name} · ${data.course.code} ${data.course.title}` : `${data.course.code} ${data.course.title}`}
-            {self && " · what your instructor sees when grading. Peer reviews stay private."}
+            {self && t(" · what your instructor sees when grading. Peer reviews stay private.")}
           </p>
         </div>
-        {team?.atRisk && <Badge variant="danger" className="gap-1"><Lifebuoy weight="fill" aria-hidden /> At risk: {team.atRisk.join(", ")}</Badge>}
+        {team?.atRisk && <Badge variant="danger" className="gap-1"><Lifebuoy weight="fill" aria-hidden /> {t("At risk: {names}", { names: team.atRisk.map((r) => translateReason(locale, r)).join(", ") })}</Badge>}
       </header>
 
       {!team || !mine || !totals ? (
-        <Card><EmptyState icon={UsersThree} title="Not on a team yet" description={self ? "Once you're placed in a team, your work shows up here." : "This student isn't on a team in this course yet."} /></Card>
+        <Card><EmptyState icon={UsersThree} title={t("Not on a team yet")} description={self ? t("Once you're placed in a team, your work shows up here.") : t("This student isn't on a team in this course yet.")} /></Card>
       ) : (
         <>
           <div className={cn("grid gap-4 sm:grid-cols-2", team.repo ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
-            <StatCard compact icon={CheckSquare} tone="success" label="Tasks done" value={mine.tasksDone}
-              hint={`${share(mine.tasksDone, totals.done)}% of the team's · ${mine.tasksAssigned} assigned`} />
-            <StatCard compact icon={ChatsCircle} tone="info" label="Messages" value={mine.messages} hint={`${share(mine.messages, totals.messages)}% of team chat`} />
-            <StatCard compact icon={FileText} tone="primary" label="Files shared" value={mine.files} hint={`${share(mine.files, totals.files)}% of the team's files`} />
-            <StatCard compact icon={HandWaving} tone="warm" label="Stand-ups answered" value={mine.standups}
-              hint={team.standupWeeks ? `of ${team.standupWeeks} week${team.standupWeeks === 1 ? "" : "s"} the team did one` : "None yet"} />
+            <StatCard compact icon={CheckSquare} tone="success" label={t("Tasks done")} value={mine.tasksDone}
+              hint={t("{tasksDone}% of the team's · {tasksAssigned} assigned", { tasksDone: share(mine.tasksDone, totals.done), tasksAssigned: mine.tasksAssigned })} />
+            <StatCard compact icon={ChatsCircle} tone="info" label={t("Messages")} value={mine.messages} hint={t("{messages}% of team chat", { messages: share(mine.messages, totals.messages) })} />
+            <StatCard compact icon={FileText} tone="primary" label={t("Files shared")} value={mine.files} hint={t("{files}% of the team's files", { files: share(mine.files, totals.files) })} />
+            <StatCard compact icon={HandWaving} tone="warm" label={t("Stand-ups answered")} value={mine.standups}
+              hint={team.standupWeeks ? tn(team.standupWeeks, "of {n} week the team did one", "of {n} weeks the team did one") : t("None yet")} />
             {team.repo && (
-              <StatCard compact icon={GitCommit} tone="danger" label="Commits" value={mine.commits}
-                hint={mine.githubLogin ? `${share(mine.commits, totals.commits)}% of ${team.repo}` : self ? "Add your GitHub username in your profile" : "No GitHub username in their profile"} />
+              <StatCard compact icon={GitCommit} tone="danger" label={t("Commits")} value={mine.commits}
+                hint={mine.githubLogin ? `${share(mine.commits, totals.commits)}% of ${team.repo}` : self ? t("Add your GitHub username in your profile") : t("No GitHub username in their profile")} />
             )}
           </div>
 
           <div className="grid items-start gap-6 lg:grid-cols-2">
-            <Section id="contrib-team" title="Compared with the team" description={`Each member's share of the team's done tasks, messages, files${team.repo ? " and commits" : ""}.`}>
-              <GroupedBars label="Share of team work by member" max={100} suffix="%"
+            <Section id="contrib-team" title={t("Compared with the team")} description={(team.repo ? t("Each member's share of the team's done tasks, messages, files and commits.") : t("Each member's share of the team's done tasks, messages and files."))}>
+              <GroupedBars label={t("Share of team work by member")} max={100} suffix="%"
                 series={[{ name: "Tasks done", color: "var(--chart-1)" }, { name: "Messages", color: "var(--chart-3)" }, { name: "Files", color: "var(--chart-4)" },
                   ...(team.repo ? [{ name: "Commits", color: "var(--chart-2)" }] : [])]}
                 rows={team.members.map((m) => ({
@@ -207,24 +214,24 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
                   values: [share(m.tasksDone, totals.done), share(m.messages, totals.messages), share(m.files, totals.files), ...(team.repo ? [share(m.commits, totals.commits)] : [])],
                 }))} />
             </Section>
-            <Section id="contrib-weeks" title="Last 8 weeks" description="Tasks finished and messages sent each week.">
+            <Section id="contrib-weeks" title={t("Last 8 weeks")} description={t("Tasks finished and messages sent each week.")}>
               <WeekColumns weeks={team.weeks} />
             </Section>
           </div>
 
           <div className={cn("grid items-start gap-6", team.peer && "lg:grid-cols-2")}>
-            <Section id="contrib-tasks" title="Assigned tasks" description="Most recently changed first.">
+            <Section id="contrib-tasks" title={t("Assigned tasks")} description={t("Most recently changed first.")}>
               <TaskList tasks={team.tasks} />
             </Section>
             {team.peer && (
-              <Section id="contrib-peer" title="Peer reviews" description="Visible to you only. Students never see who wrote what.">
+              <Section id="contrib-peer" title={t("Peer reviews")} description={t("Visible to you only. Students never see who wrote what.")}>
                 <PeerReviews peer={team.peer} />
               </Section>
             )}
           </div>
           {instructor && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Star weight="fill" className="size-3.5 text-butter-strong" aria-hidden />
-              Use this with the peer-review factor when grading the team in the course&apos;s Grading card.
+              {t("Use this with the peer-review factor when grading the team in the course's Grading card.")}
             </p>
           )}
         </>

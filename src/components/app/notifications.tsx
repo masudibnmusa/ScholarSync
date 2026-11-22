@@ -16,8 +16,10 @@ import { Card } from "@/components/ui/card";
 import { Tooltip } from "@/components/ui/overlays";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
 
 export function NotificationsPanel() {
+  const { t } = useT();
   const user = useUser();
   const router = useRouter();
   const notifications = useAppStore((s) => s.notifications);
@@ -38,20 +40,20 @@ export function NotificationsPanel() {
 
   return (
     <Page className="max-w-3xl">
-      <PageHeader title="Notifications" description={unread ? `${unread} unread` : "You're all caught up."}>
-        <Button variant="outline" onClick={markAll} disabled={!unread}><Checks aria-hidden /> Mark all read</Button>
+      <PageHeader title={t("Notifications")} description={unread ? t("{n} unread", { n: unread }) : t("You're all caught up.")}>
+        <Button variant="outline" onClick={markAll} disabled={!unread}><Checks aria-hidden /> {t("Mark all read")}</Button>
       </PageHeader>
 
-      <Segmented label="Filter notifications" value={filter} onChange={setFilter}
-        options={[{ value: "all", label: "All" }, { value: "unread", label: <>Unread{unread > 0 && <span className="rounded-full bg-warm px-1.5 text-[0.6875rem] font-extrabold text-warm-foreground">{unread}</span>}</> }]} />
+      <Segmented label={t("Filter notifications")} value={filter} onChange={setFilter}
+        options={[{ value: "all", label: t("All") }, { value: "unread", label: <>{t("Unread")}{unread > 0 && <span className="rounded-full bg-warm px-1.5 text-[0.6875rem] font-extrabold text-warm-foreground">{unread}</span>}</> }]} />
 
       {!loaded ? (
         <div className="space-y-3">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-[4.5rem]" />)}</div>
       ) : visible.length === 0 ? (
         <Card>
-          <EmptyState icon={BellSlash} title={filter === "unread" ? "Nothing unread" : "No notifications yet"}
-            description={filter === "unread" ? "You've read everything. Enjoy the quiet." : "New tasks, messages and reviews will show up here as they happen."}>
-            {filter === "unread" && notifications.length > 0 && <Button variant="outline" onClick={() => setFilter("all")}>Show all</Button>}
+          <EmptyState icon={BellSlash} title={filter === "unread" ? t("Nothing unread") : t("No notifications yet")}
+            description={filter === "unread" ? t("You've read everything. Enjoy the quiet.") : t("New tasks, messages and reviews will show up here as they happen.")}>
+            {filter === "unread" && notifications.length > 0 && <Button variant="outline" onClick={() => setFilter("all")}>{t("Show all")}</Button>}
           </EmptyState>
         </Card>
       ) : (
@@ -73,14 +75,14 @@ export function NotificationsPanel() {
                             <meta.icon weight="fill" className="size-5" aria-hidden />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className={cn("block text-sm", n.read ? "font-semibold" : "font-extrabold")}>{n.title}{!n.read && <span className="sr-only"> (unread)</span>}</span>
+                            <span className={cn("block text-sm", n.read ? "font-semibold" : "font-extrabold")}>{n.title}{!n.read && <span className="sr-only"> {t("(unread)")}</span>}</span>
                             {n.description && <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground">{n.description}</span>}
                             <time dateTime={n.createdAt} className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt)}</time>
                           </span>
                         </button>
                         {!n.read && (
-                          <Tooltip label="Mark as read">
-                            <Button variant="ghost" size="icon" className="mr-2 shrink-0" aria-label={`Mark "${n.title}" as read`} onClick={() => markRead(n.id)}>
+                          <Tooltip label={t("Mark as read")}>
+                            <Button variant="ghost" size="icon" className="mr-2 shrink-0" aria-label={t("Mark \"{title}\" as read", { title: n.title })} onClick={() => markRead(n.id)}>
                               <Check weight="bold" className="size-4" />
                             </Button>
                           </Tooltip>

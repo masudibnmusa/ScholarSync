@@ -5,6 +5,7 @@ import * as Slider from "@radix-ui/react-slider";
 import { MagnifyingGlassMinus, MagnifyingGlassPlus } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useT } from "@/components/locale";
 
 const VIEW = 288; // crop window, px
 const OUT = 512; // saved image, px
@@ -14,6 +15,7 @@ type Pos = { x: number; y: number }; // image centre's offset from the window ce
 
 /** Square crop shown through a round mask: drag (or arrow keys) to move, slider or wheel to zoom. Saves a 512px image. */
 export function PhotoCropDialog({ file, onCancel, onSave }: { file: File | null; onCancel: () => void; onSave: (cropped: File) => Promise<boolean> }) {
+  const { t } = useT();
   const [img, setImg] = React.useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [pos, setPos] = React.useState<Pos>({ x: 0, y: 0 });
@@ -68,12 +70,12 @@ export function PhotoCropDialog({ file, onCancel, onSave }: { file: File | null;
     <Dialog open={!!file} onOpenChange={(open) => { if (!open && !saving) onCancel(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Crop your photo</DialogTitle>
-          <DialogDescription>Drag to position it, and zoom to frame your face.</DialogDescription>
+          <DialogTitle>{t("Crop your photo")}</DialogTitle>
+          <DialogDescription>{t("Drag to position it, and zoom to frame your face.")}</DialogDescription>
         </DialogHeader>
 
         <div
-          role="group" tabIndex={0} aria-label="Photo position. Drag, or use the arrow keys to move it."
+          role="group" tabIndex={0} aria-label={t("Photo position. Drag, or use the arrow keys to move it.")}
           className="relative mx-auto cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-muted outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 active:cursor-grabbing"
           style={{ width: VIEW, height: VIEW }}
           onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { startX: e.clientX, startY: e.clientY, from: pos }; }}
@@ -96,24 +98,24 @@ export function PhotoCropDialog({ file, onCancel, onSave }: { file: File | null;
         </div>
 
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => zoomTo(zoom - 0.25)} aria-label="Zoom out" className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
+          <button type="button" onClick={() => zoomTo(zoom - 0.25)} aria-label={t("Zoom out")} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
             <MagnifyingGlassMinus className="size-4" aria-hidden />
           </button>
-          <Slider.Root value={[zoom]} min={1} max={MAX_ZOOM} step={0.01} onValueChange={([z]) => zoomTo(z)} aria-label="Zoom"
+          <Slider.Root value={[zoom]} min={1} max={MAX_ZOOM} step={0.01} onValueChange={([z]) => zoomTo(z)} aria-label={t("Zoom")}
             className="relative flex h-5 w-full touch-none select-none items-center">
             <Slider.Track className="relative h-1.5 grow overflow-hidden rounded-full bg-muted">
               <Slider.Range className="absolute h-full rounded-full bg-primary" />
             </Slider.Track>
-            <Slider.Thumb aria-label="Zoom" className="block size-5 rounded-full border-2 border-primary bg-card shadow-soft outline-none transition-shadow focus-visible:ring-[3px] focus-visible:ring-ring/40" />
+            <Slider.Thumb aria-label={t("Zoom")} className="block size-5 rounded-full border-2 border-primary bg-card shadow-soft outline-none transition-shadow focus-visible:ring-[3px] focus-visible:ring-ring/40" />
           </Slider.Root>
-          <button type="button" onClick={() => zoomTo(zoom + 0.25)} aria-label="Zoom in" className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
+          <button type="button" onClick={() => zoomTo(zoom + 0.25)} aria-label={t("Zoom in")} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
             <MagnifyingGlassPlus className="size-4" aria-hidden />
           </button>
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
-          <Button type="button" onClick={save} loading={saving} disabled={!img}>Save photo</Button>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>{t("Cancel")}</Button>
+          <Button type="button" onClick={save} loading={saving} disabled={!img}>{t("Save photo")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

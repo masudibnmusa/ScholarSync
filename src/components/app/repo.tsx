@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t } from "@/lib/i18n";
 
 type Item = RepoFeed["activity"][number];
 
@@ -26,6 +28,7 @@ function ActivityIcon({ item }: { item: Item }) {
 }
 
 function LinkForm({ team, onLinked }: { team: Team; onLinked: () => void }) {
+  const { t } = useT();
   const [value, setValue] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -36,25 +39,25 @@ function LinkForm({ team, onLinked }: { team: Team; onLinked: () => void }) {
     setError(null);
     try {
       const problem = await setTeamRepo(team.id, value);
-      if (problem) setError(problem);
+      if (problem) setError(t(problem));
       else {
-        toast.success("Repository linked", { description: "Commits and pull requests appear in a minute." });
+        toast.success(t("Repository linked"), { description: t("Commits and pull requests appear in a minute.") });
         onLinked();
       }
     } catch (err) {
       console.error("Linking the repo failed:", err);
-      setError("Could not link the repository.");
+      setError(t("Could not link the repository."));
     }
     setBusy(false);
   }
 
   return (
-    <form onSubmit={link} className="space-y-3 rounded-2xl border border-dashed p-4" aria-label="Link a repository">
-      <Field label="GitHub repository" htmlFor="repo-input" error={error} hint="owner/name, or paste the repository's link. Public repositories work right away.">
-        <Input id="repo-input" value={value} onChange={(e) => { setValue(e.target.value); setError(null); }} placeholder="e.g. octocat/Hello-World" autoComplete="off" spellCheck={false}
+    <form onSubmit={link} className="space-y-3 rounded-2xl border border-dashed p-4" aria-label={t("Link a repository")}>
+      <Field label={t("GitHub repository")} htmlFor="repo-input" error={error} hint={t("owner/name, or paste the repository's link. Public repositories work right away.")}>
+        <Input id="repo-input" value={value} onChange={(e) => { setValue(e.target.value); setError(null); }} placeholder={t("e.g. octocat/Hello-World")} autoComplete="off" spellCheck={false}
           aria-invalid={!!error || undefined} aria-describedby={error ? "repo-input-error" : "repo-input-hint"} />
       </Field>
-      <div className="flex justify-end"><Button type="submit" loading={busy} disabled={!value.trim()}>{!busy && <GithubLogo aria-hidden />} Link repository</Button></div>
+      <div className="flex justify-end"><Button type="submit" loading={busy} disabled={!value.trim()}>{!busy && <GithubLogo aria-hidden />} {t("Link repository")}</Button></div>
     </form>
   );
 }
@@ -64,6 +67,7 @@ function LinkForm({ team, onLinked }: { team: Team; onLinked: () => void }) {
  * member once their GitHub username is in their profile.
  */
 export function RepoButton({ team }: { team: Team }) {
+  const { t } = useT();
   const user = useUser();
   const [open, setOpen] = React.useState(false);
   const [feed, setFeed] = React.useState<RepoFeed | undefined>(undefined);
@@ -79,11 +83,11 @@ export function RepoButton({ team }: { team: Team }) {
     setSyncing(true);
     try {
       const r = await syncRepoNow(team.id);
-      if (r === "cooldown") toast.info("Checked less than a minute ago.");
+      if (r === "cooldown") toast.info(t("Checked less than a minute ago."));
       await load();
     } catch (err) {
       console.error("Syncing the repo failed:", err);
-      toast.error("Could not reach GitHub");
+      toast.error(t("Could not reach GitHub"));
     }
     setSyncing(false);
   }
@@ -91,11 +95,11 @@ export function RepoButton({ team }: { team: Team }) {
   async function unlink() {
     try {
       await setTeamRepo(team.id, null);
-      toast.success("Repository unlinked");
+      toast.success(t("Repository unlinked"));
       await load();
     } catch (err) {
       console.error("Unlinking the repo failed:", err);
-      toast.error("Could not unlink the repository");
+      toast.error(t("Could not unlink the repository"));
     }
   }
 
@@ -103,46 +107,46 @@ export function RepoButton({ team }: { team: Team }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label="GitHub repository"><GithubLogo weight="duotone" aria-hidden /><span className="hidden xl:inline">Repo</span></Button>
+        <Button variant="outline" aria-label={t("GitHub repository")}><GithubLogo weight="duotone" aria-hidden /><span className="hidden xl:inline">{t("Repo")}</span></Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-foreground text-background"><GithubLogo weight="fill" className="size-4" aria-hidden /></span>
-            {team.name}&apos;s repository
+            {team.name}{t("'s repository")}
           </DialogTitle>
-          <DialogDescription>Commits and pull requests from GitHub, checked every 30 minutes.</DialogDescription>
+          <DialogDescription>{t("Commits and pull requests from GitHub, checked every 30 minutes.")}</DialogDescription>
         </DialogHeader>
 
         {feed === undefined ? (
           <div className="space-y-3" aria-busy="true"><Skeleton className="h-16" /><Skeleton className="h-32" /></div>
         ) : !feed.repo ? (
-          editable ? <LinkForm team={team} onLinked={load} /> : <p className="text-sm text-muted-foreground">No repository was linked.</p>
+          editable ? <LinkForm team={team} onLinked={load} /> : <p className="text-sm text-muted-foreground">{t("No repository was linked.")}</p>
         ) : (
           <div className="min-w-0 space-y-5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl bg-muted/60 px-4 py-3">
               <a href={`https://github.com/${feed.repo}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm font-bold hover:text-primary hover:underline">
-                <span className="truncate">{feed.repo}</span><ArrowSquareOut className="size-3.5 shrink-0" aria-hidden /><span className="sr-only">(opens GitHub)</span>
+                <span className="truncate">{feed.repo}</span><ArrowSquareOut className="size-3.5 shrink-0" aria-hidden /><span className="sr-only">{t("(opens GitHub)")}</span>
               </a>
-              <span className="text-xs text-muted-foreground">{feed.syncedAt ? `Checked ${timeAgo(feed.syncedAt)}` : "Not checked yet"}</span>
+              <span className="text-xs text-muted-foreground">{feed.syncedAt ? t("Checked {when}", { when: timeAgo(feed.syncedAt) }) : t("Not checked yet")}</span>
               {editable && (
                 <span className="ml-auto flex gap-1.5">
-                  <Button size="sm" variant="ghost" loading={syncing} onClick={sync}>{!syncing && <ArrowClockwise aria-hidden />} Check now</Button>
-                  <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => setUnlinking(true)}><LinkBreak aria-hidden /> Unlink</Button>
+                  <Button size="sm" variant="ghost" loading={syncing} onClick={sync}>{!syncing && <ArrowClockwise aria-hidden />} {t("Check now")}</Button>
+                  <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => setUnlinking(true)}><LinkBreak aria-hidden /> {t("Unlink")}</Button>
                 </span>
               )}
             </div>
-            {feed.error && <p role="alert" className="flex items-start gap-1.5 text-sm font-semibold text-warning"><WarningCircle weight="fill" className="mt-0.5 size-4 shrink-0" aria-hidden />{feed.error}</p>}
+            {feed.error && <p role="alert" className="flex items-start gap-1.5 text-sm font-semibold text-warning"><WarningCircle weight="fill" className="mt-0.5 size-4 shrink-0" aria-hidden />{t(feed.error)}</p>}
 
             <section aria-labelledby="repo-members">
-              <h3 id="repo-members" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Commits by member</h3>
+              <h3 id="repo-members" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("Commits by member")}</h3>
               <ul className="grid gap-2 sm:grid-cols-2">
                 {feed.members.map((m) => (
                   <li key={m.userId} className="flex items-center gap-2.5 rounded-xl border bg-card px-3 py-2">
                     <Avatar id={m.userId} name={m.name} size="xs" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{m.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{m.githubLogin ? `@${m.githubLogin}` : "No GitHub username"}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{m.githubLogin ? `@${m.githubLogin}` : t("No GitHub username")}</span>
                     </span>
                     <span className="text-sm font-bold tabular-nums">{m.commits}</span>
                   </li>
@@ -150,15 +154,15 @@ export function RepoButton({ team }: { team: Team }) {
               </ul>
               {me && !me.githubLogin && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Your commits don&apos;t count yet. <Link href="/student/profile#github" className="font-semibold text-primary hover:underline">Add your GitHub username</Link>.
+                  {t("Your commits don't count yet.")} <Link href="/student/profile#github" className="font-semibold text-primary hover:underline">{t("Add your GitHub username")}</Link>.
                 </p>
               )}
             </section>
 
             <section aria-labelledby="repo-activity">
-              <h3 id="repo-activity" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Latest activity</h3>
+              <h3 id="repo-activity" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("Latest activity")}</h3>
               {feed.activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{feed.syncedAt ? "No commits or pull requests yet." : "Reading the repository…"}</p>
+                <p className="text-sm text-muted-foreground">{feed.syncedAt ? t("No commits or pull requests yet.") : t("Reading the repository…")}</p>
               ) : (
                 <ul className="space-y-1">
                   {feed.activity.map((a) => (
@@ -180,8 +184,8 @@ export function RepoButton({ team }: { team: Team }) {
             </section>
           </div>
         )}
-        <ConfirmDialog open={unlinking} onOpenChange={setUnlinking} title={`Unlink ${feed?.repo ?? "the repository"}?`} confirmLabel="Unlink"
-          description="Its commits and pull requests are removed from ScholarSync. Nothing changes on GitHub, and you can link it again." onConfirm={unlink} />
+        <ConfirmDialog open={unlinking} onOpenChange={setUnlinking} title={t("Unlink {repo}?", { repo: feed?.repo ?? t("the repository") })} confirmLabel={t("Unlink")}
+          description={t("Its commits and pull requests are removed from ScholarSync. Nothing changes on GitHub, and you can link it again.")} onConfirm={unlink} />
       </DialogContent>
     </Dialog>
   );

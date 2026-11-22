@@ -16,4 +16,11 @@ assert.ok(!evil.html.includes("<b>X</b>"), "names are escaped");
 assert.ok(!evil.html.includes('"onmouseover="'), "links can't break out of href");
 assert.ok(evil.html.includes("a &amp; b"));
 
+// In the recipient's language: the wording and the notification text are translated, names stay as written.
+const bn = buildDigest("Masud Ibn Musa", [{ title: "Ada mentioned you", body: "Shared a file", href: "http://app" }, { title: "t", body: "", href: "http://app" }], "http://app/profile", "bn");
+assert.match(bn.subject, /২টি আপডেট/);
+assert.match(bn.text, /^হ্যালো Masud,/);
+assert.match(bn.text, /Ada আপনাকে মেনশন করেছেন/);
+assert.match(bn.html, /<html lang="bn">/);
+
 console.log("digest-format: all checks passed");

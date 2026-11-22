@@ -5,6 +5,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { Card } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/locale";
 
 /** Standard page frame. `fill` makes the page exactly as tall as the viewport area (chat, board). */
 export function Page({ fill, className, children }: { fill?: boolean; className?: string; children: React.ReactNode }) {
@@ -70,6 +71,7 @@ export function EmptyState({
 }
 
 export function Logo({ className, label = true }: { className?: string; label?: boolean }) {
+  const { t } = useT();
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-peach-strong to-primary text-white shadow-soft">
@@ -79,7 +81,7 @@ export function Logo({ className, label = true }: { className?: string; label?: 
           <circle cx="20.5" cy="14.5" r="1.5" fill="#fde7b0" />
         </svg>
       </span>
-      {label && <span className="font-display text-[1.125rem] font-bold tracking-tight">ScholarSync</span>}
+      {label && <span className="font-display text-[1.125rem] font-bold tracking-tight">{t("ScholarSync")}</span>}
     </span>
   );
 }

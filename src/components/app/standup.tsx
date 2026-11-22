@@ -15,11 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t, msg } from "@/lib/i18n";
 
 const QUESTIONS = [
-  { key: "done", label: "Done since last week", placeholder: "e.g. Finished the login page and its tests" },
-  { key: "next", label: "Next up", placeholder: "e.g. Start on the database schema" },
-  { key: "blocked", label: "Blocked by", placeholder: "Nothing, or what's in your way" },
+  { key: "done", label: msg("Done since last week"), placeholder: msg("e.g. Finished the login page and its tests") },
+  { key: "next", label: msg("Next up"), placeholder: msg("e.g. Start on the database schema") },
+  { key: "blocked", label: msg("Blocked by"), placeholder: msg("Nothing, or what's in your way") },
 ] as const;
 type Answers = Record<(typeof QUESTIONS)[number]["key"], string>;
 
@@ -31,6 +33,7 @@ const isBlocked = (text: string) => !!text.trim() && !/^(no|none|nothing|nope|n\
  * the instructor reads the answers and the AI summary. `?standup=1` opens it, as the Monday notification does.
  */
 export function StandupButton({ team }: { team: Team }) {
+  const { t } = useT();
   const user = useUser();
   const instructor = user.role === "instructor";
   const router = useRouter();
@@ -62,9 +65,9 @@ export function StandupButton({ team }: { team: Team }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label={owesAnswer ? "Weekly stand-up (not answered yet)" : "Weekly stand-up"} className="relative">
+        <Button variant="outline" aria-label={owesAnswer ? t("Weekly stand-up (not answered yet)") : t("Weekly stand-up")} className="relative">
           <HandWaving weight="duotone" aria-hidden />
-          <span className="hidden xl:inline">Stand-up</span>
+          <span className="hidden xl:inline">{t("Stand-up")}</span>
           {owesAnswer && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background" aria-hidden />}
         </Button>
       </DialogTrigger>
@@ -72,11 +75,11 @@ export function StandupButton({ team }: { team: Team }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-peach text-primary"><HandWaving weight="fill" className="size-4" aria-hidden /></span>
-            {team.name}&apos;s stand-up
+            {team.name}{t("'s stand-up")}
           </DialogTitle>
           <DialogDescription>
-            {data ? `Week of ${weekLabel(data.weekStart)} · ` : ""}
-            {instructor ? "Each student's answers, and an AI summary once they come in." : "Three quick answers. Your team and instructor see them."}
+            {data ? t("Week of {week} · ", { week: weekLabel(data.weekStart) }) : ""}
+            {instructor ? t("Each student's answers, and an AI summary once they come in.") : t("Three quick answers. Your team and instructor see them.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -89,14 +92,14 @@ export function StandupButton({ team }: { team: Team }) {
             )}
             <section aria-labelledby="standup-team">
               <h3 id="standup-team" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                {instructor ? "Answers" : "Teammates"} ({(instructor ? data.answers : others).length} of {instructor ? data.members.length : data.members.length - 1})
+                {instructor ? t("Answers ({n} of {total})", { n: data.answers.length, total: data.members.length }) : t("Teammates ({n} of {total})", { n: others.length, total: data.members.length - 1 })}
               </h3>
               <ul className="space-y-2">
                 {(instructor ? data.answers : others).map((a) => <AnswerCard key={a.userId} a={a} />)}
               </ul>
               {waiting.filter((m) => instructor || m.userId !== user.id).length > 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Waiting on {waiting.filter((m) => instructor || m.userId !== user.id).map((m) => m.name).join(", ")}.
+                  {t("Waiting on")} {waiting.filter((m) => instructor || m.userId !== user.id).map((m) => m.name).join(", ")}.
                 </p>
               )}
             </section>
@@ -108,6 +111,7 @@ export function StandupButton({ team }: { team: Team }) {
 }
 
 function MyAnswers({ team, mine, onSaved }: { team: Team; mine?: StandupAnswer; onSaved: () => void }) {
+  const { t } = useT();
   const [form, setForm] = React.useState<Answers>({ done: mine?.done ?? "", next: mine?.next ?? "", blocked: mine?.blocked ?? "" });
   const [saving, setSaving] = React.useState(false);
   const empty = !form.done.trim() && !form.next.trim() && !form.blocked.trim();
@@ -119,32 +123,33 @@ function MyAnswers({ team, mine, onSaved }: { team: Team; mine?: StandupAnswer; 
     setSaving(true);
     try {
       await saveStandup(team.id, form);
-      toast.success(mine ? "Stand-up updated" : "Stand-up sent", { description: "Your team and instructor can see it." });
+      toast.success(mine ? t("Stand-up updated") : t("Stand-up sent"), { description: t("Your team and instructor can see it.") });
       onSaved();
     } catch (err) {
       console.error("Saving the stand-up failed:", err);
-      toast.error("Could not save your stand-up");
+      toast.error(t("Could not save your stand-up"));
     }
     setSaving(false);
   }
 
   return (
-    <form onSubmit={save} className="space-y-3" aria-label="Your stand-up">
+    <form onSubmit={save} className="space-y-3" aria-label={t("Your stand-up")}>
       {QUESTIONS.map((q) => (
-        <Field key={q.key} label={q.label} htmlFor={`standup-${q.key}`} optional={q.key === "blocked"}>
-          <Textarea id={`standup-${q.key}`} rows={2} maxLength={1000} value={form[q.key]} placeholder={q.placeholder} disabled={readOnly}
+        <Field key={q.key} label={t(q.label)} htmlFor={`standup-${q.key}`} optional={q.key === "blocked"}>
+          <Textarea id={`standup-${q.key}`} rows={2} maxLength={1000} value={form[q.key]} placeholder={t(q.placeholder)} disabled={readOnly}
             onChange={(e) => setForm({ ...form, [q.key]: e.target.value })} />
         </Field>
       ))}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{readOnly ? "This course is archived." : mine ? `Sent ${timeAgo(mine.updatedAt)}` : "Not sent yet"}</p>
-        {!readOnly && <Button type="submit" loading={saving} disabled={empty || !changed}>{!saving && <CheckCircle aria-hidden />}{mine ? "Update" : "Send"}</Button>}
+        <p className="text-xs text-muted-foreground">{readOnly ? t("This course is archived.") : mine ? t("Sent {when}", { when: timeAgo(mine.updatedAt) }) : t("Not sent yet")}</p>
+        {!readOnly && <Button type="submit" loading={saving} disabled={empty || !changed}>{!saving && <CheckCircle aria-hidden />}{mine ? t("Update") : t("Send")}</Button>}
       </div>
     </form>
   );
 }
 
 function SummaryPanel({ team, data, onDone }: { team: Team; data: TeamStandup; onDone: () => void }) {
+  const { t, tn } = useT();
   const [busy, setBusy] = React.useState(false);
   const s = data.summary;
   const stale = s && s.answered < data.answers.length;
@@ -153,23 +158,23 @@ function SummaryPanel({ team, data, onDone }: { team: Team; data: TeamStandup; o
     setBusy(true);
     try {
       const r = await refreshStandupSummary(team.id);
-      if (r === "empty") toast.info("Nobody has answered yet.");
-      else if (r === "cooldown") toast.info("The summary was written a minute ago.");
+      if (r === "empty") toast.info(t("Nobody has answered yet."));
+      else if (r === "cooldown") toast.info(t("The summary was written a minute ago."));
       onDone();
     } catch (err) {
       console.error("Summarising the stand-up failed:", err);
-      toast.error("Could not write the summary. The AI may be busy; try again in a minute.");
+      toast.error(t("Could not write the summary. The AI may be busy; try again in a minute."));
     }
     setBusy(false);
   }
 
   return (
-    <section aria-label="AI summary" className="space-y-3">
+    <section aria-label={t("AI summary")} className="space-y-3">
       {s ? (
         <>
           <p className="rounded-2xl bg-sky/60 px-4 py-3 text-[0.9375rem] leading-relaxed">{s.summary}</p>
           {s.blockers.length > 0 && (
-            <ul className="space-y-1.5" aria-label="Blockers">
+            <ul className="space-y-1.5" aria-label={t("Blockers")}>
               {s.blockers.map((b) => (
                 <li key={b} className="flex items-start gap-2 text-sm"><WarningCircle weight="fill" className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />{b}</li>
               ))}
@@ -178,13 +183,13 @@ function SummaryPanel({ team, data, onDone }: { team: Team; data: TeamStandup; o
         </>
       ) : (
         <p className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-          {data.answers.length ? "The AI summary arrives a few minutes after the answers settle." : "No answers yet this week. Students are asked every Monday."}
+          {data.answers.length ? t("The AI summary arrives a few minutes after the answers settle.") : t("No answers yet this week. Students are asked every Monday.")}
         </p>
       )}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{s ? `Written by AI ${timeAgo(s.generatedAt)} from ${s.answered} answer${s.answered === 1 ? "" : "s"}${stale ? "; newer answers since" : ""}` : ""}</p>
+        <p className="text-xs text-muted-foreground">{s ? tn(s.answered, "Written by AI {when} from {n} answer", "Written by AI {when} from {n} answers", { when: timeAgo(s.generatedAt) }) + (stale ? t("; newer answers since") : "") : ""}</p>
         <Button variant="secondary" size="sm" onClick={summarise} loading={busy} disabled={!data.answers.length}>
-          {!busy && (s ? <ArrowClockwise aria-hidden /> : <Sparkle aria-hidden />)} {s ? "Refresh summary" : "Summarise now"}
+          {!busy && (s ? <ArrowClockwise aria-hidden /> : <Sparkle aria-hidden />)} {s ? t("Refresh summary") : t("Summarise now")}
         </Button>
       </div>
     </section>
@@ -192,6 +197,7 @@ function SummaryPanel({ team, data, onDone }: { team: Team; data: TeamStandup; o
 }
 
 function AnswerCard({ a }: { a: StandupAnswer }) {
+  const { t } = useT();
   return (
     <li className="rounded-2xl border bg-card p-3">
       <div className="mb-1.5 flex items-center gap-2">
@@ -202,7 +208,7 @@ function AnswerCard({ a }: { a: StandupAnswer }) {
       <dl className="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-sm">
         {QUESTIONS.map((q) => a[q.key] && (
           <React.Fragment key={q.key}>
-            <dt className="text-xs font-semibold text-muted-foreground">{q.key === "done" ? "Done" : q.key === "next" ? "Next" : "Blocked"}</dt>
+            <dt className="text-xs font-semibold text-muted-foreground">{q.key === "done" ? t("Done") : q.key === "next" ? t("Next") : t("Blocked")}</dt>
             <dd className={cn("whitespace-pre-wrap", q.key === "blocked" && isBlocked(a.blocked) && "font-semibold text-warning")}>{a[q.key]}</dd>
           </React.Fragment>
         ))}

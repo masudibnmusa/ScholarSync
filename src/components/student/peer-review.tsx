@@ -17,15 +17,17 @@ import { Card } from "@/components/ui/card";
 import { Field, Textarea } from "@/components/ui/input";
 import { EASE } from "@/components/ui/motion";
 import { Progress } from "@/components/ui/progress";
+import { useT } from "@/components/locale";
+import { t, msg } from "@/lib/i18n";
 
 const categories = [
-  { key: "comm", label: "Communication", hint: "Replies, shares updates, listens" },
-  { key: "tech", label: "Technical skills", hint: "Quality of the work delivered" },
-  { key: "reliability", label: "Reliability", hint: "Does what they said, on time" },
-  { key: "leadership", label: "Leadership", hint: "Takes initiative, unblocks others" },
-  { key: "teamwork", label: "Teamwork", hint: "Helps the team succeed together" },
+  { key: "comm", label: msg("Communication"), hint: msg("Replies, shares updates, listens") },
+  { key: "tech", label: msg("Technical skills"), hint: msg("Quality of the work delivered") },
+  { key: "reliability", label: msg("Reliability"), hint: msg("Does what they said, on time") },
+  { key: "leadership", label: msg("Leadership"), hint: msg("Takes initiative, unblocks others") },
+  { key: "teamwork", label: msg("Teamwork"), hint: msg("Helps the team succeed together") },
 ];
-const words = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
+const words = ["", msg("Poor"), msg("Fair"), msg("Good"), msg("Very good"), msg("Excellent")];
 
 /** Five-star input as a radio group: arrow keys change the value, like native radios. */
 function StarRating({ value, onChange, label, size = "md" }: { value: number; onChange: (v: number) => void; label: string; size?: "md" | "lg" }) {
@@ -42,7 +44,7 @@ function StarRating({ value, onChange, label, size = "md" }: { value: number; on
           type="button"
           role="radio"
           aria-checked={value === n}
-          aria-label={`${n} of 5, ${words[n]}`}
+          aria-label={`${n} of 5, ${t(words[n])}`}
           tabIndex={value === n || (!value && n === 1) ? 0 : -1}
           onClick={() => onChange(n)}
           onMouseEnter={() => setHover(n)}
@@ -70,17 +72,18 @@ const Stars = ({ n, className }: { n: number; className?: string }) => (
 
 /** What the student wrote about a teammate. Reviews can't be edited once sent. */
 function SentReview({ review }: { review: MyReview }) {
+  const { t } = useT();
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Stars n={review.rating} className="[&_svg]:size-6" />
-        <span className="text-sm font-semibold text-warm-text">{words[review.rating]}</span>
-        <time dateTime={review.createdAt} className="ml-auto text-xs text-muted-foreground">Sent {timeAgo(review.createdAt)}</time>
+        <span className="text-sm font-semibold text-warm-text">{t(words[review.rating])}</span>
+        <time dateTime={review.createdAt} className="ml-auto text-xs text-muted-foreground">{t("Sent")} {timeAgo(review.createdAt)}</time>
       </div>
       <dl className="divide-y rounded-2xl border">
         {categories.map((c) => (
           <div key={c.key} className="flex items-center justify-between gap-4 px-4 py-2">
-            <dt className="text-sm font-semibold">{c.label}</dt>
+            <dt className="text-sm font-semibold">{t(c.label)}</dt>
             <dd><Stars n={review.categoryRatings[c.key] ?? review.rating} className="[&_svg]:size-4" /></dd>
           </div>
         ))}
@@ -91,6 +94,7 @@ function SentReview({ review }: { review: MyReview }) {
 }
 
 export function PeerReviewPanel() {
+  const { t } = useT();
   const user = useUser();
   const { team, loaded } = useTeam();
   const submitPeerReview = useAppStore((s) => s.submitPeerReview);
@@ -124,7 +128,7 @@ export function PeerReviewPanel() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!mate || !team) return;
-    if (!draft.rating) return setError("Choose an overall rating first.");
+    if (!draft.rating) return setError(t("Choose an overall rating first."));
     setSubmitting(true);
     // Categories left blank take the overall rating.
     const cats = Object.fromEntries(categories.map((c) => [c.key, draft.cats[c.key] || draft.rating]));
@@ -137,26 +141,26 @@ export function PeerReviewPanel() {
 
   return (
     <Page>
-      <PageHeader title="Peer review" description="Rate how each teammate contributed. Honest feedback helps your instructor support the team." />
+      <PageHeader title={t("Peer review")} description={t("Rate how each teammate contributed. Honest feedback helps your instructor support the team.")} />
 
       {mates.length === 0 ? (
-        <Card><EmptyState icon={UsersThree} title="No teammates to review yet" description="Once more people join your team, you can review them here." /></Card>
+        <Card><EmptyState icon={UsersThree} title={t("No teammates to review yet")} description={t("Once more people join your team, you can review them here.")} /></Card>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
           <div className="min-w-0 space-y-4">
             <Card className="p-5">
               <div className="flex items-baseline justify-between">
-                <p className="text-sm font-bold">Your progress</p>
-                <p className="text-sm font-bold tabular-nums text-primary">{reviewed} of {mates.length}</p>
+                <p className="text-sm font-bold">{t("Your progress")}</p>
+                <p className="text-sm font-bold tabular-nums text-primary">{t("{n} of {total}", { n: reviewed, total: mates.length })}</p>
               </div>
-              <Progress className="mt-3" value={(reviewed / mates.length) * 100} label="Teammates reviewed" />
+              <Progress className="mt-3" value={(reviewed / mates.length) * 100} label={t("Teammates reviewed")} />
               <p className="mt-4 flex items-start gap-2 rounded-xl bg-muted px-3 py-2.5 text-xs text-muted-foreground">
                 <LockKey weight="fill" className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-                Private: only your instructor reads reviews. Teammates never see what you wrote.
+                {t("Private: only your instructor reads reviews. Teammates never see what you wrote.")}
               </p>
             </Card>
 
-            <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 pt-1 scroll-thin lg:flex-col lg:overflow-visible lg:pb-0" aria-label="Teammates">
+            <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 pt-1 scroll-thin lg:flex-col lg:overflow-visible lg:pb-0" aria-label={t("Teammates")}>
               {mates.map((m) => {
                 const isDone = done.includes(m.userId);
                 const active = m.userId === mateId;
@@ -168,7 +172,7 @@ export function PeerReviewPanel() {
                       <Avatar name={m.name} id={m.userId} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold">{m.name}</span>
-                        <span className={cn("block text-xs", isDone ? "font-semibold text-success" : "text-muted-foreground")}>{isDone ? "Reviewed" : "Not reviewed yet"}</span>
+                        <span className={cn("block text-xs", isDone ? "font-semibold text-success" : "text-muted-foreground")}>{isDone ? t("Reviewed") : t("Not reviewed yet")}</span>
                       </span>
                       {isDone && <CheckCircle weight="fill" className="size-5 shrink-0 text-success" aria-hidden />}
                     </button>
@@ -197,10 +201,10 @@ export function PeerReviewPanel() {
                         className="flex size-16 items-center justify-center rounded-full bg-success/12 text-success">
                         <CheckCircle weight="fill" className="size-9" aria-hidden />
                       </motion.span>
-                      <h3 className="mt-4 text-lg font-bold">Review sent</h3>
-                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">Your review of {mate.name} is with your instructor. Here is what you wrote.</p>
+                      <h3 className="mt-4 text-lg font-bold">{t("Review sent")}</h3>
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("Your review of {name} is with your instructor. Here is what you wrote.", { name: mate.name })}</p>
                       {reviewed < mates.length && (
-                        <Button className="mt-5" onClick={() => setSelected(mates.find((m) => !done.includes(m.userId))!.userId)}>Review next teammate</Button>
+                        <Button className="mt-5" onClick={() => setSelected(mates.find((m) => !done.includes(m.userId))!.userId)}>{t("Review next teammate")}</Button>
                       )}
                       <div className="mt-8 w-full max-w-lg text-left">
                         <SentReview review={sent!.find((r) => r.revieweeId === mate.userId)!} />
@@ -209,32 +213,32 @@ export function PeerReviewPanel() {
                   ) : (
                     <form onSubmit={submit} className="space-y-7 p-5 sm:p-6" noValidate>
                       <div>
-                        <p className="text-sm font-bold">Overall, how was working with {firstName(mate.name)}?</p>
+                        <p className="text-sm font-bold">{t("Overall, how was working with")} {firstName(mate.name)}?</p>
                         <div className="mt-2 flex flex-wrap items-center gap-3">
-                          <StarRating size="lg" value={draft.rating} onChange={(rating) => setDraft({ rating })} label={`Overall rating for ${mate.name}`} />
-                          <span className="text-sm font-semibold text-warm-text" aria-hidden>{words[draft.rating]}</span>
+                          <StarRating size="lg" value={draft.rating} onChange={(rating) => setDraft({ rating })} label={t("Overall rating for {name}", { name: mate.name })} />
+                          <span className="text-sm font-semibold text-warm-text" aria-hidden>{t(words[draft.rating])}</span>
                         </div>
                         {error && <p role="alert" className="mt-2 text-xs font-medium text-destructive">{error}</p>}
                       </div>
 
                       <fieldset>
-                        <legend className="text-sm font-bold">By area <span className="font-normal text-muted-foreground">(optional, defaults to the overall rating)</span></legend>
+                        <legend className="text-sm font-bold">{t("By area")} <span className="font-normal text-muted-foreground">{t("(optional, defaults to the overall rating)")}</span></legend>
                         <div className="mt-3 divide-y rounded-2xl border">
                           {categories.map((c) => (
                             <div key={c.key} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5">
-                              <div><p className="text-sm font-semibold">{c.label}</p><p className="text-xs text-muted-foreground">{c.hint}</p></div>
-                              <StarRating value={draft.cats[c.key] || draft.rating} onChange={(v) => setDraft({ cats: { ...draft.cats, [c.key]: v } })} label={`${c.label} rating for ${mate.name}`} />
+                              <div><p className="text-sm font-semibold">{t(c.label)}</p><p className="text-xs text-muted-foreground">{t(c.hint)}</p></div>
+                              <StarRating value={draft.cats[c.key] || draft.rating} onChange={(v) => setDraft({ cats: { ...draft.cats, [c.key]: v } })} label={t("{label} rating for {name}", { label: c.label, name: mate.name })} />
                             </div>
                           ))}
                         </div>
                       </fieldset>
 
-                      <Field label="Written feedback" htmlFor="review-feedback" optional hint={`${draft.feedback.length}/4000 · What went well? What could be better?`}>
-                        <Textarea id="review-feedback" value={draft.feedback} maxLength={4000} onChange={(e) => setDraft({ feedback: e.target.value })} placeholder="Be specific and kind. Examples help." aria-describedby="review-feedback-hint" />
+                      <Field label={t("Written feedback")} htmlFor="review-feedback" optional hint={t("{count}/4000 · What went well? What could be better?", { count: draft.feedback.length })}>
+                        <Textarea id="review-feedback" value={draft.feedback} maxLength={4000} onChange={(e) => setDraft({ feedback: e.target.value })} placeholder={t("Be specific and kind. Examples help.")} aria-describedby="review-feedback-hint" />
                       </Field>
 
                       <div className="flex justify-end">
-                        <Button type="submit" size="lg" loading={submitting}><PaperPlaneTilt weight="fill" aria-hidden /> Submit review</Button>
+                        <Button type="submit" size="lg" loading={submitting}><PaperPlaneTilt weight="fill" aria-hidden /> {t("Submit review")}</Button>
                       </div>
                     </form>
                   )}

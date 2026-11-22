@@ -19,6 +19,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Segmented } from "@/components/ui/segmented";
 import { Tooltip } from "@/components/ui/overlays";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t } from "@/lib/i18n";
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 
@@ -42,13 +44,14 @@ function toRows(messages: ChatMessage[]): Row[] {
 }
 
 function FileChip({ msg }: { msg: ChatMessage }) {
+  const { t } = useT();
   const download = useAppStore((s) => s.downloadFile);
   if (!msg.fileName) return null;
   return (
     <button
       type="button"
       onClick={() => msg.filePath && download(msg.filePath)}
-      aria-label={`Download ${msg.fileName}`}
+      aria-label={t("Download {fileName}", { fileName: msg.fileName })}
       className={cn(
         "tap group/file flex w-full max-w-xs items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
         msg.isMe ? "border-white/20 bg-white/10 hover:bg-white/20 dark:border-primary-foreground/20 dark:bg-primary-foreground/10" : "bg-card hover:border-primary/40",
@@ -91,6 +94,7 @@ function MessageText({ content, names, me, onPrimary }: { content: string; names
 type BubbleActions = { onReply: (m: ChatMessage) => void; onReact: (m: ChatMessage, emoji: string) => void; onJump: (id: string) => void } | null;
 
 function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Extract<Row, { kind: "msg" }>; names: string[]; me: string; actions: BubbleActions; highlighted: boolean }) {
+  const { t } = useT();
   const { msg, head, tail } = row;
   const actions = msg.pending ? null : allActions; // not on the server yet: nothing to reply to or react to
   const reactions = msg.reactions ?? [];
@@ -107,7 +111,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
         {head && !msg.isMe && (
           <p className="mb-1 ml-1 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
             {msg.senderName}
-            {msg.fromInstructor && <Badge variant="warm" className="px-1.5 py-0 text-[0.625rem]">Instructor</Badge>}
+            {msg.fromInstructor && <Badge variant="warm" className="px-1.5 py-0 text-[0.625rem]">{t("Instructor")}</Badge>}
           </p>
         )}
         <div className={cn("flex max-w-full items-center gap-1", msg.isMe && "flex-row-reverse")}>
@@ -120,11 +124,11 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
             )}
           >
             {msg.replyTo && (
-              <button type="button" onClick={() => actions?.onJump(msg.replyTo!.id)} aria-label={`Replying to ${msg.replyTo.senderName}: ${msg.replyTo.snippet}. Show the original.`}
+              <button type="button" onClick={() => actions?.onJump(msg.replyTo!.id)} aria-label={t("Replying to {senderName}: {snippet}. Show the original.", { senderName: msg.replyTo.senderName, snippet: msg.replyTo.snippet })}
                 className={cn("mb-1.5 block w-full rounded-lg border-l-[3px] px-2.5 py-1 text-left text-xs transition-opacity hover:opacity-80",
                   msg.isMe ? "border-white/60 bg-white/15" : "border-primary/60 bg-card/70")}>
                 <span className="block font-bold">{msg.replyTo.senderName}</span>
-                <span className="line-clamp-2 opacity-85">{msg.replyTo.snippet || "Message"}</span>
+                <span className="line-clamp-2 opacity-85">{msg.replyTo.snippet || t("Message")}</span>
               </button>
             )}
             {msg.content && <MessageText content={msg.content} names={names} me={me} onPrimary={msg.isMe} />}
@@ -133,17 +137,17 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
           {actions && (
             // Shown on hover or keyboard focus; always on touch screens, which have no hover.
             <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100 [@media(hover:none)]:opacity-100">
-              <Tooltip label="Reply">
-                <button type="button" onClick={() => actions.onReply(msg)} aria-label={`Reply to ${msg.isMe ? "your message" : msg.senderName}`}
+              <Tooltip label={t("Reply")}>
+                <button type="button" onClick={() => actions.onReply(msg)} aria-label={(msg.isMe ? t("Reply to your message") : t("Reply to {name}", { name: msg.senderName }))}
                   className="tap flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowBendUpLeft className="size-4" aria-hidden /></button>
               </Tooltip>
               <DropdownMenu>
-                <DropdownMenuTrigger aria-label="Add a reaction" className="tap flex size-7 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                <DropdownMenuTrigger aria-label={t("Add a reaction")} className="tap flex size-7 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
                   <Smiley className="size-4" aria-hidden />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align={msg.isMe ? "end" : "start"} className="flex min-w-0 gap-0.5 p-1">
                   {REACTIONS.map((e) => (
-                    <DropdownMenuItem key={e} onSelect={() => actions.onReact(msg, e)} aria-label={`React with ${e}`} className="size-9 justify-center p-0 text-lg">{e}</DropdownMenuItem>
+                    <DropdownMenuItem key={e} onSelect={() => actions.onReact(msg, e)} aria-label={t("React with {e}", { e })} className="size-9 justify-center p-0 text-lg">{e}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -154,7 +158,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
           <div className={cn("mt-1 flex flex-wrap gap-1", msg.isMe && "justify-end")}>
             {reactions.map((r) => (
               <button key={r.emoji} type="button" disabled={!actions} onClick={() => actions?.onReact(msg, r.emoji)} aria-pressed={r.mine}
-                title={r.names.join(", ")} aria-label={`${r.emoji} ${r.count}: ${r.names.join(", ")}${r.mine ? ". Click to remove yours" : ""}`}
+                title={r.names.join(", ")} aria-label={`${r.emoji} ${r.count}: ${r.names.join(", ")}${r.mine ? t(". Click to remove yours") : ""}`}
                 className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors disabled:cursor-default",
                   r.mine ? "border-primary/40 bg-primary/10 text-primary" : "bg-card text-muted-foreground enabled:hover:border-primary/30")}>
                 <span className="text-sm leading-none">{r.emoji}</span>{r.count}
@@ -163,7 +167,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
           </div>
         )}
         {msg.pending
-          ? <span className="mx-1 mt-1 text-[0.6875rem] font-semibold text-muted-foreground">Waiting to send</span>
+          ? <span className="mx-1 mt-1 text-[0.6875rem] font-semibold text-muted-foreground">{t("Waiting to send")}</span>
           : tail && <time dateTime={msg.timestamp} className="mx-1 mt-1 text-[0.6875rem] text-muted-foreground">{clockTime(msg.timestamp)}</time>}
       </div>
     </motion.li>
@@ -172,6 +176,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
 
 /** Messages + composer for one team. Fills its parent; `instructor` adjusts the copy for the course instructor. */
 export function ChatThread({ team, instructor }: { team: Team; instructor?: boolean }) {
+  const { t } = useT();
   const messages = useAppStore((s) => s.chatMessages[team.id]);
   const sendMessage = useAppStore((s) => s.sendMessage);
   const uploadFile = useAppStore((s) => s.uploadFile);
@@ -263,13 +268,13 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
   function attach(files: FileList | null | undefined) {
     const f = files?.[0];
     if (!f) return;
-    if (f.size > MAX_FILE_BYTES) return void toast.error("File is too large", { description: `${f.name} is over 50 MB.` });
-    if (files.length > 1) toast.info("One file per message", { description: `Attached ${f.name}.` });
+    if (f.size > MAX_FILE_BYTES) return void toast.error(t("File is too large"), { description: t("{name} is over 50 MB.", { name: f.name }) });
+    if (files.length > 1) toast.info(t("One file per message"), { description: `Attached ${f.name}.` });
     setFile(f);
     inputRef.current?.focus();
   }
 
-  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes(t("Files"));
   const drop = {
     onDragEnter: (e: React.DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth.current++; setDragging(true); },
     onDragOver: (e: React.DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; },
@@ -285,7 +290,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
 
   function jump(id: string) {
     const el = document.getElementById(`msg-${id}`);
-    if (!el) return void toast.info("That message is older than the 200 shown here.");
+    if (!el) return void toast.info(t("That message is older than the 200 shown here."));
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlight(id);
     setTimeout(() => setHighlight((h) => (h === id ? null : h)), 1600);
@@ -339,8 +344,8 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
             className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary bg-secondary/90 text-center backdrop-blur-sm"
           >
             <FileArrowUp weight="duotone" className="size-10 text-primary" aria-hidden />
-            <p className="text-sm font-bold text-foreground">Drop to attach</p>
-            <p className="text-xs text-muted-foreground">One file, up to 50 MB</p>
+            <p className="text-sm font-bold text-foreground">{t("Drop to attach")}</p>
+            <p className="text-xs text-muted-foreground">{t("One file, up to 50 MB")}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -348,25 +353,25 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
         {searchOpen ? (
           <div className="relative flex-1">
             <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <input ref={searchRef} type="search" value={query} autoFocus aria-label={`Search messages and files in ${team.name}`}
+            <input ref={searchRef} type="search" value={query} autoFocus aria-label={t("Search messages and files in {name}", { name: team.name })}
               onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim().length < 2) setHits(null); }}
               onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeSearch(); } }}
-              placeholder="Search messages and files…" className="h-9 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25" />
+              placeholder={t("Search messages and files…")} className="h-9 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25" />
           </div>
         ) : <p className="flex-1 text-xs font-semibold text-muted-foreground">{count ? `${count} ${count === 1 ? "message" : "messages"}` : ""}</p>}
-        <Tooltip label={searchOpen ? "Close search" : "Search messages and files"}>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={searchOpen ? "Close search" : "Search messages and files"} onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}>
+        <Tooltip label={searchOpen ? t("Close search") : t("Search messages and files")}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={searchOpen ? t("Close search") : t("Search messages and files")} onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}>
             {searchOpen ? <X aria-hidden /> : <MagnifyingGlass aria-hidden />}
           </Button>
         </Tooltip>
       </div>
       <div className="relative min-h-0 flex-1">
         {searchOpen && query.trim().length >= 2 && (
-          <div className="absolute inset-0 z-10 overflow-y-auto bg-card p-2 scroll-thin" role="region" aria-label="Search results">
+          <div className="absolute inset-0 z-10 overflow-y-auto bg-card p-2 scroll-thin" role="region" aria-label={t("Search results")}>
             {!hits ? (
               <div className="space-y-2 p-2" aria-busy="true"><Skeleton className="h-12" /><Skeleton className="h-12" /></div>
             ) : hits.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">Nothing matches “{query.trim()}”.</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t("Nothing matches “")}{query.trim()}”.</p>
             ) : (
               <ul className="space-y-1">
                 {hits.map((h) => (
@@ -381,7 +386,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
                           <span className="truncate font-bold text-foreground">{h.kind === "file" ? h.name : h.senderName}</span>
                           <span className="shrink-0">{dayLabel(h.timestamp)}</span>
                         </span>
-                        <span className="line-clamp-2 text-sm">{h.kind === "file" ? `File · ${h.size} · shared by ${h.uploadedBy}` : <Highlighted text={h.content} query={query.trim()} />}</span>
+                        <span className="line-clamp-2 text-sm">{h.kind === "file" ? t("File · {size} · shared by {uploadedBy}", { size: h.size, uploadedBy: h.uploadedBy }) : <Highlighted text={h.content} query={query.trim()} />}</span>
                       </span>
                     </button>
                   </li>
@@ -396,7 +401,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
           className="h-full overflow-y-auto px-4 pb-4 scroll-thin"
           tabIndex={0}
           role="log"
-          aria-label={`Messages in ${team.name}`}
+          aria-label={t("Messages in {name}", { name: team.name })}
           aria-live="polite"
         >
           {!messages ? (
@@ -404,8 +409,8 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
               <Skeleton className="h-12 w-2/3" /><Skeleton className="ml-auto h-12 w-1/2" /><Skeleton className="h-16 w-3/5" />
             </div>
           ) : count === 0 ? (
-            <EmptyState icon={ChatsCircle} title={instructor ? "No messages yet" : "Start the conversation"}
-              description={instructor ? "This team hasn't started talking. Say hello to get them going." : "Say hello, share a file, or agree who does what. The AI suggests tasks from what you write."} className="h-full" />
+            <EmptyState icon={ChatsCircle} title={instructor ? t("No messages yet") : t("Start the conversation")}
+              description={instructor ? t("This team hasn't started talking. Say hello to get them going.") : t("Say hello, share a file, or agree who does what. The AI suggests tasks from what you write.")} className="h-full" />
           ) : (
             <ul>
               {rows.map((row) => row.kind === "day" ? (
@@ -421,35 +426,35 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
         <AnimatePresence>
           {!atBottom && count > 0 && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="absolute bottom-3 left-1/2 -translate-x-1/2">
-              <Button size="sm" variant="outline" className="rounded-full shadow-lift" onClick={() => scrollToBottom()}><ArrowDown aria-hidden /> Latest</Button>
+              <Button size="sm" variant="outline" className="rounded-full shadow-lift" onClick={() => scrollToBottom()}><ArrowDown aria-hidden /> {t("Latest")}</Button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
       {readOnly ? (
-        <p className="flex shrink-0 items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground"><Lock className="size-4 shrink-0" aria-hidden />This course is archived, so the chat is read-only.</p>
+        <p className="flex shrink-0 items-center gap-2 border-t px-4 py-3 text-sm text-muted-foreground"><Lock className="size-4 shrink-0" aria-hidden />{t("This course is archived, so the chat is read-only.")}</p>
       ) : (
       <form className="shrink-0 border-t p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 rounded-xl border-l-[3px] border-primary bg-muted py-1.5 pl-3 pr-1.5" role="status">
             <ArrowBendUpLeft className="size-4 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0 flex-1 text-xs">
-              <span className="block font-bold">Replying to {replyingTo.isMe ? "yourself" : replyingTo.senderName}</span>
+              <span className="block font-bold">{t("Replying to")} {replyingTo.isMe ? t("yourself") : replyingTo.senderName}</span>
               <span className="block truncate text-muted-foreground">{replyingTo.content || (replyingTo.fileName ? `📎 ${replyingTo.fileName}` : "")}</span>
             </span>
-            <button type="button" onClick={() => setReplyingTo(null)} aria-label="Cancel reply" className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+            <button type="button" onClick={() => setReplyingTo(null)} aria-label={t("Cancel reply")} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
           </div>
         )}
         {file && (
           <div className="mb-2 flex w-fit max-w-full items-center gap-2.5 rounded-xl border bg-muted py-1.5 pl-3 pr-1.5">
             <FileText weight="duotone" className="size-5 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0"><span className="block truncate text-sm font-semibold">{file.name}</span><span className="block text-xs text-muted-foreground">{formatBytes(file.size)}</span></span>
-            <button type="button" onClick={() => setFile(null)} aria-label={`Remove ${file.name}`} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+            <button type="button" onClick={() => setFile(null)} aria-label={t("Remove {name}", { name: file.name })} className="tap flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
           </div>
         )}
         {mentionOpen && (
-          <ul id={`mention-list-${team.id}`} role="listbox" aria-label="Mention a teammate" className="mb-2 max-w-xs overflow-hidden rounded-2xl border bg-popover p-1 shadow-lift">
+          <ul id={`mention-list-${team.id}`} role="listbox" aria-label={t("Mention a teammate")} className="mb-2 max-w-xs overflow-hidden rounded-2xl border bg-popover p-1 shadow-lift">
             {candidates.map((m, i) => (
               <li key={m.userId} id={`mention-${team.id}-${m.userId}`} role="option" aria-selected={i === activeMention}
                 onMouseDown={(e) => { e.preventDefault(); pickMention(m.name); }}
@@ -464,10 +469,10 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
         )}
         <div className="flex items-end gap-1.5 rounded-2xl border border-input bg-background p-1.5 transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/25">
           <input ref={fileRef} type="file" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { attach(e.target.files); e.target.value = ""; }} />
-          <Tooltip label="Attach a file, or drop it here" side="top">
-            <Button type="button" variant="ghost" size="icon" aria-label="Attach a file" onClick={() => fileRef.current?.click()} disabled={sending}><Paperclip className="size-5" /></Button>
+          <Tooltip label={t("Attach a file, or drop it here")} side="top">
+            <Button type="button" variant="ghost" size="icon" aria-label={t("Attach a file")} onClick={() => fileRef.current?.click()} disabled={sending}><Paperclip className="size-5" /></Button>
           </Tooltip>
-          <label htmlFor={`chat-input-${team.id}`} className="sr-only">Message {team.name}</label>
+          <label htmlFor={`chat-input-${team.id}`} className="sr-only">{t("Message")} {team.name}</label>
           <textarea
             id={`chat-input-${team.id}`}
             ref={inputRef}
@@ -495,15 +500,15 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
               if (e.key === "Escape" && replyingTo) { e.preventDefault(); e.stopPropagation(); setReplyingTo(null); return; }
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
             }}
-            placeholder={`Message ${team.name}…`}
+            placeholder={t("Message {name}…", { name: team.name })}
             className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-snug outline-none placeholder:text-muted-foreground md:text-[0.9375rem]"
           />
-          <Button type="submit" size="icon" aria-label="Send message" loading={sending} disabled={!text.trim() && !file}>
+          <Button type="submit" size="icon" aria-label={t("Send message")} loading={sending} disabled={!text.trim() && !file}>
             {!sending && <PaperPlaneTilt weight="fill" className="size-5" />}
           </Button>
         </div>
         <p className="mt-1.5 hidden px-1 text-[0.6875rem] text-muted-foreground sm:block">
-          {instructor ? "Every team member is notified. " : null}<kbd className="font-sans font-semibold">Enter</kbd> to send · <kbd className="font-sans font-semibold">Shift + Enter</kbd> for a new line · <kbd className="font-sans font-semibold">@</kbd> to mention
+          {instructor ? t("Every team member is notified. ") : null}<kbd className="font-sans font-semibold">{t("Enter")}</kbd> {t("to send ·")} <kbd className="font-sans font-semibold">{t("Shift + Enter")}</kbd> {t("for a new line ·")} <kbd className="font-sans font-semibold">@</kbd> {t("to mention")}
         </p>
       </form>
       )}
@@ -527,6 +532,7 @@ function FloatingPanel({ id, label, icon: Icon, title, subtitle, onClose, panelR
   id: string; label: string; icon: typeof ChatsCircle; title: string; subtitle: React.ReactNode;
   onClose: () => void; panelRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode;
 }) {
+  const { t } = useT();
   return (
     <motion.div
       ref={panelRef}
@@ -538,7 +544,7 @@ function FloatingPanel({ id, label, icon: Icon, title, subtitle, onClose, panelR
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 16, scale: 0.97 }}
       transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      style={{ transformOrigin: "bottom right" }}
+      style={{ transformOrigin: t("bottom right") }}
       className={cn(
         "fixed inset-0 z-50 flex flex-col bg-card outline-none",
         "lg:absolute lg:inset-auto lg:bottom-24 lg:right-6 lg:z-40 lg:h-[min(40rem,calc(100%-8rem))] lg:w-[24rem] lg:overflow-hidden lg:rounded-3xl lg:border lg:shadow-lift xl:w-[26rem]",
@@ -552,8 +558,8 @@ function FloatingPanel({ id, label, icon: Icon, title, subtitle, onClose, panelR
           <p className="truncate text-sm font-extrabold leading-tight">{title}</p>
           <div className="text-xs font-medium text-muted-foreground">{subtitle}</div>
         </div>
-        <Tooltip label="Close (Esc)">
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={`Close ${label}`}>
+        <Tooltip label={t("Close (Esc)")}>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t("Close {label}", { label })}>
             <X className="size-5 lg:hidden" aria-hidden /><CaretDown className="hidden size-5 lg:block" aria-hidden />
           </Button>
         </Tooltip>
@@ -582,6 +588,7 @@ function CountBadge({ n, className }: { n: number; className: string }) {
  * Place it inside a `relative` container that fills the workspace; remount per team with `key`.
  */
 export function ChatWidget({ team, instructor }: { team: Team; instructor?: boolean }) {
+  const { t, tn } = useT();
   const messages = useAppStore((s) => s.chatMessages[team.id]);
   const fileCount = useAppStore((s) => s.files.length);
   const router = useRouter();
@@ -593,7 +600,7 @@ export function ChatWidget({ team, instructor }: { team: Team; instructor?: bool
   const button = React.useRef<HTMLButtonElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
 
-  const show = (t: Tab) => { setTab(t); setOpen(true); };
+  const show = (tt: Tab) => { setTab(tt); setOpen(true); };
 
   // ?view=… is a one-time "open this" signal: open during render, then drop it from the URL.
   const wanted = VIEWS.find((v) => v === params.get("view")) ?? null;
@@ -627,11 +634,11 @@ export function ChatWidget({ team, instructor }: { team: Team; instructor?: bool
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
 
-  const chatLabel = open ? "Close team chat and files" : `Open team chat and files${unread ? `, ${unread} new ${unread === 1 ? "message" : "messages"}` : ""}`;
+  const chatLabel = open ? t("Close team chat and files") : (unread ? tn(unread, "Open team chat and files, {n} new message", "Open team chat and files, {n} new messages") : t("Open team chat and files"));
   const live = (
     <span className="flex items-center gap-1.5">
       <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-pulse-ring rounded-full bg-success" /><span className="relative size-2 rounded-full bg-success" /></span>
-      Live
+      {t("Live")}
     </span>
   );
 
@@ -639,12 +646,12 @@ export function ChatWidget({ team, instructor }: { team: Team; instructor?: bool
     <>
       <AnimatePresence>
         {open && (
-          <FloatingPanel key="chat" id={`chat-panel-${team.id}`} label="team chat and files" icon={tab === "chat" ? ChatsCircle : FolderOpen}
+          <FloatingPanel key="chat" id={`chat-panel-${team.id}`} label={t("team chat and files")} icon={tab === "chat" ? ChatsCircle : FolderOpen}
             title={team.name} subtitle={live} onClose={close} panelRef={panelRef}>
             <div className="shrink-0 border-b px-3 py-2">
-              <Segmented label="Chat or files" value={tab} onChange={setTab} className="w-full [&>button]:flex-1 [&>button]:justify-center" options={[
-                { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />Chat</> },
-                { value: "files", label: <><FolderOpen aria-hidden className="size-4" />Files{fileCount > 0 && <span className="rounded-full bg-muted px-1.5 text-[0.625rem] font-extrabold tabular-nums text-muted-foreground">{fileCount}</span>}</> },
+              <Segmented label={t("Chat or files")} value={tab} onChange={setTab} className="w-full [&>button]:flex-1 [&>button]:justify-center" options={[
+                { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />{t("Chat")}</> },
+                { value: "files", label: <><FolderOpen aria-hidden className="size-4" />{t("Files")}{fileCount > 0 && <span className="rounded-full bg-muted px-1.5 text-[0.625rem] font-extrabold tabular-nums text-muted-foreground">{fileCount}</span>}</> },
               ]} />
             </div>
             <div className="min-h-0 flex-1">
@@ -661,7 +668,7 @@ export function ChatWidget({ team, instructor }: { team: Team; instructor?: bool
         type="button"
         onClick={() => (open ? close() : show(tab))}
         // Dragging a file over the button opens the chat, so it can be dropped on the thread.
-        onDragEnter={(e) => { if (e.dataTransfer.types.includes("Files")) show("chat"); }}
+        onDragEnter={(e) => { if (e.dataTransfer.types.includes(t("Files"))) show("chat"); }}
         aria-label={chatLabel}
         aria-expanded={open}
         aria-controls={open ? `chat-panel-${team.id}` : undefined}

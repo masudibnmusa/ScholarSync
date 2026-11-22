@@ -10,6 +10,7 @@ import { clearOffline, flushOutbox, isOffline, outbox, queueMessage, withSnapsho
 import type {
   ChatMessage, ConflictAlert, FileUpload, KanbanTask, Notification, Team, TaskSuggestion, UserProfile,
 } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
 // Client state for the signed-in app. It is filled only in the browser (effects and events),
 // never during server rendering, so one user's data can't leak into another request.
@@ -78,7 +79,7 @@ const avatarUrl = (path: string) => supabaseBrowser().storage.from("avatars").ge
 
 function fail(what: string, err: unknown) {
   console.error(`Failed to ${what}:`, err);
-  toast.error(`Could not ${what}`, { description: isOffline(err) ? "You're offline." : err instanceof Error ? err.message : undefined });
+  toast.error(t("Could not {what}", { what }), { description: isOffline(err) ? t("You're offline.") : err instanceof Error ? t(err.message) : undefined });
 }
 // Loads with no saved copy while offline stay quiet: the offline banner already says why.
 const loadFail = (what: string, err: unknown) => (isOffline(err) ? console.warn(`Offline, could not ${what}`) : fail(what, err));
@@ -200,9 +201,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const user = get().currentUser;
     if (!user || !outbox(user.id).length || !navigator.onLine) return;
     const { teams, refused } = await flushOutbox(user.id, (m) => actions.sendMessage(m.teamId, m.content, undefined, m.replyTo));
-    for (const m of refused) toast.error("A message you wrote offline couldn't be sent", { description: m.content.slice(0, 200), duration: Infinity });
+    for (const m of refused) toast.error(t("A message you wrote offline couldn't be sent"), { description: m.content.slice(0, 200), duration: Infinity });
     for (const id of new Set([...teams, ...refused.map((m) => m.teamId)])) await get().fetchChatMessages(id);
-    if (teams.length) toast.success("Messages you wrote offline were sent");
+    if (teams.length) toast.success(t("Messages you wrote offline were sent"));
   },
 
   logout: async () => {
@@ -247,7 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!still && (teams.length > 0 || selected)) get().setSelectedTeam(teams[0] ?? null);
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, teams: true } }));
-      loadFail("load teams", err);
+      loadFail(t("load teams"), err);
     }
   },
 
@@ -260,7 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: [...mine, ...(user ? pendingFor(outbox(user.id), teamId, user) : [])] } }));
     } catch (err) {
       set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: s.chatMessages[teamId] ?? [] } }));
-      loadFail("load messages", err);
+      loadFail(t("load messages"), err);
     }
   },
 
@@ -270,7 +271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (get().selectedTeam?.id === teamId) set((s) => ({ kanbanTasks, loaded: { ...s.loaded, tasks: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, tasks: true } }));
-      loadFail("load tasks", err);
+      loadFail(t("load tasks"), err);
     }
   },
 
@@ -280,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({ notifications, unreadNotifCount: notifications.filter((n) => !n.read).length, loaded: { ...s.loaded, notifications: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, notifications: true } }));
-      loadFail("load notifications", err);
+      loadFail(t("load notifications"), err);
     }
   },
 
@@ -290,7 +291,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (get().selectedTeam?.id === teamId) set((s) => ({ files, loaded: { ...s.loaded, files: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, files: true } }));
-      loadFail("load files", err);
+      loadFail(t("load files"), err);
     }
   },
 
@@ -300,7 +301,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((s) => ({ conflictAlerts, loaded: { ...s.loaded, conflicts: true } }));
     } catch (err) {
       set((s) => ({ loaded: { ...s.loaded, conflicts: true } }));
-      loadFail("load conflict alerts", err);
+      loadFail(t("load conflict alerts"), err);
     }
   },
 
@@ -333,10 +334,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (isOffline(err) && user && !fileId) {
         const q = queueMessage(user.id, { teamId, content, replyTo });
         set((s) => ({ chatMessages: { ...s.chatMessages, [teamId]: [...(s.chatMessages[teamId] ?? []), ...pendingFor([q], teamId, user)] } }));
-        toast.info("You're offline", { description: "Your message will be sent when you're back online." });
+        toast.info(t("You're offline"), { description: t("Your message will be sent when you're back online.") });
         return true;
       }
-      fail("send the message", err);
+      fail(t("send the message"), err);
       return false;
     }
   },
@@ -346,7 +347,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await actions.toggleReaction(messageId, emoji);
       await get().fetchChatMessages(teamId);
     } catch (err) {
-      fail("react to the message", err);
+      fail(t("react to the message"), err);
     }
   },
 
@@ -356,7 +357,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await Promise.all([get().fetchTasks(teamId), get().fetchTeams()]);
       return true;
     } catch (err) {
-      fail("create the task", err);
+      fail(t("create the task"), err);
       return false;
     }
   },
@@ -367,7 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await actions.updateTask(taskId, data);
     } catch (err) {
-      fail("update the task", err);
+      fail(t("update the task"), err);
     }
     const teamId = get().selectedTeam?.id;
     if (teamId) await Promise.all([get().fetchTasks(teamId), get().fetchTeams()]);
@@ -379,7 +380,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const teamId = get().selectedTeam?.id;
       if (teamId) await Promise.all([get().fetchTasks(teamId), get().fetchTeams()]);
     } catch (err) {
-      fail("delete the task", err);
+      fail(t("delete the task"), err);
     }
   },
 
@@ -391,7 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await actions.markNotificationRead(id);
     } catch (err) {
-      fail("update the notification", err);
+      fail(t("update the notification"), err);
       await get().fetchNotifications();
     }
   },
@@ -401,7 +402,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await actions.markAllNotificationsRead();
     } catch (err) {
-      fail("update notifications", err);
+      fail(t("update notifications"), err);
       await get().fetchNotifications();
     }
   },
@@ -409,7 +410,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Files: bytes go straight to Storage (checked by storage RLS), then a Server Action records the row.
   uploadFile: async (teamId, file) => {
     if (file.size > MAX_FILE_BYTES) {
-      toast.error("File is too large", { description: `${file.name} is over 50 MB.` });
+      toast.error(t("File is too large"), { description: t("{name} is over 50 MB.", { name: file.name }) });
       return null;
     }
     const sb = supabaseBrowser();
@@ -428,7 +429,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().fetchFiles(teamId);
       return id;
     } catch (err) {
-      fail("upload the file", err);
+      fail(t("upload the file"), err);
       return null;
     } finally {
       set({ uploading: false });
@@ -441,14 +442,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       await Promise.all([get().fetchFiles(teamId), get().fetchChatMessages(teamId)]);
       return true;
     } catch (err) {
-      fail("delete the file", err);
+      fail(t("delete the file"), err);
       return false;
     }
   },
 
   downloadFile: async (storagePath) => {
     const { data, error } = await supabaseBrowser().storage.from(BUCKET).createSignedUrl(storagePath, 60, { download: true });
-    if (error || !data) return fail("download the file", error);
+    if (error || !data) return fail(t("download the file"), error);
     window.location.assign(data.signedUrl);
   },
 
@@ -458,8 +459,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return true;
     } catch (err) {
       const duplicate = err instanceof Error && /duplicate|unique/i.test(err.message);
-      if (duplicate) toast.error("Already reviewed", { description: "You have already reviewed this teammate." });
-      else fail("submit the review", err);
+      if (duplicate) toast.error(t("Already reviewed"), { description: t("You have already reviewed this teammate.") });
+      else fail(t("submit the review"), err);
       return false;
     }
   },
@@ -470,7 +471,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ currentUser: await actions.getProfile() });
       return true;
     } catch (err) {
-      fail("save your profile", err);
+      fail(t("save your profile"), err);
       return false;
     }
   },
@@ -488,8 +489,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAvatar: async (file) => {
     const me = get().currentUser;
     if (!me) return false;
-    if (file && !AVATAR_TYPES.includes(file.type)) { toast.error("Use a PNG, JPG, WebP or GIF image"); return false; }
-    if (file && file.size > MAX_AVATAR_BYTES) { toast.error("Photo is too large", { description: "Choose an image under 2 MB." }); return false; }
+    if (file && !AVATAR_TYPES.includes(file.type)) { toast.error(t("Use a PNG, JPG, WebP or GIF image")); return false; }
+    if (file && file.size > MAX_AVATAR_BYTES) { toast.error(t("Photo is too large"), { description: t("Choose an image under 2 MB.") }); return false; }
     const sb = supabaseBrowser().storage.from("avatars");
     const path = file ? `${me.id}/${crypto.randomUUID()}.${file.type.split("/")[1]}` : null;
     try {
@@ -512,7 +513,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       return true;
     } catch (err) {
-      fail(file ? "update your photo" : "remove your photo", err);
+      fail(file ? t("update your photo") : t("remove your photo"), err);
       return false;
     }
   },
@@ -522,7 +523,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await actions.resolveConflict(id);
       await get().fetchConflicts();
     } catch (err) {
-      fail("resolve the alert", err);
+      fail(t("resolve the alert"), err);
     }
   },
 
@@ -533,7 +534,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const teamId = get().selectedTeam?.id;
       if (teamId) await Promise.all([get().fetchTasks(teamId), get().fetchTeams()]);
     } catch (err) {
-      fail("add the task", err);
+      fail(t("add the task"), err);
     }
   },
 
@@ -542,7 +543,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await actions.dismissSuggestion(id);
       set((s) => ({ taskSuggestions: s.taskSuggestions.filter((t) => t.id !== id) }));
     } catch (err) {
-      fail("dismiss the suggestion", err);
+      fail(t("dismiss the suggestion"), err);
     }
   },
 }));

@@ -26,9 +26,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StandupButton } from "@/components/app/standup";
 import { RepoButton } from "@/components/app/repo";
 import { CharterButton } from "@/components/app/charter";
+import { useT } from "@/components/locale";
 
 
 function TeamSwitcher({ team }: { team: Team }) {
+  const { t } = useT();
   const teams = useAppStore((s) => s.teams);
   const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
   const badge = (
@@ -48,13 +50,13 @@ function TeamSwitcher({ team }: { team: Team }) {
   if (teams.length < 2) return <div className="flex min-w-0 items-center gap-3">{badge}{label}</div>;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="-m-1 flex min-w-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-accent" aria-label={`Switch team. Current: ${team.name}`}>
+      <DropdownMenuTrigger className="-m-1 flex min-w-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-accent" aria-label={t("Switch team. Current: {name}", { name: team.name })}>
         {badge}{label}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">
-        <DropdownMenuLabel>Your teams</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={team.id} onValueChange={(id) => setSelectedTeam(teams.find((t) => t.id === id) ?? null)}>
-          {teams.map((t) => <DropdownMenuRadioItem key={t.id} value={t.id}>{t.name}</DropdownMenuRadioItem>)}
+        <DropdownMenuLabel>{t("Your teams")}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={team.id} onValueChange={(id) => setSelectedTeam(teams.find((tt) => tt.id === id) ?? null)}>
+          {teams.map((tt) => <DropdownMenuRadioItem key={tt.id} value={tt.id}>{tt.name}</DropdownMenuRadioItem>)}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -62,19 +64,20 @@ function TeamSwitcher({ team }: { team: Team }) {
 }
 
 /** One line that answers "what should I do next?". */
-function FocusStrip({ onOpen }: { onOpen: (t: KanbanTask) => void }) {
+function FocusStrip({ onOpen }: { onOpen: (tt: KanbanTask) => void }) {
+  const { t } = useT();
   const user = useUser();
   const tasks = useAppStore((s) => s.kanbanTasks);
   const loaded = useAppStore((s) => s.loaded.tasks);
   const updateTask = useAppStore((s) => s.updateTask);
   if (!loaded) return <Skeleton className="h-9 w-80" />;
-  const mine = tasks.filter((t) => t.assigneeId === user.id && t.status !== "done").sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+  const mine = tasks.filter((tt) => tt.assigneeId === user.id && tt.status !== "done").sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
   const next = mine[0];
   if (!next) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <CheckCircle weight="fill" className="size-4 text-success" aria-hidden />
-        Nothing assigned to you, {firstName(user.name)}. Pick something up from To do.
+        {t("Nothing assigned to you, {name}. Pick something up from To do.", { name: firstName(user.name) })}
       </p>
     );
   }
@@ -82,12 +85,12 @@ function FocusStrip({ onOpen }: { onOpen: (t: KanbanTask) => void }) {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-xl border bg-card py-1 pl-2.5 pr-1 shadow-soft">
       <Target weight="duotone" className="size-4 shrink-0 text-warm-text" aria-hidden />
-      <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">Up next</span>
+      <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("Up next")}</span>
       <button type="button" onClick={() => onOpen(next)} className="min-w-0 truncate rounded text-sm font-semibold hover:text-primary hover:underline">{next.title}</button>
       {due && <span className={cn("shrink-0 text-xs font-semibold", toneText[due.tone])}>{due.label}</span>}
-      {mine.length > 1 && <span className="hidden shrink-0 text-xs text-muted-foreground xl:inline">+{mine.length - 1} more</span>}
-      <Tooltip label="Mark done">
-        <button type="button" onClick={() => updateTask(next.id, { status: "done" })} aria-label={`Mark "${next.title}" as done`}
+      {mine.length > 1 && <span className="hidden shrink-0 text-xs text-muted-foreground xl:inline">+{mine.length - 1} {t("more")}</span>}
+      <Tooltip label={t("Mark done")}>
+        <button type="button" onClick={() => updateTask(next.id, { status: "done" })} aria-label={t("Mark \"{title}\" as done", { title: next.title })}
           className="tap flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-success/12 hover:text-success">
           <Check weight="bold" className="size-4" />
         </button>
@@ -97,6 +100,7 @@ function FocusStrip({ onOpen }: { onOpen: (t: KanbanTask) => void }) {
 }
 
 export function StudentWorkspace() {
+  const { t } = useT();
   const team = useAppStore((s) => s.selectedTeam);
   const loaded = useAppStore((s) => s.loaded.teams);
   const tasks = useAppStore((s) => s.kanbanTasks);
@@ -112,7 +116,7 @@ export function StudentWorkspace() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<KanbanTask | null>(null);
 
-  const openTask = (t: KanbanTask | null) => { setEditing(t); setDialogOpen(true); };
+  const openTask = (tt: KanbanTask | null) => { setEditing(tt); setDialogOpen(true); };
 
   // Links from notifications: ?team=<id> selects that team, ?task=<id> then opens the task once the board has loaded.
   const teams = useAppStore((s) => s.teams);
@@ -120,11 +124,11 @@ export function StudentWorkspace() {
   const tasksLoaded = useAppStore((s) => s.loaded.tasks);
   const teamParam = params.get("team");
   const taskParam = params.get("task");
-  const linkedTeam = teams.find((t) => t.id === teamParam);
+  const linkedTeam = teams.find((tt) => tt.id === teamParam);
   React.useEffect(() => {
     if (linkedTeam && team?.id !== linkedTeam.id) setSelectedTeam(linkedTeam);
   }, [linkedTeam, team?.id, setSelectedTeam]);
-  const linkedTask = taskParam && tasksLoaded && (!linkedTeam || team?.id === linkedTeam.id) ? tasks.find((t) => t.id === taskParam) : undefined;
+  const linkedTask = taskParam && tasksLoaded && (!linkedTeam || team?.id === linkedTeam.id) ? tasks.find((tt) => tt.id === taskParam) : undefined;
 
   const closeDialog = (open: boolean) => {
     setDialogOpen(open);
@@ -133,31 +137,31 @@ export function StudentWorkspace() {
 
   if (!loaded) {
     return (
-      <div className="flex h-full flex-col gap-4 p-4 lg:p-6" aria-busy="true" aria-label="Loading your workspace">
+      <div className="flex h-full flex-col gap-4 p-4 lg:p-6" aria-busy="true" aria-label={t("Loading your workspace")}>
         <Skeleton className="h-12 w-80" />
         <div className="flex min-h-0 flex-1 gap-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-full flex-1 rounded-3xl" />)}</div>
       </div>
     );
   }
-  if (!team) return <Page><h1 className="sr-only">Workspace</h1><Card><NoTeam /></Card></Page>;
+  if (!team) return <Page><h1 className="sr-only">{t("Workspace")}</h1><Card><NoTeam /></Card></Page>;
 
-  const done = tasks.filter((t) => t.status === "done").length;
+  const done = tasks.filter((tt) => tt.status === "done").length;
   const q = query.trim().toLowerCase();
-  const shown = tasks.filter((t) => (scope === "all" || t.assigneeId === user.id) && (!q || `${t.title} ${t.description} ${t.assigneeName}`.toLowerCase().includes(q))).length;
+  const shown = tasks.filter((tt) => (scope === "all" || tt.assigneeId === user.id) && (!q || `${tt.title} ${tt.description} ${tt.assigneeName}`.toLowerCase().includes(q))).length;
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      <h1 className="sr-only">{team.name} workspace</h1>
+      <h1 className="sr-only">{team.name} {t("workspace")}</h1>
 
       {/* Team bar */}
       <header className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-b bg-card/70 px-4 py-3 backdrop-blur lg:px-6">
         <TeamSwitcher team={team} />
         <div className="hidden w-44 flex-col gap-1 md:flex">
           <div className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="font-semibold text-muted-foreground">{done} of {tasks.length} done</span>
+            <span className="font-semibold text-muted-foreground">{t("{n} of {total} done", { n: done, total: tasks.length })}</span>
             <span className="font-extrabold tabular-nums">{team.progress}%</span>
           </div>
-          <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5" />
+          <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
         </div>
         <MembersButton team={team} />
 
@@ -168,26 +172,26 @@ export function StudentWorkspace() {
           <RepoButton team={team} />
           <WeeklyRecapButton team={team} />
           <AiSuggestionsButton />
-          {!team.courseArchived && <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">New task</span><span className="sm:hidden">New</span></Button>}
+          {!team.courseArchived && <Button onClick={() => openTask(null)}><Plus weight="bold" aria-hidden /> <span className="hidden sm:inline">{t("New task")}</span><span className="sm:hidden">{t("New")}</span></Button>}
         </div>
       </header>
       {team.courseArchived && (
         <p role="status" className="flex shrink-0 items-center gap-2 border-b bg-muted/60 px-4 py-2 text-sm lg:px-6">
           <Lock weight="duotone" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span><strong>{team.courseCode} is archived.</strong> You can read your team's tasks, chat and files, but they can't be changed.</span>
+          <span><strong>{team.courseCode} {t("is archived.")}</strong> {t("You can read your team's tasks, chat and files, but they can't be changed.")}</span>
         </p>
       )}
 
       <div className="flex min-h-0 flex-1">
         {/* Board */}
-        <section aria-label="Task board" className="flex min-w-0 flex-1 flex-col gap-4 p-4 lg:p-6">
+        <section aria-label={t("Task board")} className="flex min-w-0 flex-1 flex-col gap-4 p-4 lg:p-6">
           <div className="flex flex-wrap items-center gap-3">
-            <Segmented label="Show tasks" value={scope} onChange={setScope} options={[{ value: "all", label: "Everyone" }, { value: "mine", label: "Mine" }]} />
+            <Segmented label={t("Show tasks")} value={scope} onChange={setScope} options={[{ value: "all", label: t("Everyone") }, { value: "mine", label: t("Mine") }]} />
             <div className="relative w-full max-w-60">
               <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter tasks…" aria-label="Filter tasks" className="h-9 pl-10 md:h-9" />
+              <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Filter tasks…")} aria-label={t("Filter tasks")} className="h-9 pl-10 md:h-9" />
             </div>
-            {(scope !== "all" || q) && <p className="text-sm text-muted-foreground" role="status">{shown} of {tasks.length}</p>}
+            {(scope !== "all" || q) && <p className="text-sm text-muted-foreground" role="status">{t("{n} of {total}", { n: shown, total: tasks.length })}</p>}
             <div className="ml-auto hidden min-w-0 md:block"><FocusStrip onOpen={openTask} /></div>
           </div>
           <div className="min-h-0 flex-1">

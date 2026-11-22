@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   emailDigest: boolean("email_digest").notNull().default(true),
   avatarPath: text("avatar_path"), // in the public "avatars" bucket; null = initials
   githubLogin: text("github_login"),
+  locale: text("locale").$type<"en" | "bn">().notNull().default("en"),
   createdAt: ts("created_at").notNull(),
   updatedAt: ts("updated_at").notNull(),
 });

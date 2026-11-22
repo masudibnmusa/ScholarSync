@@ -3,7 +3,11 @@
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
-import { adminDb, withUser } from "@/db";
+import { cookies } from "next/headers";
+import { adminDb, AuthError, withUser } from "@/db";
+import { LOCALE_COOKIE, LOCALES, translate } from "@/lib/i18n";
+import { translateNotice } from "@/lib/i18n/notices";
+import { requestLocale } from "@/lib/locale-server";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
 import { extractActionItems, matchTeams, suggestMeetings } from "@/lib/ai";
@@ -42,7 +46,7 @@ export async function getProfile(): Promise<UserProfile> {
   return withUser(async (tx, uid) => {
     const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
     if (!u) throw new Error("Profile not found");
-    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest, avatarPath: u.avatarPath, githubLogin: u.githubLogin };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, emailDigest: u.emailDigest, avatarPath: u.avatarPath, githubLogin: u.githubLogin, locale: u.locale };
   });
 }
 
@@ -59,6 +63,17 @@ const ProfileInput = z.object({
 export async function updateProfile(input: z.infer<typeof ProfileInput>) {
   const data = ProfileInput.parse(input);
   await withUser((tx, uid) => tx.update(s.users).set(data).where(eq(s.users.id, uid)));
+}
+
+/** Sets the interface language: the cookie for this browser, and my profile (for emails) when signed in. */
+export async function setLanguage(locale: string) {
+  const l = z.enum(LOCALES).parse(locale);
+  (await cookies()).set(LOCALE_COOKIE, l, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  try {
+    await withUser((tx, uid) => tx.update(s.users).set({ locale: l }).where(eq(s.users.id, uid)));
+  } catch (err) {
+    if (!(err instanceof AuthError)) throw err; // signed out (sign-in page): the cookie is enough
+  }
 }
 
 /** Profile photos of everyone I can see (RLS decides who), as user id → path in the avatars bucket. */
@@ -164,6 +179,7 @@ export async function getTeams(): Promise<Team[]> {
 // ─── Chat ──────────────────────────────────────────────────────────────
 
 export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "isMe">[]> {
+  const L = await requestLocale();
   Id.parse(teamId);
   return withUser(async (tx, me) => {
     const rows = await tx
@@ -187,17 +203,17 @@ export async function getMessages(teamId: string): Promise<Omit<ChatMessage, "is
     return rows.reverse().map((r) => ({
       id: r.id,
       senderId: r.senderId ?? "",
-      senderName: r.senderName ?? "Former member",
+      senderName: r.senderName ?? translate(L, "Former member"),
       fromInstructor: r.senderRole === "instructor",
       content: r.content,
       timestamp: r.timestamp,
       fileName: r.fileName,
       fileSize: r.fileBytes == null ? null : fmtSize(r.fileBytes),
       filePath: r.filePath,
-      replyTo: r.replyId ? { id: r.replyId, senderName: r.parentSender ?? "Former member", snippet: (r.parentContent || (r.parentFile ? `📎 ${r.parentFile}` : "")).slice(0, 140) } : null,
+      replyTo: r.replyId ? { id: r.replyId, senderName: r.parentSender ?? translate(L, "Former member"), snippet: (r.parentContent || (r.parentFile ? `📎 ${r.parentFile}` : "")).slice(0, 140) } : null,
       reactions: REACTIONS.map((emoji) => {
         const list = reactions.filter((x) => x.messageId === r.id && x.emoji === emoji);
-        return { emoji, count: list.length, mine: list.some((x) => x.userId === me), names: list.map((x) => x.name ?? "Former member") };
+        return { emoji, count: list.length, mine: list.some((x) => x.userId === me), names: list.map((x) => x.name ?? translate(L, "Former member")) };
       }).filter((x) => x.count > 0),
     }));
   });
@@ -237,6 +253,7 @@ export async function toggleReaction(messageId: string, emoji: string) {
 
 /** Messages and files in a team whose text or name contains `query` (any case), newest first. RLS limits it to teams I can see. */
 export async function searchTeam(teamId: string, query: string): Promise<ChatSearchHit[]> {
+  const L = await requestLocale();
   Id.parse(teamId);
   const q = z.string().trim().min(2).max(100).parse(query);
   const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -248,8 +265,8 @@ export async function searchTeam(teamId: string, query: string): Promise<ChatSea
       .from(s.files).leftJoin(s.users, eq(s.users.id, s.files.uploaderId))
       .where(and(eq(s.files.teamId, teamId), ilike(s.files.name, like))).orderBy(desc(s.files.createdAt)).limit(15);
     return [
-      ...files.map((f) => ({ kind: "file" as const, id: f.id, name: f.name, storagePath: f.path, size: fmtSize(f.bytes), uploadedBy: f.by ?? "Former member", timestamp: f.timestamp })),
-      ...msgs.map((m) => ({ kind: "message" as const, id: m.id, content: m.content, timestamp: m.timestamp, senderName: m.senderName ?? "Former member" })),
+      ...files.map((f) => ({ kind: "file" as const, id: f.id, name: f.name, storagePath: f.path, size: fmtSize(f.bytes), uploadedBy: f.by ?? translate(L, "Former member"), timestamp: f.timestamp })),
+      ...msgs.map((m) => ({ kind: "message" as const, id: m.id, content: m.content, timestamp: m.timestamp, senderName: m.senderName ?? translate(L, "Former member") })),
     ];
   });
 }
@@ -272,6 +289,7 @@ export async function suggestMeetingTimes(teamId: string): Promise<MeetingSlot[]
 // ─── Tasks ─────────────────────────────────────────────────────────────
 
 export async function getTasks(teamId: string): Promise<KanbanTask[]> {
+  const L = await requestLocale();
   Id.parse(teamId);
   return withUser(async (tx) => {
     const rows = await tx
@@ -286,7 +304,7 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
       .orderBy(asc(s.tasks.position));
     return rows.map(({ t, assigneeName, commentCount, checklist }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
-      assigneeId: t.assigneeId, assigneeName: assigneeName ?? "Unassigned", dueDate: t.dueDate, commentCount,
+      assigneeId: t.assigneeId, assigneeName: assigneeName ?? translate(L, "Unassigned"), dueDate: t.dueDate, commentCount,
       checklistDone: checklist[0], checklistTotal: checklist[1],
     }));
   });
@@ -350,6 +368,7 @@ export async function deleteTask(taskId: string) {
 // ─── Task comments (RLS: team members and the course instructor) ───────
 
 export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
+  const L = await requestLocale();
   Id.parse(taskId);
   return withUser(async (tx) => {
     const rows = await tx
@@ -358,7 +377,7 @@ export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
       .leftJoin(s.users, eq(s.users.id, s.taskComments.authorId))
       .where(eq(s.taskComments.taskId, taskId))
       .orderBy(asc(s.taskComments.createdAt));
-    return rows.map(({ c, authorName }) => ({ id: c.id, authorId: c.authorId, authorName: authorName ?? "Former member", body: c.body, createdAt: c.createdAt }));
+    return rows.map(({ c, authorName }) => ({ id: c.id, authorId: c.authorId, authorName: authorName ?? translate(L, "Former member"), body: c.body, createdAt: c.createdAt }));
   });
 }
 
@@ -559,12 +578,13 @@ export async function deleteMilestone(id: string) {
 // ─── Announcements ─────────────────────────────────────────────────────
 
 export async function getAnnouncements(courseId: string): Promise<Announcement[]> {
+  const L = await requestLocale();
   Id.parse(courseId);
   return withUser(async (tx) => {
     const rows = await tx.select({ a: s.courseAnnouncements, authorName: s.users.name }).from(s.courseAnnouncements)
       .leftJoin(s.users, eq(s.users.id, s.courseAnnouncements.authorId))
       .where(eq(s.courseAnnouncements.courseId, courseId)).orderBy(desc(s.courseAnnouncements.createdAt));
-    return rows.map(({ a, authorName }) => ({ id: a.id, title: a.title, body: a.body, authorName: authorName ?? "Instructor", createdAt: a.createdAt }));
+    return rows.map(({ a, authorName }) => ({ id: a.id, title: a.title, body: a.body, authorName: authorName ?? translate(L, "Instructor"), createdAt: a.createdAt }));
   });
 }
 
@@ -912,12 +932,13 @@ export async function deleteOfficeHour(id: string) {
 
 /** Why a booking or cancellation was refused, in words for the student; null when it worked. */
 async function officeHourCall(run: (tx: Tx) => Promise<unknown>): Promise<string | null> {
+  const L = await requestLocale();
   try {
     await withUser(run);
     return null;
   } catch (err) {
     const cause = (err as { cause?: { code?: string; message?: string } }).cause ?? (err as { code?: string; message?: string });
-    if (cause?.code === "P0001" || cause?.code === "P0002") return cause.message ?? "Could not do that";
+    if (cause?.code === "P0001" || cause?.code === "P0002") return cause.message ?? translate(L, "Could not do that");
     throw err;
   }
 }
@@ -1194,6 +1215,7 @@ const WEEK_AHEAD_DAYS = 120; // the list shows three weeks; the month view and c
 
 /** Unfinished tasks assigned to me and my teams' open milestones: overdue, or due in the next four months. */
 export async function getMyWeek(): Promise<WeekItem[]> {
+  const L = await requestLocale();
   return withUser(async (tx, uid) => {
     const horizon = new Date(Date.now() + WEEK_AHEAD_DAYS * 864e5).toISOString().slice(0, 10);
     const myTeams = await tx.select({ id: s.teams.id, name: s.teams.name, courseId: s.teams.courseId, courseCode: s.courses.code })
@@ -1231,7 +1253,7 @@ export async function getMyWeek(): Promise<WeekItem[]> {
     }
     for (const { o, day } of office) {
       const t = teamOf(o.teamId!);
-      items.push({ kind: "office-hours", id: o.id, title: o.topic ? `Office hours: ${o.topic}` : "Office hours", date: day, teamId: t.id, teamName: t.name,
+      items.push({ kind: "office-hours", id: o.id, title: o.topic ? translate(L, "Office hours: {topic}", { topic: o.topic }) : translate(L, "Office hours"), date: day, teamId: t.id, teamName: t.name,
         courseId: t.courseId, courseCode: t.courseCode, startsAt: o.startsAt, minutes: o.minutes, location: o.location });
     }
     const order = { milestone: 0, "office-hours": 1, task: 2 } as const;
@@ -1245,7 +1267,8 @@ export async function getNotifications(): Promise<Notification[]> {
   return withUser(async (tx, uid) => {
     const rows = await tx.select().from(s.notifications).where(eq(s.notifications.userId, uid))
       .orderBy(desc(s.notifications.createdAt)).limit(50);
-    return rows.map((n) => ({ id: n.id, type: n.type, title: n.title, description: n.body, read: !!n.readAt, createdAt: n.createdAt, link: n.link }));
+    const l = await requestLocale();
+    return rows.map((n) => ({ id: n.id, type: n.type, title: translateNotice(l, n.title), description: translateNotice(l, n.body), read: !!n.readAt, createdAt: n.createdAt, link: n.link }));
   });
 }
 
@@ -1264,6 +1287,7 @@ export async function markAllNotificationsRead() {
 // ─── Files (bytes go browser → Storage directly; this records the row) ──
 
 export async function getFiles(teamId: string): Promise<FileUpload[]> {
+  const L = await requestLocale();
   Id.parse(teamId);
   return withUser(async (tx) => {
     const rows = await tx
@@ -1274,7 +1298,7 @@ export async function getFiles(teamId: string): Promise<FileUpload[]> {
       .orderBy(desc(s.files.createdAt));
     return rows.map(({ f, uploader }) => ({
       id: f.id, fileName: f.name, fileSize: f.sizeBytes, fileType: f.mimeType,
-      uploadedBy: uploader ?? "Former member", uploaderId: f.uploaderId, createdAt: f.createdAt, storagePath: f.storagePath,
+      uploadedBy: uploader ?? translate(L, "Former member"), uploaderId: f.uploaderId, createdAt: f.createdAt, storagePath: f.storagePath,
     }));
   });
 }
@@ -1433,6 +1457,7 @@ export async function dismissSuggestion(id: string) {
 // ─── Courses ───────────────────────────────────────────────────────────
 
 export async function getCourses(): Promise<Course[]> {
+  const L = await requestLocale();
   return withUser(async (tx, uid) => {
     const rows = await tx
       .select({ c: s.courses, instructorName: s.users.name, studentCount: sql<number>`public.course_student_count(${s.courses.id})::int`, teamTotal: sql<number>`public.course_team_count(${s.courses.id})::int` })
@@ -1458,7 +1483,7 @@ export async function getCourses(): Promise<Course[]> {
       const myTeamId = members.find((m) => m.userId === uid && courseTeams.some((t) => t.id === m.teamId))?.teamId;
       return {
         id: c.id, code: c.code, title: c.title, term: c.term, description: c.description, goals: c.goals, rationale: c.rationale,
-        instructorName: instructorName ?? "Instructor",
+        instructorName: instructorName ?? translate(L, "Instructor"),
         isMine,
         enrolled: roster.some((e) => e.userId === uid),
         studentCount,
@@ -1608,6 +1633,7 @@ const JoinCode = z.string().transform((v) => v.toUpperCase().replace(/[\s-]/g, "
 
 /** The course behind an invite code, or null when no course has it. */
 export async function getInvite(code: string): Promise<CourseInvite | null> {
+  const L = await requestLocale();
   const parsed = JoinCode.safeParse(code);
   if (!parsed.success) return null;
   return withUser(async (tx, uid) => {
@@ -1617,7 +1643,7 @@ export async function getInvite(code: string): Promise<CourseInvite | null> {
     const [enrolled] = await tx.select({ id: s.courseEnrollments.userId }).from(s.courseEnrollments)
       .where(and(eq(s.courseEnrollments.courseId, row.c.id), eq(s.courseEnrollments.userId, uid)));
     return {
-      id: row.c.id, code: row.c.code, title: row.c.title, term: row.c.term, instructorName: row.instructorName ?? "Instructor",
+      id: row.c.id, code: row.c.code, title: row.c.title, term: row.c.term, instructorName: row.instructorName ?? translate(L, "Instructor"),
       enrolled: !!enrolled, isMine: row.c.instructorId === uid, open: row.c.joiningOpen && !row.c.archivedAt,
     };
   });

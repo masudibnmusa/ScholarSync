@@ -4,6 +4,7 @@ import { sendNotification, setVapidDetails, type WebPushError } from "web-push";
 import { adminDb as db } from "@/db";
 import { notifications, pushSubscriptions, users } from "@/db/schema";
 import { notificationHref } from "@/components/app/nav";
+import { translateNotice } from "@/lib/i18n/notices";
 
 const FRESH_MS = 60 * 60 * 1000; // older than this when the job sees it: too late to buzz a phone
 
@@ -27,13 +28,13 @@ export async function sendPendingPushes(): Promise<{ claimed: number; sent: numb
   if (!due.length) return { claimed: batch.length, sent: 0, removed: 0 };
 
   const userIds = [...new Set(due.map((n) => n.userId))];
-  const subs = await db.select({ s: pushSubscriptions, role: users.role }).from(pushSubscriptions)
+  const subs = await db.select({ s: pushSubscriptions, role: users.role, locale: users.locale }).from(pushSubscriptions)
     .innerJoin(users, eq(users.id, pushSubscriptions.userId)).where(inArray(pushSubscriptions.userId, userIds));
 
   let sent = 0;
   const gone = new Set<string>();
-  await Promise.all(due.flatMap((n) => subs.filter((x) => x.s.userId === n.userId).map(async ({ s, role }) => {
-    const payload = JSON.stringify({ title: n.title, body: n.body, url: notificationHref(n.type, role, n.link), tag: n.id });
+  await Promise.all(due.flatMap((n) => subs.filter((x) => x.s.userId === n.userId).map(async ({ s, role, locale }) => {
+    const payload = JSON.stringify({ title: translateNotice(locale, n.title), body: translateNotice(locale, n.body), url: notificationHref(n.type, role, n.link), tag: n.id });
     try {
       await sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: "high" });
       sent++;

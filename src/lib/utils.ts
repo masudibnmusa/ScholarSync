@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { intl, t } from "./i18n/index.ts";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,23 +37,23 @@ export function formatBytes(bytes: number) {
 
 export function timeAgo(iso: string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (s < 60) return t("just now");
+  if (s < 3600) return t("{n}m ago", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("{n}h ago", { n: Math.floor(s / 3600) });
+  if (s < 604800) return t("{n}d ago", { n: Math.floor(s / 86400) });
+  return new Date(iso).toLocaleDateString(intl(), { month: "short", day: "numeric" });
 }
 
 export function dayLabel(iso: string) {
   const d = new Date(iso);
   const today = new Date();
   const days = Math.round((new Date(today.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  if (days === 0) return t("Today");
+  if (days === 1) return t("Yesterday");
+  return d.toLocaleDateString(intl(), { weekday: "long", month: "short", day: "numeric" });
 }
 
-export const clockTime = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+export const clockTime = (iso: string) => new Date(iso).toLocaleTimeString(intl(), { hour: "numeric", minute: "2-digit" });
 
 /** Due dates are plain dates ("2026-11-20"); compare in local time so "today" is the user's today. */
 export function dueInfo(date: string | null): { label: string; tone: "muted" | "warning" | "danger" } | null {
@@ -60,18 +61,18 @@ export function dueInfo(date: string | null): { label: string; tone: "muted" | "
   const [y, m, d] = date.split("-").map(Number);
   const due = new Date(y, m - 1, d);
   const days = Math.round((due.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
-  const short = due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  if (days < 0) return { label: `Overdue · ${short}`, tone: "danger" };
-  if (days === 0) return { label: "Due today", tone: "warning" };
-  if (days === 1) return { label: "Due tomorrow", tone: "warning" };
-  if (days <= 3) return { label: `Due in ${days} days`, tone: "warning" };
+  const short = due.toLocaleDateString(intl(), { month: "short", day: "numeric" });
+  if (days < 0) return { label: t("Overdue · {short}", { short }), tone: "danger" };
+  if (days === 0) return { label: t("Due today"), tone: "warning" };
+  if (days === 1) return { label: t("Due tomorrow"), tone: "warning" };
+  if (days <= 3) return { label: t("Due in {days} days", { days }), tone: "warning" };
   return { label: short, tone: "muted" };
 }
 
 export function healthInfo(score: number): { label: string; tone: "success" | "warning" | "danger" } {
-  if (score >= 75) return { label: "Healthy", tone: "success" };
-  if (score >= 50) return { label: "Needs attention", tone: "warning" };
-  return { label: "At risk", tone: "danger" };
+  if (score >= 75) return { label: t("Healthy"), tone: "success" };
+  if (score >= 50) return { label: t("Needs attention"), tone: "warning" };
+  return { label: t("At risk"), tone: "danger" };
 }
 
 export const toneText = { success: "text-success", warning: "text-warning", danger: "text-destructive", muted: "text-muted-foreground" } as const;
@@ -130,10 +131,10 @@ export function daysUntil(iso: string, today = new Date()) {
 /** The heading a dated item is listed under: Overdue, Today, Tomorrow, a weekday this week, Next week or Later. */
 export function weekBucket(iso: string, today = new Date()) {
   const n = daysUntil(iso, today);
-  if (n < 0) return "Overdue";
-  if (n === 0) return "Today";
-  if (n === 1) return "Tomorrow";
-  if (n < 7) return new Date(today.getFullYear(), today.getMonth(), today.getDate() + n).toLocaleDateString(undefined, { weekday: "long" });
-  if (n < 14) return "Next week";
-  return "Later";
+  if (n < 0) return t("Overdue");
+  if (n === 0) return t("Today");
+  if (n === 1) return t("Tomorrow");
+  if (n < 7) return new Date(today.getFullYear(), today.getMonth(), today.getDate() + n).toLocaleDateString(intl(), { weekday: "long" });
+  if (n < 14) return t("Next week");
+  return t("Later");
 }

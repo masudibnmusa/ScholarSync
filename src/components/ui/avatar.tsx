@@ -2,6 +2,7 @@
 
 import { useAppStore } from "@/lib/store";
 import { avatarColor, cn, getInitials } from "@/lib/utils";
+import { useT } from "@/components/locale";
 
 const sizes = { xs: "size-6 text-[0.625rem]", sm: "size-8 text-xs", md: "size-10 text-sm", lg: "size-14 text-lg", xl: "size-20 text-2xl" };
 
@@ -20,11 +21,12 @@ export function Avatar({ name, id, size = "md", className }: { name: string; id?
 }
 
 export function AvatarStack({ people, max = 4, size = "sm", ring = "ring-card" }: { people: { id?: string; name: string }[]; max?: number; size?: keyof typeof sizes; ring?: string }) {
+  const { t } = useT();
   const names = people.map((p) => p.name);
   const shown = people.slice(0, max);
   const rest = names.length - shown.length;
   return (
-    <div className="flex items-center" role="img" aria-label={names.length ? `Members: ${names.join(", ")}` : "No members"}>
+    <div className="flex items-center" role="img" aria-label={names.length ? t("Members: {value}", { value: names.join(", ") }) : t("No members")}>
       {shown.map((p, i) => (
         <Avatar key={(p.id ?? p.name) + i} name={p.name} id={p.id} size={size} className={cn("ring-2", ring, i > 0 && "-ml-1.5")} />
       ))}

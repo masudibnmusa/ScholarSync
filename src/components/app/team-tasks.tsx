@@ -15,13 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
 
 /** One team's task board, opened from its course page. Instructors read it; members can add and edit tasks. */
 export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: string }) {
+  const { t } = useT();
   const user = useUser();
   const instructor = user.role === "instructor";
   const loaded = useAppStore((s) => s.loaded.teams);
-  const team = useAppStore((s) => s.teams.find((t) => t.id === teamId && t.courseId === courseId)) ?? null;
+  const team = useAppStore((s) => s.teams.find((tt) => tt.id === teamId && tt.courseId === courseId)) ?? null;
   const selectedId = useAppStore((s) => s.selectedTeam?.id);
   const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
   const [editing, setEditing] = React.useState<KanbanTask | null>(null);
@@ -35,7 +37,7 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
   const courseHref = `/${user.role}/courses/${courseId}`;
   const back = (
     <Link href={courseHref} className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-      <ArrowLeft aria-hidden className="size-4" /> Back to course
+      <ArrowLeft aria-hidden className="size-4" /> {t("Back to course")}
     </Link>
   );
 
@@ -44,8 +46,8 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
     return (
       <Page>
         {back}
-        <Card><EmptyState icon={ListChecks} title="Team not found" description="It may have been removed, or you're not part of it.">
-          <Button asChild><Link href={courseHref}>Back to course</Link></Button>
+        <Card><EmptyState icon={ListChecks} title={t("Team not found")} description={t("It may have been removed, or you're not part of it.")}>
+          <Button asChild><Link href={courseHref}>{t("Back to course")}</Link></Button>
         </EmptyState></Card>
       </Page>
     );
@@ -57,24 +59,24 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
       <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-[1_1_16rem]">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-2xl font-extrabold sm:text-[1.75rem]">{team.name} · Tasks</h1>
+            <h1 className="truncate text-2xl font-extrabold sm:text-[1.75rem]">{team.name} {t("· Tasks")}</h1>
             <HealthBadge score={team.healthScore} />
           </div>
           {team.description && <p className="mt-1 text-sm text-muted-foreground">{team.description}</p>}
         </div>
         <div className="flex min-w-44 flex-1 flex-col gap-1 sm:flex-none">
           <div className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="font-semibold text-muted-foreground">{team._count?.tasks ?? 0} {team._count?.tasks === 1 ? "task" : "tasks"}</span>
+            <span className="font-semibold text-muted-foreground">{team._count?.tasks ?? 0} {team._count?.tasks === 1 ? t("task") : t("tasks")}</span>
             <span className="font-extrabold tabular-nums">{team.progress}%</span>
           </div>
-          <Progress value={team.progress} label={`${team.name} progress`} className="h-1.5" />
+          <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
         </div>
         <MembersButton team={team} align="end" />
       </header>
 
       {/* Wait for the switch to this team so another team's tasks never flash here. */}
       {selectedId === team.id
-        ? <TaskBoard readOnly={instructor} onEdit={instructor ? undefined : (t) => { setEditing(t); setDialogOpen(true); }} />
+        ? <TaskBoard readOnly={instructor} onEdit={instructor ? undefined : (tt) => { setEditing(tt); setDialogOpen(true); }} />
         : <Skeleton className="h-80 rounded-3xl" />}
       {instructor && <TeamReviews teamId={team.id} />}
       {!instructor && <TaskDialog open={dialogOpen} onOpenChange={setDialogOpen} task={editing} team={team} />}

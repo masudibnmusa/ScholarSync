@@ -14,15 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t, msg } from "@/lib/i18n";
 
 const PARTS = [
-  { key: "roles", label: "Roles", placeholder: "Who does what? e.g. Ada: backend and database. Ben: the UI. Cy: testing and the report." },
-  { key: "meetings", label: "Meeting times", placeholder: "When and where you meet, e.g. Tuesdays 6pm online, and ten minutes after each lab." },
-  { key: "missedWork", label: "When work is missed", placeholder: "e.g. Say so in chat a day before the deadline. Missed twice: we talk to the instructor." },
-  { key: "communication", label: "How we communicate", placeholder: "e.g. Team chat for everything, replies within a day, decisions written down." },
+  { key: "roles", label: msg("Roles"), placeholder: msg("Who does what? e.g. Ada: backend and database. Ben: the UI. Cy: testing and the report.") },
+  { key: "meetings", label: msg("Meeting times"), placeholder: msg("When and where you meet, e.g. Tuesdays 6pm online, and ten minutes after each lab.") },
+  { key: "missedWork", label: msg("When work is missed"), placeholder: msg("e.g. Say so in chat a day before the deadline. Missed twice: we talk to the instructor.") },
+  { key: "communication", label: msg("How we communicate"), placeholder: msg("e.g. Team chat for everything, replies within a day, decisions written down.") },
 ] as const;
 
 function CharterForm({ team, initial, onSaved, onCancel }: { team: Team; initial?: CharterText; onSaved: () => void; onCancel?: () => void }) {
+  const { t } = useT();
   const [form, setForm] = React.useState<CharterText>(initial ?? { roles: "", meetings: "", missedWork: "", communication: "" });
   const [saving, setSaving] = React.useState(false);
   const empty = PARTS.every((p) => !form[p.key].trim());
@@ -33,26 +36,26 @@ function CharterForm({ team, initial, onSaved, onCancel }: { team: Team; initial
     setSaving(true);
     try {
       await saveCharter(team.id, form);
-      toast.success(initial ? "Charter updated" : "Charter saved", { description: "Your teammates were asked to read it and agree." });
+      toast.success(initial ? t("Charter updated") : t("Charter saved"), { description: t("Your teammates were asked to read it and agree.") });
       onSaved();
     } catch (err) {
       console.error("Saving the charter failed:", err);
-      toast.error("Could not save the charter");
+      toast.error(t("Could not save the charter"));
     }
     setSaving(false);
   }
 
   return (
-    <form onSubmit={save} className="space-y-3" aria-label="Team charter">
+    <form onSubmit={save} className="space-y-3" aria-label={t("Team charter")}>
       {PARTS.map((p) => (
-        <Field key={p.key} label={p.label} htmlFor={`charter-${p.key}`}>
-          <Textarea id={`charter-${p.key}`} rows={2} maxLength={2000} value={form[p.key]} placeholder={p.placeholder}
+        <Field key={p.key} label={t(p.label)} htmlFor={`charter-${p.key}`}>
+          <Textarea id={`charter-${p.key}`} rows={2} maxLength={2000} value={form[p.key]} placeholder={t(p.placeholder)}
             onChange={(e) => setForm({ ...form, [p.key]: e.target.value })} />
         </Field>
       ))}
       <div className="flex items-center justify-end gap-2">
-        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>}
-        <Button type="submit" loading={saving} disabled={empty || !changed}>{!saving && <Handshake aria-hidden />}{initial ? "Save changes" : "Save charter"}</Button>
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>{t("Cancel")}</Button>}
+        <Button type="submit" loading={saving} disabled={empty || !changed}>{!saving && <Handshake aria-hidden />}{initial ? t("Save changes") : t("Save charter")}</Button>
       </div>
     </form>
   );
@@ -63,6 +66,7 @@ function CharterForm({ team, initial, onSaved, onCancel }: { team: Team; initial
  * else to agree again. The instructor reads it and sees who agreed. `?charter=1` opens it, as the notifications do.
  */
 export function CharterButton({ team }: { team: Team }) {
+  const { t } = useT();
   const user = useUser();
   const instructor = user.role === "instructor";
   const router = useRouter();
@@ -94,11 +98,11 @@ export function CharterButton({ team }: { team: Team }) {
     setAgreeing(true);
     try {
       await agreeToCharter(team.id);
-      toast.success("You agreed to the charter");
+      toast.success(t("You agreed to the charter"));
       await load();
     } catch (err) {
       console.error("Agreeing failed:", err);
-      toast.error("Could not record your agreement");
+      toast.error(t("Could not record your agreement"));
     }
     setAgreeing(false);
   }
@@ -111,9 +115,9 @@ export function CharterButton({ team }: { team: Team }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label={owes ? (c ? "Team charter (waiting for you to agree)" : "Team charter (not written yet)") : "Team charter"} className="relative">
+        <Button variant="outline" aria-label={owes ? (c ? t("Team charter (waiting for you to agree)") : t("Team charter (not written yet)")) : t("Team charter")} className="relative">
           <Scroll weight="duotone" aria-hidden />
-          <span className="hidden xl:inline">Charter</span>
+          <span className="hidden xl:inline">{t("Charter")}</span>
           {owes && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background" aria-hidden />}
         </Button>
       </DialogTrigger>
@@ -121,10 +125,10 @@ export function CharterButton({ team }: { team: Team }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-xl bg-butter text-warm-text"><Scroll weight="fill" className="size-4" aria-hidden /></span>
-            {team.name}&apos;s charter
+            {team.name}{t("'s charter")}
           </DialogTitle>
           <DialogDescription>
-            {instructor ? "What the team agreed on: roles, meetings, missed work and how they talk." : "What your team agrees on, so everyone knows what to expect. Anyone on the team can edit it."}
+            {instructor ? t("What the team agreed on: roles, meetings, missed work and how they talk.") : t("What your team agrees on, so everyone knows what to expect. Anyone on the team can edit it.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,23 +138,23 @@ export function CharterButton({ team }: { team: Team }) {
           <CharterForm team={team} initial={c ?? undefined} onSaved={() => { setEditing(false); load(); }} onCancel={c ? () => setEditing(false) : undefined} />
         ) : !c ? (
           <p className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-            {instructor ? "The team hasn't written a charter yet." : "No charter was written."}
+            {instructor ? t("The team hasn't written a charter yet.") : t("No charter was written.")}
           </p>
         ) : (
           <div className="min-w-0 space-y-5">
             <dl className="space-y-3">
               {PARTS.map((p) => (
                 <div key={p.key} className="rounded-2xl bg-muted/50 px-4 py-3">
-                  <dt className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{p.label}</dt>
-                  <dd className={cn("mt-1 whitespace-pre-wrap text-[0.9375rem]", !c[p.key] && "text-muted-foreground")}>{c[p.key] || "Not decided yet"}</dd>
+                  <dt className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t(p.label)}</dt>
+                  <dd className={cn("mt-1 whitespace-pre-wrap text-[0.9375rem]", !c[p.key] && "text-muted-foreground")}>{c[p.key] || t("Not decided yet")}</dd>
                 </div>
               ))}
             </dl>
-            <p className="text-xs text-muted-foreground">Last changed {timeAgo(c.updatedAt)}{c.updatedByName ? ` by ${c.updatedByName}` : ""}</p>
+            <p className="text-xs text-muted-foreground">{t("Last changed")} {timeAgo(c.updatedAt)}{c.updatedByName ? ` by ${c.updatedByName}` : ""}</p>
 
             <section aria-labelledby="charter-agreed">
               <h3 id="charter-agreed" className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Agreed ({agreed.length} of {data.members.length})
+                {t("Agreed ({n} of {total})", { n: agreed.length, total: data.members.length })}
               </h3>
               <ul className="grid gap-2 sm:grid-cols-2">
                 {data.members.map((m) => (
@@ -158,8 +162,8 @@ export function CharterButton({ team }: { team: Team }) {
                     <Avatar id={m.userId} name={m.name} size="xs" />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold">{m.name}</span>
                     {m.agreedAt
-                      ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><CheckCircle weight="fill" className="size-4" aria-hidden />Agreed</span>
-                      : <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Circle className="size-4" aria-hidden />Not yet</span>}
+                      ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><CheckCircle weight="fill" className="size-4" aria-hidden />{t("Agreed")}</span>
+                      : <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Circle className="size-4" aria-hidden />{t("Not yet")}</span>}
                   </li>
                 ))}
               </ul>
@@ -167,8 +171,8 @@ export function CharterButton({ team }: { team: Team }) {
 
             {!readOnly && (
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="outline" onClick={() => setEditing(true)}><PencilSimple aria-hidden /> Edit</Button>
-                {!mine?.agreedAt && <Button loading={agreeing} onClick={agree}>{!agreeing && <Handshake aria-hidden />} I agree</Button>}
+                <Button variant="outline" onClick={() => setEditing(true)}><PencilSimple aria-hidden /> {t("Edit")}</Button>
+                {!mine?.agreedAt && <Button loading={agreeing} onClick={agree}>{!agreeing && <Handshake aria-hidden />} {t("I agree")}</Button>}
               </div>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { msg } from "@/lib/i18n";
 import { Bell, CalendarDots, ChartLineUp, Lifebuoy, SquaresFour, Kanban, Sparkle, Star, UserCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -6,23 +7,23 @@ export type NavItem = { href: string; label: string; short?: string; icon: Icon;
 // The workspace (board + chat + files for a team) is home for both roles; everything else is a side trip.
 // `secondary` items sit behind "More" in the mobile tab bar (max five tabs). `short` is the tab-bar label.
 export const studentNav: NavItem[] = [
-  { href: "/student/courses", label: "Dashboard", icon: SquaresFour },
-  { href: "/student", label: "Workspace", icon: Kanban, badge: "suggestions" },
-  { href: "/student/week", label: "My week", short: "Week", icon: CalendarDots },
-  { href: "/student/peer-review", label: "Peer review", short: "Reviews", icon: Star },
-  { href: "/student/notifications", label: "Notifications", short: "Inbox", icon: Bell, badge: "notifications", secondary: true },
-  { href: "/student/profile", label: "Profile", icon: UserCircle, secondary: true },
+  { href: "/student/courses", label: msg("Dashboard"), icon: SquaresFour },
+  { href: "/student", label: msg("Workspace"), icon: Kanban, badge: "suggestions" },
+  { href: "/student/week", label: msg("My week"), short: msg("Week"), icon: CalendarDots },
+  { href: "/student/peer-review", label: msg("Peer review"), short: msg("Reviews"), icon: Star },
+  { href: "/student/notifications", label: msg("Notifications"), short: msg("Inbox"), icon: Bell, badge: "notifications", secondary: true },
+  { href: "/student/profile", label: msg("Profile"), icon: UserCircle, secondary: true },
 ];
 
 export const instructorNav: NavItem[] = [
-  { href: "/instructor/courses", label: "Dashboard", icon: SquaresFour },
-  { href: "/instructor", label: "Workspace", icon: Kanban },
-  { href: "/instructor/analytics", label: "Analytics", icon: ChartLineUp },
-  { href: "/instructor/conflicts", label: "Conflicts", icon: Warning, badge: "conflicts" },
-  { href: "/instructor/at-risk", label: "At risk", icon: Lifebuoy, badge: "atRisk", secondary: true },
-  { href: "/instructor/matching", label: "AI matching", short: "Matching", icon: Sparkle, secondary: true },
-  { href: "/instructor/notifications", label: "Notifications", icon: Bell, badge: "notifications", secondary: true },
-  { href: "/instructor/profile", label: "Profile", icon: UserCircle, secondary: true },
+  { href: "/instructor/courses", label: msg("Dashboard"), icon: SquaresFour },
+  { href: "/instructor", label: msg("Workspace"), icon: Kanban },
+  { href: "/instructor/analytics", label: msg("Analytics"), icon: ChartLineUp },
+  { href: "/instructor/conflicts", label: msg("Conflicts"), icon: Warning, badge: "conflicts" },
+  { href: "/instructor/at-risk", label: msg("At risk"), icon: Lifebuoy, badge: "atRisk", secondary: true },
+  { href: "/instructor/matching", label: msg("AI matching"), short: msg("Matching"), icon: Sparkle, secondary: true },
+  { href: "/instructor/notifications", label: msg("Notifications"), icon: Bell, badge: "notifications", secondary: true },
+  { href: "/instructor/profile", label: msg("Profile"), icon: UserCircle, secondary: true },
 ];
 
 export const SIDEBAR_COOKIE = "sidebar-collapsed";

@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/overlays";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/locale";
+import { t } from "@/lib/i18n";
 
 type Kind = "doc" | "image" | "code" | "other";
 
@@ -35,6 +37,7 @@ export function fileMeta(f: Pick<FileUpload, "fileName" | "fileType">): { icon: 
 }
 
 export function FileRow({ file, teamId }: { file: FileUpload; teamId: string }) {
+  const { t } = useT();
   const download = useAppStore((s) => s.downloadFile);
   const remove = useAppStore((s) => s.deleteFile);
   const user = useUser();
@@ -51,27 +54,28 @@ export function FileRow({ file, teamId }: { file: FileUpload; teamId: string }) 
         <p className="truncate text-sm font-bold">{file.fileName}</p>
         <p className="truncate text-xs text-muted-foreground">{formatBytes(file.fileSize)} · {file.uploadedBy} · <time dateTime={file.createdAt}>{timeAgo(file.createdAt)}</time></p>
       </div>
-      <Tooltip label="Download">
-        <Button variant="ghost" size="icon" aria-label={`Download ${file.fileName}`} onClick={() => download(file.storagePath)}>
+      <Tooltip label={t("Download")}>
+        <Button variant="ghost" size="icon" aria-label={t("Download {fileName}", { fileName: file.fileName })} onClick={() => download(file.storagePath)}>
           <DownloadSimple className="size-5" />
         </Button>
       </Tooltip>
       {canDelete && (
-        <Tooltip label="Delete">
-          <Button variant="ghost" size="icon" aria-label={`Delete ${file.fileName}`} className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming(true)}>
+        <Tooltip label={t("Delete")}>
+          <Button variant="ghost" size="icon" aria-label={t("Delete {fileName}", { fileName: file.fileName })} className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming(true)}>
             <Trash className="size-5" />
           </Button>
         </Tooltip>
       )}
-      <ConfirmDialog open={confirming} onOpenChange={setConfirming} title={`Delete ${file.fileName}?`}
-        description="It is removed for the whole team. Chat messages that shared it will say it was deleted."
-        onConfirm={async () => { if (await remove(teamId, file.id)) toast.success("File deleted"); }} />
+      <ConfirmDialog open={confirming} onOpenChange={setConfirming} title={t("Delete {fileName}?", { fileName: file.fileName })}
+        description={t("It is removed for the whole team. Chat messages that shared it will say it was deleted.")}
+        onConfirm={async () => { if (await remove(teamId, file.id)) toast.success(t("File deleted")); }} />
     </div>
   );
 }
 
 /** Upload zone, filters and the file list for one team. `readOnly` hides uploading (instructors can only read). */
 export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }) {
+  const { t } = useT();
   const files = useAppStore((s) => s.files);
   const filesLoaded = useAppStore((s) => s.loaded.files);
   const uploadFile = useAppStore((s) => s.uploadFile);
@@ -92,7 +96,7 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
       setProgress({ done: i + 1, total: picked.length });
     }
     setProgress(null);
-    if (ok) toast.success(ok === 1 ? "File uploaded" : `${ok} files uploaded`, { description: ok === 1 ? picked[0].name : undefined });
+    if (ok) toast.success(ok === 1 ? t("File uploaded") : t("{ok} files uploaded", { ok }), { description: ok === 1 ? picked[0].name : undefined });
   }
 
   const q = query.trim().toLowerCase();
@@ -101,7 +105,7 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{files.length} {files.length === 1 ? "file" : "files"}{files.length ? ` · ${formatBytes(totalBytes)}` : ""} shared in {team.name}</p>
+      <p className="text-sm text-muted-foreground">{files.length} {files.length === 1 ? t("file") : t("files")}{files.length ? ` · ${formatBytes(totalBytes)}` : ""} {t("shared in")} {team.name}</p>
 
       {!readOnly && (
         <>
@@ -123,9 +127,9 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
               <CloudArrowUp weight="duotone" className="size-6" aria-hidden />
             </span>
             <span className="text-sm font-bold" role="status">
-              {progress ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : dragOver ? "Drop to upload" : "Drop files here, or click to browse"}
+              {progress ? t("Uploading {n} of {total}…", { n: Math.min(progress.done + 1, progress.total), total: progress.total }) : dragOver ? t("Drop to upload") : t("Drop files here, or click to browse")}
             </span>
-            <span className="text-xs text-muted-foreground">Up to 50 MB per file</span>
+            <span className="text-xs text-muted-foreground">{t("Up to 50 MB per file")}</span>
             {progress && (
               <span className="mt-1 h-1.5 w-40 overflow-hidden rounded-full bg-muted">
                 <span className="block h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
@@ -138,20 +142,20 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
       <div className="space-y-2.5">
         <div className="relative">
           <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search files…" aria-label="Search files" className="pl-10" />
+          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search files…")} aria-label={t("Search files")} className="pl-10" />
         </div>
-        <Segmented label="File type" value={kind} onChange={setKind}
-          options={[{ value: "all", label: "All" }, { value: "doc", label: "Docs" }, { value: "image", label: "Images" }, { value: "code", label: "Code" }, { value: "other", label: "Other" }]} />
+        <Segmented label={t("File type")} value={kind} onChange={setKind}
+          options={[{ value: "all", label: t("All") }, { value: "doc", label: t("Docs") }, { value: "image", label: t("Images") }, { value: "code", label: t("Code") }, { value: "other", label: t("Other") }]} />
       </div>
 
       <div className="overflow-hidden rounded-2xl border bg-card">
         {!filesLoaded ? (
           <div className="space-y-3 p-4">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-12" />)}</div>
         ) : files.length === 0 ? (
-          <EmptyState icon={FolderOpen} title="No files yet" description={readOnly ? "Nothing has been uploaded by this team." : "Upload the brief, your drafts and slides so the whole team works from the same versions."} className="py-10" />
+          <EmptyState icon={FolderOpen} title={t("No files yet")} description={readOnly ? t("Nothing has been uploaded by this team.") : t("Upload the brief, your drafts and slides so the whole team works from the same versions.")} className="py-10" />
         ) : visible.length === 0 ? (
-          <EmptyState icon={MagnifyingGlass} title="No files match" description="Try a different search or file type." className="py-10">
-            <Button variant="outline" size="sm" onClick={() => { setQuery(""); setKind("all"); }}>Clear filters</Button>
+          <EmptyState icon={MagnifyingGlass} title={t("No files match")} description={t("Try a different search or file type.")} className="py-10">
+            <Button variant="outline" size="sm" onClick={() => { setQuery(""); setKind("all"); }}>{t("Clear filters")}</Button>
           </EmptyState>
         ) : (
           <ul className="divide-y">

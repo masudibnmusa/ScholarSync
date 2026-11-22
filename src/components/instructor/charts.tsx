@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CheckCircle, Warning, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { cn, healthInfo } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/components/locale";
 
 export type Series = { name: string; color: string };
 export type BarRow = { id: string; label: string; values: number[] };
@@ -17,8 +18,9 @@ function niceMax(v: number) {
 }
 
 export function Legend({ series }: { series: Series[] }) {
+  const { t } = useT();
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Legend">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label={t("Legend")}>
       {series.map((s) => (
         <li key={s.name} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: s.color }} aria-hidden />
@@ -43,9 +45,9 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
       <div className="grid grid-cols-[fit-content(9rem)_minmax(0,1fr)] gap-x-3">
         <div />
         <div className="relative mb-1.5 mr-9 h-4" aria-hidden>
-          {ticks.map((t, i) => (
+          {ticks.map((tt, i) => (
             <span key={i} className={cn("absolute top-0 text-[0.6875rem] tabular-nums text-muted-foreground", i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i % 2 === 1 && "hidden sm:block")} style={{ left: `${(i / (ticks.length - 1)) * 100}%` }}>
-              {t}{suffix}
+              {tt}{suffix}
             </span>
           ))}
         </div>
@@ -149,6 +151,7 @@ function useWidth<T extends HTMLElement>() {
 export function LineChart({ labels, series, max, suffix = "", label, formatLabel = (s) => s }: {
   labels: string[]; series: LineSeries[]; max?: number; suffix?: string; label: string; formatLabel?: (s: string) => string;
 }) {
+  const { t } = useT();
   const [ref, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = React.useState<number | null>(null);
   const all = series.flatMap((s) => s.values.filter((v): v is number => v != null));
@@ -191,7 +194,7 @@ export function LineChart({ labels, series, max, suffix = "", label, formatLabel
       {series.length > 1 && <Legend series={series.map((s) => ({ name: s.name, color: s.color }))} />}
       <div ref={ref} className="relative">
         {width > 0 && (
-          <svg width={width} height={H} role="img" tabIndex={0} aria-label={`${label}. Use the left and right arrow keys to read each week.`}
+          <svg width={width} height={H} role="img" tabIndex={0} aria-label={t("{label}. Use the left and right arrow keys to read each week.", { label })}
             className="block touch-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onPointerMove={(e) => pick(e.clientX, e.currentTarget.getBoundingClientRect())} onPointerLeave={() => setActive(null)}
             onBlur={() => setActive(null)}
@@ -202,10 +205,10 @@ export function LineChart({ labels, series, max, suffix = "", label, formatLabel
               }
             }}>
             {/* recessive grid and axes */}
-            {ticks.map((t) => (
-              <g key={t}>
-                <line x1={left} x2={left + plotW} y1={y(t)} y2={y(t)} className="stroke-border" strokeWidth={1} />
-                <text x={left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[0.6875rem] tabular-nums">{t}{suffix}</text>
+            {ticks.map((tt) => (
+              <g key={tt}>
+                <line x1={left} x2={left + plotW} y1={y(tt)} y2={y(tt)} className="stroke-border" strokeWidth={1} />
+                <text x={left - 6} y={y(tt)} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[0.6875rem] tabular-nums">{tt}{suffix}</text>
               </g>
             ))}
             {labels.map((l, i) => !(width >= 480 || (labels.length - 1 - i) % 2 === 0) ? null : ( // phones: every other week, ending on the latest
@@ -245,13 +248,13 @@ export function LineChart({ labels, series, max, suffix = "", label, formatLabel
           </div>
         )}
         {/* Screen readers and the arrow keys: the hovered week, announced */}
-        <p className="sr-only" aria-live="polite">{active == null ? "" : `${formatLabel(labels[active])}: ${rows.map(({ s, v }) => `${s.name} ${v == null ? "no data" : `${v}${suffix}`}`).join(", ")}`}</p>
+        <p className="sr-only" aria-live="polite">{active == null ? "" : `${formatLabel(labels[active])}: ${rows.map(({ s, v }) => `${s.name} ${v == null ? t("no data") : `${v}${suffix}`}`).join(", ")}`}</p>
       </div>
       <details className="group text-sm">
-        <summary className="cursor-pointer select-none text-xs font-semibold text-muted-foreground hover:text-foreground">Show as a table</summary>
+        <summary className="cursor-pointer select-none text-xs font-semibold text-muted-foreground hover:text-foreground">{t("Show as a table")}</summary>
         <div className="mt-2 overflow-x-auto scroll-thin">
           <table className="w-full text-xs tabular-nums">
-            <thead><tr className="text-left text-muted-foreground"><th className="py-1 pr-3 font-semibold">Team</th>{labels.map((l) => <th key={l} className="px-2 py-1 text-right font-semibold">{formatLabel(l)}</th>)}</tr></thead>
+            <thead><tr className="text-left text-muted-foreground"><th className="py-1 pr-3 font-semibold">{t("Team")}</th>{labels.map((l) => <th key={l} className="px-2 py-1 text-right font-semibold">{formatLabel(l)}</th>)}</tr></thead>
             <tbody>
               {series.map((s) => (
                 <tr key={s.id} className="border-t">

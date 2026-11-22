@@ -1,5 +1,8 @@
+"use client";
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/locale";
 
 const field =
   "w-full rounded-xl border border-input bg-card px-3.5 text-base md:text-sm text-foreground shadow-[inset_0_1px_0_rgb(var(--shadow-color)/0.03)] transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/80 hover:border-primary/40 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20";
@@ -20,11 +23,12 @@ export function Label({ className, ...props }: React.ComponentProps<"label">) {
 export function Field({
   label, htmlFor, hint, error, optional, className, children,
 }: { label: string; htmlFor: string; hint?: string; error?: string | null; optional?: boolean; className?: string; children: React.ReactNode }) {
+  const { t } = useT();
   return (
     <div className={cn("space-y-1.5", className)}>
       <div className="flex items-baseline justify-between gap-2">
         <Label htmlFor={htmlFor}>{label}</Label>
-        {optional && <span className="text-xs text-muted-foreground">Optional</span>}
+        {optional && <span className="text-xs text-muted-foreground">{t("Optional")}</span>}
       </div>
       {children}
       {error ? (
