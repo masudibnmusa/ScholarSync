@@ -260,6 +260,22 @@ export const repoActivity = pgTable("repo_activity", {
   at: ts("at").notNull(),
 }, (t) => [primaryKey({ columns: [t.teamId, t.id] })]);
 
+export const teamCharters = pgTable("team_charters", {
+  teamId: uuid("team_id").primaryKey(),
+  roles: text("roles").notNull().default(""),
+  meetings: text("meetings").notNull().default(""),
+  missedWork: text("missed_work").notNull().default(""),
+  communication: text("communication").notNull().default(""),
+  updatedBy: uuid("updated_by"),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const charterAgreements = pgTable("charter_agreements", {
+  teamId: uuid("team_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  agreedAt: ts("agreed_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.userId] })]);
+
 export const fallingBehind = pgTable("falling_behind", {
   teamId: uuid("team_id").notNull(),
   userId: uuid("user_id").notNull(),

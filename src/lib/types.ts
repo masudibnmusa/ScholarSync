@@ -352,3 +352,16 @@ export interface RepoFeed {
     author: string;
   }[];
 }
+
+export interface CharterText {
+  roles: string;
+  meetings: string;
+  missedWork: string;
+  communication: string;
+}
+
+/** A team's charter (null = not written yet) and who of the current members has agreed to this version. */
+export interface TeamCharter {
+  charter: (CharterText & { updatedAt: string; updatedByName: string | null }) | null;
+  members: { userId: string; name: string; agreedAt: string | null }[];
+}

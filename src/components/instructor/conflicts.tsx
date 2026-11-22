@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, ChatsCircle, Check, CheckCircle, Clock, Funnel, Lightbulb, ShieldCheck, ShieldWarning, Smiley, SmileyMeh, SmileySad, Warning, WarningCircle, WarningOctagon, X,
+  ArrowRight, ChatsCircle, Check, CheckCircle, Clock, Funnel, Lightbulb, Scroll, ShieldCheck, ShieldWarning, Smiley, SmileyMeh, SmileySad, Warning, WarningCircle, WarningOctagon, X,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -84,6 +84,7 @@ function AlertCard({ alert }: { alert: ConflictAlert }) {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <Tone score={alert.sentimentScore} />
             <div className="flex flex-wrap gap-2">
+              <Button asChild variant="ghost" size="sm"><Link href={`/instructor?team=${alert.teamId}&charter=1`}><Scroll aria-hidden /> Team charter</Link></Button>
               <Button asChild variant="ghost" size="sm"><Link href={`/instructor?team=${alert.teamId}&view=chat`}><ChatsCircle aria-hidden /> Message team</Link></Button>
               <Button asChild variant="outline" size="sm"><Link href={`/instructor?team=${alert.teamId}`}>Open team <ArrowRight aria-hidden /></Link></Button>
               {!alert.isResolved && (

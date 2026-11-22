@@ -17,7 +17,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -831,6 +831,46 @@ export async function exportGradebook(courseId: string): Promise<{ filename: str
     const header = ["Student", "Email", "Team", ...criteria.map((c) => `${c.name} (/${c.maxPoints})`), "Team grade (%)", "Contribution factor", "Final grade (%)"];
     return { filename: `${course.code}-gradebook-${new Date().toISOString().slice(0, 10)}.csv`, csv: toCsv([header, ...rows]) };
   });
+}
+
+// ─── Team charter (members write and agree; the instructor reads) ──────
+
+export async function getCharter(teamId: string): Promise<TeamCharter> {
+  Id.parse(teamId);
+  return withUser(async (tx) => {
+    const [[row], members, agreed] = await Promise.all([
+      tx.select({ c: s.teamCharters, updatedByName: s.users.name }).from(s.teamCharters)
+        .leftJoin(s.users, eq(s.users.id, s.teamCharters.updatedBy)).where(eq(s.teamCharters.teamId, teamId)),
+      tx.select({ userId: s.users.id, name: s.users.name }).from(s.teamMembers).innerJoin(s.users, eq(s.users.id, s.teamMembers.userId))
+        .where(eq(s.teamMembers.teamId, teamId)).orderBy(asc(s.users.name)),
+      tx.select().from(s.charterAgreements).where(eq(s.charterAgreements.teamId, teamId)),
+    ]);
+    const c = row?.c;
+    return {
+      charter: c ? { roles: c.roles, meetings: c.meetings, missedWork: c.missedWork, communication: c.communication, updatedAt: c.updatedAt, updatedByName: row.updatedByName } : null,
+      members: members.map((m) => ({ ...m, agreedAt: agreed.find((a) => a.userId === m.userId)?.agreedAt ?? null })),
+    };
+  });
+}
+
+const CharterInput = z.object({
+  roles: z.string().trim().max(2000),
+  meetings: z.string().trim().max(2000),
+  missedWork: z.string().trim().max(2000),
+  communication: z.string().trim().max(2000),
+}).refine((c) => Object.values(c).some(Boolean), "Write at least one part of the charter");
+
+/** Writes or edits the charter (members only: RLS). The database records me as agreeing and asks the others again. */
+export async function saveCharter(teamId: string, input: CharterText) {
+  Id.parse(teamId);
+  const c = CharterInput.parse(input);
+  await withUser((tx) => tx.insert(s.teamCharters).values({ teamId, ...c })
+    .onConflictDoUpdate({ target: s.teamCharters.teamId, set: c }));
+}
+
+export async function agreeToCharter(teamId: string) {
+  Id.parse(teamId);
+  await withUser((tx, uid) => tx.insert(s.charterAgreements).values({ teamId, userId: uid }).onConflictDoNothing());
 }
 
 // ─── GitHub (a repo per team; see src/lib/github.ts) ─────────────────────

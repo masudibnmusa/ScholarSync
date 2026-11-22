@@ -25,6 +25,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StandupButton } from "@/components/app/standup";
 import { RepoButton } from "@/components/app/repo";
+import { CharterButton } from "@/components/app/charter";
 
 
 function TeamSwitcher({ team }: { team: Team }) {
@@ -160,8 +161,9 @@ export function StudentWorkspace() {
         </div>
         <MembersButton team={team} />
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <MeetingButton team={team} />
+          <CharterButton team={team} />
           <StandupButton team={team} />
           <RepoButton team={team} />
           <WeeklyRecapButton team={team} />
