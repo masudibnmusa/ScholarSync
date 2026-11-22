@@ -13,6 +13,7 @@ import { UserMenu } from "@/components/app/topbar";
 import { useUser } from "@/components/app/user-context";
 import { Tooltip } from "@/components/ui/overlays";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 export function useBadgeCounts(): Record<NonNullable<NavItem["badge"]>, number> {
   const notifications = useAppStore((s) => s.unreadNotifCount);
@@ -43,7 +44,7 @@ export function NavLinks({ onNavigate, pillId, items, collapsed }: { onNavigate?
               ? count > 0 && <span className="absolute right-2 top-2 size-2.5 rounded-full bg-warm ring-2 ring-sidebar" aria-hidden />
               : <>
                   <span className="relative flex-1 whitespace-nowrap">{t(item.label)}</span>
-                  {count > 0 && <span className="relative flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[0.6875rem] font-bold tabular-nums text-warm-foreground">{count}<span className="sr-only"> {t("new")}</span></span>}
+                  {count > 0 && <span className="relative flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[0.6875rem] font-bold tabular-nums text-warm-foreground">{num(count)}<span className="sr-only"> {t("new")}</span></span>}
                 </>}
           </Link>
         );

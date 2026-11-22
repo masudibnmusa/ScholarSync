@@ -16,7 +16,7 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { intl, t, tn } from "@/lib/i18n";
+import { intl, t, tn, num } from "@/lib/i18n";
 
 const LENGTHS = [10, 15, 20, 30, 45, 60];
 const time = (iso: string) => new Date(iso).toLocaleTimeString(intl(), { hour: "numeric", minute: "2-digit" });
@@ -71,7 +71,7 @@ function AddSlotsDialog({ courseId, open, onOpenChange, onAdded }: { courseId: s
             <Field label={t("Length of each")} htmlFor="oh-length">
               <Select value={String(minutes)} onValueChange={(v) => setMinutes(Number(v))}>
                 <SelectTrigger id="oh-length"><SelectValue /></SelectTrigger>
-                <SelectContent>{LENGTHS.map((m) => <SelectItem key={m} value={String(m)}>{m} {t("minutes")}</SelectItem>)}</SelectContent>
+                <SelectContent>{LENGTHS.map((m) => <SelectItem key={m} value={String(m)}>{num(m)} {t("minutes")}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label={t("Number of slots")} htmlFor="oh-count">

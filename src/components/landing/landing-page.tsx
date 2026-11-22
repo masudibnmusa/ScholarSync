@@ -19,7 +19,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { useMounted } from "@/hooks/use-client";
 import { useT } from "@/components/locale";
 import { LanguageSwitch } from "@/components/language-switch";
-import { msg } from "@/lib/i18n";
+import { msg, num } from "@/lib/i18n";
 
 function ThemeToggle() {
   const { t } = useT();
@@ -313,7 +313,7 @@ function How() {
             <StaggerItem key={s.title} className="relative text-center">
               <span className="relative mx-auto flex size-14 items-center justify-center rounded-2xl border bg-card text-primary shadow-soft">
                 <s.icon weight="duotone" className="size-7" aria-hidden />
-                <span className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-warm text-xs font-extrabold text-warm-foreground">{i + 1}</span>
+                <span className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-warm text-xs font-extrabold text-warm-foreground">{num(i + 1)}</span>
               </span>
               <h3 className="mt-5 text-xl font-extrabold">{t(s.title)}</h3>
               <p className="mx-auto mt-2 max-w-xs text-muted-foreground">{t(s.body)}</p>

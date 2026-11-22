@@ -24,6 +24,8 @@ test("a student switches to Bangla, it follows them to a new browser, and they s
   await expect(nav.getByRole("link", { name: "ড্যাশবোর্ড" })).toBeVisible();
   await expect(page.getByText("ভাষা", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle(/প্রোফাইল/);
+  // Numbers shown on their own use Bangla digits too (profile strength, e.g. "১/৩").
+  await expect(page.getByText(/^[০-৩]\/৩$/)).toBeVisible();
 
   // Other pages too, including text built from numbers and dates.
   await page.goto("/student/courses");

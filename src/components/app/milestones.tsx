@@ -18,7 +18,7 @@ import { Tooltip } from "@/components/ui/overlays";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
 import { useT } from "@/components/locale";
-import {intl, msg, t } from "@/lib/i18n";
+import {intl, msg, t, num } from "@/lib/i18n";
 
 type Status = "done" | "late" | "upcoming";
 
@@ -39,7 +39,7 @@ function DateBlock({ date }: { date: string }) {
   return (
     <span className="flex w-12 shrink-0 flex-col items-center rounded-2xl bg-butter py-1.5 leading-none">
       <span className="text-[0.625rem] font-bold uppercase tracking-wider text-foreground/70">{d.toLocaleDateString(intl(), { month: "short" })}</span>
-      <span className="mt-0.5 font-display text-xl font-semibold">{d.getDate()}</span>
+      <span className="mt-0.5 font-display text-xl font-semibold">{num(d.getDate())}</span>
     </span>
   );
 }
@@ -158,7 +158,7 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
         <h2 className="flex items-center gap-2.5 text-base font-extrabold">
           <span className="flex size-8 items-center justify-center rounded-lg bg-butter text-warm-text"><Flag weight="fill" className="size-[1.125rem]" aria-hidden /></span>
           {t("Milestones")}
-          {items && items.length > 0 && <Badge variant="muted">{items.length}</Badge>}
+          {items && items.length > 0 && <Badge variant="muted">{num(items.length)}</Badge>}
         </h2>
         {canEdit && <Button size="sm" variant="outline" onClick={() => setEditing(null)}><Plus aria-hidden /> {t("Add milestone")}</Button>}
       </div>
@@ -220,10 +220,10 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
                 <div className="flex items-center gap-2">
                   {instructor && teams.length > 0 && (m.requiresSubmission ? (
                     <Button size="sm" variant="outline" onClick={() => setReviewingId(m.id)}>
-                      <Tray aria-hidden /> {t("Review")} <span className="tabular-nums text-muted-foreground">{m.submissions.length}/{teams.length}</span>
+                      <Tray aria-hidden /> {t("Review")} <span className="tabular-nums text-muted-foreground">{num(m.submissions.length)}/{num(teams.length)}</span>
                     </Button>
                   ) : (
-                    <span className="text-sm font-bold tabular-nums">{doneCount}/{teams.length}<span className="ml-1 text-xs font-medium text-muted-foreground">{t("done")}</span></span>
+                    <span className="text-sm font-bold tabular-nums">{num(doneCount)}/{num(teams.length)}<span className="ml-1 text-xs font-medium text-muted-foreground">{t("done")}</span></span>
                   ))}
                   {myTeam && m.requiresSubmission && !readOnly && (
                     <Button size="sm" variant={mySub ? "outline" : "default"} onClick={() => setHandingIn(m)}>

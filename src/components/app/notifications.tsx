@@ -17,6 +17,7 @@ import { Tooltip } from "@/components/ui/overlays";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 export function NotificationsPanel() {
   const { t } = useT();
@@ -45,7 +46,7 @@ export function NotificationsPanel() {
       </PageHeader>
 
       <Segmented label={t("Filter notifications")} value={filter} onChange={setFilter}
-        options={[{ value: "all", label: t("All") }, { value: "unread", label: <>{t("Unread")}{unread > 0 && <span className="rounded-full bg-warm px-1.5 text-[0.6875rem] font-extrabold text-warm-foreground">{unread}</span>}</> }]} />
+        options={[{ value: "all", label: t("All") }, { value: "unread", label: <>{t("Unread")}{unread > 0 && <span className="rounded-full bg-warm px-1.5 text-[0.6875rem] font-extrabold text-warm-foreground">{num(unread)}</span>}</> }]} />
 
       {!loaded ? (
         <div className="space-y-3">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-[4.5rem]" />)}</div>

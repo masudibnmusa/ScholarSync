@@ -16,7 +16,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
 import { useT } from "@/components/locale";
-import { t } from "@/lib/i18n";
+import { t, num } from "@/lib/i18n";
 
 type GradedTeam = CourseGrading["teams"][number];
 const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
@@ -163,7 +163,7 @@ function TeamGradeDialog({ team, criteria, open, onOpenChange, onSaved }: {
                   <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Input id={`pts-${c.id}`} type="number" inputMode="decimal" step={0.5} min={0} max={c.maxPoints} className="h-9 w-20 text-right"
                       value={scores[c.id].points} onChange={(e) => { setScores({ ...scores, [c.id]: { ...scores[c.id], points: e.target.value } }); setError(null); }} />
-                    / {c.maxPoints}
+                    / {num(c.maxPoints)}
                   </span>
                 </div>
                 <Textarea aria-label={t("Feedback on {name}", { name: c.name })} rows={1} maxLength={2000} placeholder={t("Feedback for the team (optional)")} className="mt-2 min-h-9 bg-card"
@@ -191,8 +191,8 @@ function TeamGradeDialog({ team, criteria, open, onOpenChange, onSaved }: {
                     return (
                       <tr key={m.userId}>
                         <td className="py-2 pr-2 font-semibold">{m.name}</td>
-                        <td className="pr-2 text-muted-foreground">{m.peerAvg == null ? t("No reviews") : <span className="inline-flex items-center gap-1"><Star weight="fill" className="size-3.5 text-butter-strong" aria-hidden />{m.peerAvg} <span className="text-xs">({m.reviews})</span></span>}</td>
-                        <td className="pr-2 tabular-nums">×{m.suggestedFactor.toFixed(2)}</td>
+                        <td className="pr-2 text-muted-foreground">{m.peerAvg == null ? t("No reviews") : <span className="inline-flex items-center gap-1"><Star weight="fill" className="size-3.5 text-butter-strong" aria-hidden />{num(m.peerAvg)} <span className="text-xs">({num(m.reviews)})</span></span>}</td>
+                        <td className="pr-2 tabular-nums">×{num(m.suggestedFactor, 2)}</td>
                         <td className="pr-2">
                           <Input aria-label={t("Override factor for {name}", { name: m.name })} type="number" inputMode="decimal" step={0.05} min={0.5} max={1.5} placeholder="—" className="h-8 w-20"
                             value={overrides[m.userId]} onChange={(e) => { setOverrides({ ...overrides, [m.userId]: e.target.value }); setError(null); }} />
@@ -283,7 +283,7 @@ export function GradingPanel({ courseId }: { courseId: string }) {
       ) : (
         <>
           <p className="mt-3 text-sm text-muted-foreground">
-            {data.criteria.map((c) => `${c.name} (${c.maxPoints})`).join(" · ")} · <span className="font-semibold text-foreground">{total} {t("points")}</span>
+            {data.criteria.map((c) => `${c.name} (${c.maxPoints})`).join(" · ")} · <span className="font-semibold text-foreground">{num(total)} {t("points")}</span>
           </p>
           {data.teams.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">{t("No teams to grade yet.")}</p>
@@ -349,7 +349,7 @@ export function MyGradeCard({ courseId }: { courseId: string }) {
       <ul className="mt-4 divide-y">
         {grade.criteria.map((c) => (
           <li key={c.id} className="py-3">
-            <p className="flex items-baseline justify-between gap-3 font-semibold">{c.name}<span className="tabular-nums">{grade.scores[c.id]?.points ?? "—"} / {c.maxPoints}</span></p>
+            <p className="flex items-baseline justify-between gap-3 font-semibold">{c.name}<span className="tabular-nums">{num(grade.scores[c.id]?.points ?? "—")} / {num(c.maxPoints)}</span></p>
             {grade.scores[c.id]?.feedback && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{grade.scores[c.id].feedback}</p>}
           </li>
         ))}

@@ -17,7 +17,7 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
 import { useT } from "@/components/locale";
-import { msg, t, tn } from "@/lib/i18n";
+import { msg, t, tn, num } from "@/lib/i18n";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX = 200; // same cap as the database function
@@ -80,7 +80,7 @@ function AddStudentsDialog({ course, open, onOpenChange, onAdded }: { course: Co
               if (!list.length) return null;
               return (
                 <section key={g.outcome}>
-                  <h3 className={`flex items-center gap-1.5 text-sm font-bold ${g.tone}`}><g.icon weight="fill" className="size-4" aria-hidden />{t(g.title)} <span className="font-semibold text-muted-foreground">{list.length}</span></h3>
+                  <h3 className={`flex items-center gap-1.5 text-sm font-bold ${g.tone}`}><g.icon weight="fill" className="size-4" aria-hidden />{t(g.title)} <span className="font-semibold text-muted-foreground">{num(list.length)}</span></h3>
                   {g.note && <p className="mt-0.5 text-xs text-muted-foreground">{t(g.note)}</p>}
                   <ul className="mt-1.5 flex flex-wrap gap-1.5">
                     {list.map((r) => <li key={r.email} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{r.email}</li>)}
@@ -147,7 +147,7 @@ export function CourseStudents({ course, readOnly, onChanged }: { course: Course
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 id="students-title" className="text-lg font-extrabold">{t("Students")}</h2>
-          {roster && <Badge variant="muted">{roster.length}</Badge>}
+          {roster && <Badge variant="muted">{num(roster.length)}</Badge>}
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {roster && roster.length > 0 && (

@@ -6,6 +6,7 @@ import { CheckCircle, Warning, WarningCircle } from "@phosphor-icons/react/dist/
 import { cn, healthInfo } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 export type Series = { name: string; color: string };
 export type BarRow = { id: string; label: string; values: number[] };
@@ -47,7 +48,7 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
         <div className="relative mb-1.5 mr-9 h-4" aria-hidden>
           {ticks.map((tt, i) => (
             <span key={i} className={cn("absolute top-0 text-[0.6875rem] tabular-nums text-muted-foreground", i === 0 ? "" : i === ticks.length - 1 ? "-translate-x-full" : "-translate-x-1/2", i % 2 === 1 && "hidden sm:block")} style={{ left: `${(i / (ticks.length - 1)) * 100}%` }}>
-              {tt}{suffix}
+              {num(tt)}{suffix}
             </span>
           ))}
         </div>
@@ -83,7 +84,7 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
                         transition={{ duration: 0.8, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
                       />
                       <span className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap pl-1.5 text-[0.6875rem] font-bold tabular-nums text-muted-foreground" style={{ left: `${pct}%` }} aria-hidden>
-                        {row.values[i]}{suffix}
+                        {num(row.values[i])}{suffix}
                       </span>
                     </div>
                   );
@@ -97,7 +98,7 @@ export function GroupedBars({ rows, series, max, suffix = "", label }: { rows: B
                       <li key={s.name} className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="size-2 rounded-[2px]" style={{ backgroundColor: s.color }} />
                         {s.name}
-                        <span className="ml-auto pl-3 font-bold tabular-nums text-foreground">{row.values[i]}{suffix}</span>
+                        <span className="ml-auto pl-3 font-bold tabular-nums text-foreground">{num(row.values[i])}{suffix}</span>
                       </li>
                     ))}
                   </ul>
@@ -123,7 +124,7 @@ export function HealthBadge({ score, showScore = true }: { score: number; showSc
   return (
     <Badge variant={h.tone}>
       <I weight="fill" aria-hidden />
-      {h.label}{showScore && <span className="tabular-nums opacity-80">· {score}</span>}
+      {h.label}{showScore && <span className="tabular-nums opacity-80">· {num(score)}</span>}
     </Badge>
   );
 }
@@ -208,7 +209,7 @@ export function LineChart({ labels, series, max, suffix = "", label, formatLabel
             {ticks.map((tt) => (
               <g key={tt}>
                 <line x1={left} x2={left + plotW} y1={y(tt)} y2={y(tt)} className="stroke-border" strokeWidth={1} />
-                <text x={left - 6} y={y(tt)} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[0.6875rem] tabular-nums">{tt}{suffix}</text>
+                <text x={left - 6} y={y(tt)} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[0.6875rem] tabular-nums">{num(tt)}{suffix}</text>
               </g>
             ))}
             {labels.map((l, i) => !(width >= 480 || (labels.length - 1 - i) % 2 === 0) ? null : ( // phones: every other week, ending on the latest

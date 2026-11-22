@@ -1607,4 +1607,6 @@ export const bn: Record<string, string> = {
   "Email not confirmed": "ইমেইল এখনো নিশ্চিত করা হয়নি। আপনার ইনবক্সের লিংকটি খুলুন।",
   "Password should be at least 6 characters.": "পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।",
   "Email rate limit exceeded": "অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
+  "{n} message": "{n}টি বার্তা",
+  "{n} messages": "{n}টি বার্তা",
 };

@@ -21,7 +21,7 @@ import { Dialog, DialogDescription, DialogTitle, SheetContent } from "@/componen
 import { EASE } from "@/components/ui/motion";
 import { useT } from "@/components/locale";
 import { setLanguage } from "@/app/actions";
-import { isLocale } from "@/lib/i18n";
+import { isLocale, num } from "@/lib/i18n";
 
 function MobileNav() {
   const { t } = useT();
@@ -50,7 +50,7 @@ function MobileNav() {
               {count > 0 && <span className="absolute -right-1 -top-0.5 size-2.5 rounded-full bg-warm ring-2 ring-card" />}
             </span>
             <span className="max-w-full truncate">{t(n.short ?? n.label)}</span>
-            {count > 0 && <span className="sr-only">, {count} {t("new")}</span>}
+            {count > 0 && <span className="sr-only">, {num(count)} {t("new")}</span>}
           </Link>
         );
       })}

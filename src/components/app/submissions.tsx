@@ -7,6 +7,7 @@ import { saveSubmissionFeedback, submitWork } from "@/app/actions";
 import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { num } from "@/lib/i18n";
 import type { Milestone, Submission, Team } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export function isLate(submittedAt: string, dueDate: string) {
 }
 
 const when = (iso: string) => new Date(iso).toLocaleString(intl(), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-const size = (b: number) => (b < 1024 ** 2 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 ** 2).toFixed(1)} MB`);
+const size = (b: number) => (b < 1024 ** 2 ? `${num(Math.max(1, Math.round(b / 1024)))} KB` : `${num(b / 1024 ** 2, 1)} MB`);
 
 export function TimingBadge({ sub, dueDate }: { sub: Submission; dueDate: string }) {
   const { t } = useT();

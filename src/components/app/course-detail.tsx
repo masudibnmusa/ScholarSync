@@ -33,7 +33,7 @@ import { EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import {intl, t } from "@/lib/i18n";
+import {intl, t, num } from "@/lib/i18n";
 
 /** One block of the instructor's write-up. Empty: the instructor gets a prompt to fill it, students a short note. */
 function InfoSection({ icon: I, title, text, list, canEdit, onEdit }: {
@@ -79,7 +79,7 @@ function TeamCard({ team, href, editable }: { team: Team; href: string; editable
       {team.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{team.description}</p>}
       <div className="mt-3 flex items-center gap-2.5">
         <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
-        <span className="w-9 text-right text-xs font-bold tabular-nums">{team.progress}%</span>
+        <span className="w-9 text-right text-xs font-bold tabular-nums">{num(team.progress)}%</span>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 pt-1">
         <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} max={4} />
@@ -282,7 +282,7 @@ export function CourseDetail({ id }: { id: string }) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <h2 id="teams-title" className="text-lg font-extrabold">{instructor ? t("Teams") : t("Your team")}</h2>
-              {teams.length > 0 && <Badge variant="muted">{teams.length}</Badge>}
+              {teams.length > 0 && <Badge variant="muted">{num(teams.length)}</Badge>}
             </div>
             {canManage && <NewTeamButton courseId={course.id} courseCode={course.code} />}
           </div>

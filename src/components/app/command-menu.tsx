@@ -9,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 import { navFor } from "@/components/app/nav";
 import { useUser } from "@/components/app/user-context";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 const item =
   "flex min-h-11 cursor-pointer select-none items-center gap-3 rounded-xl px-3 text-sm font-medium text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg]:size-[1.125rem] [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
@@ -80,7 +81,7 @@ export function CommandMenu({ onSignOut }: { onSignOut: () => void }) {
               >
                 <UsersThree aria-hidden />
                 {tt.name}
-                <span className="ml-auto text-xs tabular-nums text-muted-foreground">{tt.progress}{t("% done")}</span>
+                <span className="ml-auto text-xs tabular-nums text-muted-foreground">{num(tt.progress)}{t("% done")}</span>
               </Command.Item>
             ))}
           </Command.Group>

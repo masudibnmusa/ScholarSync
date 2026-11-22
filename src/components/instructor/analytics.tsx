@@ -24,7 +24,7 @@ import { Progress, ProgressRing } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { intl, msg, t, tn } from "@/lib/i18n";
+import { intl, msg, t, tn, num } from "@/lib/i18n";
 
 const METRICS = {
   progress: { label: msg("Completion"), suffix: "%", max: 100, note: msg("Share of the team's tasks done at the end of each week.") },
@@ -144,7 +144,7 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
       <Card interactive className={cn("relative h-full overflow-hidden border-transparent p-5", cardTint[h.tone])}>
         <div className="flex items-start gap-4">
           <ProgressRing value={team.healthScore} size={64} stroke={7} color={toneVar[h.tone]} track="var(--glass-strong)" label={t("{name} health score", { name: team.name })}>
-            <span className="text-base font-extrabold tabular-nums">{team.healthScore}</span>
+            <span className="text-base font-extrabold tabular-nums">{num(team.healthScore)}</span>
           </ProgressRing>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -153,14 +153,14 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <HealthBadge score={team.healthScore} showScore={false} />
-              {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{alerts} {alerts === 1 ? t("alert") : t("alerts")}</Badge>}
+              {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{num(alerts)} {alerts === 1 ? t("alert") : t("alerts")}</Badge>}
             </div>
           </div>
         </div>
         <div className="mt-5">
           <div className="mb-1.5 flex items-baseline justify-between text-xs">
             <span className="font-semibold text-foreground/70">{t("Progress")}</span>
-            <span className="font-extrabold tabular-nums">{team.progress}%</span>
+            <span className="font-extrabold tabular-nums">{num(team.progress)}%</span>
           </div>
           <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5 bg-glass-strong" />
         </div>
@@ -168,7 +168,7 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
           {([[t("Members"), team.members.length], [t("Tasks"), team._count?.tasks ?? 0], [t("Messages"), team._count?.messages ?? 0]] as const).map(([k, v]) => (
             <div key={k}>
               <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{k}</dt>
-              <dd className="text-sm font-extrabold tabular-nums">{v}</dd>
+              <dd className="text-sm font-extrabold tabular-nums">{num(v)}</dd>
             </div>
           ))}
         </dl>
@@ -236,7 +236,7 @@ export function AnalyticsPanel() {
         <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-glass px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
-              <Pulse weight="bold" className="size-3.5" aria-hidden /> {t("Course pulse ·")} {teams.length} {teams.length === 1 ? t("team") : t("teams")}
+              <Pulse weight="bold" className="size-3.5" aria-hidden /> {t("Course pulse ·")} {num(teams.length)} {teams.length === 1 ? t("team") : t("teams")}
             </p>
             <h1 id="analytics-title" className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">{t("Analytics")}</h1>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[0.9375rem]">{t("How your teams are progressing, collaborating and sharing the work.")}</p>
@@ -375,7 +375,7 @@ export function AnalyticsPanel() {
                     <p className="truncate text-sm font-semibold">{m.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{m.skills.slice(0, 2).join(" · ") || t("No skills listed")}</p>
                   </div>
-                  <span className="text-lg font-extrabold tabular-nums">{m.contribution}<span className="text-xs font-bold text-muted-foreground">%</span></span>
+                  <span className="text-lg font-extrabold tabular-nums">{num(m.contribution)}<span className="text-xs font-bold text-muted-foreground">%</span></span>
                 </li>
               ))}
             </ul>
@@ -418,16 +418,16 @@ export function AnalyticsPanel() {
                       {tt.name}
                     </Link>
                   </th>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{tt.members.length}</td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{num(tt.members.length)}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <Progress value={tt.progress} label={t("{name} progress", { name: tt.name })} className="h-1.5 w-24" />
-                      <span className="w-9 text-right font-semibold tabular-nums">{tt.progress}%</span>
+                      <span className="w-9 text-right font-semibold tabular-nums">{num(tt.progress)}%</span>
                     </div>
                   </td>
                   <td className="px-5 py-3.5"><HealthBadge score={tt.healthScore} /></td>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{tt._count?.tasks ?? 0}</td>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{tt._count?.messages ?? 0}</td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{num(tt._count?.tasks ?? 0)}</td>
+                  <td className="px-5 py-3.5 text-right tabular-nums">{num(tt._count?.messages ?? 0)}</td>
                 </tr>
               ))}
             </tbody>

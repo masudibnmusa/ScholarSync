@@ -27,7 +27,7 @@ import { EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import {intl, t } from "@/lib/i18n";
+import {intl, t, num } from "@/lib/i18n";
 
 // Each course gets a stable accent from its code, so cards are easy to tell apart at a glance.
 const accents = ["var(--peach)", "var(--sage)", "var(--butter)", "var(--sky)"];
@@ -87,7 +87,7 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete, onA
         <dl className="mt-4 grid grid-cols-2 gap-2 text-center">
           <div className="rounded-xl bg-muted/60 px-3 py-2">
             <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{t("Students")}</dt>
-            <dd className="text-lg font-extrabold tabular-nums">{course.studentCount}</dd>
+            <dd className="text-lg font-extrabold tabular-nums">{num(course.studentCount)}</dd>
           </div>
           <div className="rounded-xl bg-muted/60 px-3 py-2">
             <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{instructor ? t("Teams") : t("Your team")}</dt>
@@ -100,7 +100,7 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete, onA
             <>
               <div className="mb-3 flex min-h-8 items-center justify-between gap-2">
                 {course.students.length ? <AvatarStack people={course.students} max={5} /> : <span className="text-xs text-muted-foreground">{t("No students yet")}</span>}
-                {course.unplaced > 0 && <Badge variant="warm">{course.unplaced} {t("without a team")}</Badge>}
+                {course.unplaced > 0 && <Badge variant="warm">{num(course.unplaced)} {t("without a team")}</Badge>}
               </div>
               {archived ? (
                 <Button variant="outline" className="w-full" disabled><Lock aria-hidden /> {t("Archived, read-only")}</Button>
@@ -303,11 +303,11 @@ export function CoursesDashboard() {
         {instructor ? (
           archivedMine.length ? (
             <Segmented label={t("Which courses")} value={shelf} onChange={setShelf}
-              options={[{ value: "active", label: <>{t("Active")} <span className="text-xs tabular-nums opacity-70">{mine.length}</span></> }, { value: "archived", label: <>{t("Archived")} <span className="text-xs tabular-nums opacity-70">{archivedMine.length}</span></> }]} />
+              options={[{ value: "active", label: <>{t("Active")} <span className="text-xs tabular-nums opacity-70">{num(mine.length)}</span></> }, { value: "archived", label: <>{t("Archived")} <span className="text-xs tabular-nums opacity-70">{num(archivedMine.length)}</span></> }]} />
           ) : <h2 className="text-lg font-extrabold">{t("Your courses")}</h2>
         ) : (
           <Segmented label={t("Which courses")} value={tab} onChange={setTab}
-            options={[{ value: "mine", label: <>{t("My courses")} <span className="text-xs tabular-nums opacity-70">{mine.length}</span></> }, { value: "browse", label: t("Browse all") }]} />
+            options={[{ value: "mine", label: <>{t("My courses")} <span className="text-xs tabular-nums opacity-70">{num(mine.length)}</span></> }, { value: "browse", label: t("Browse all") }]} />
         )}
         <div className="relative w-full sm:w-72">
           <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />

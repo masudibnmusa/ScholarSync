@@ -3,6 +3,7 @@
 import * as React from "react";
 import { animate, motion, useReducedMotion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { num } from "@/lib/i18n";
 
 export const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -16,20 +17,20 @@ export function AnimatedNumber({ value, suffix = "", className }: { value: numbe
     const el = ref.current;
     if (!el) return;
     if (reduce) {
-      el.textContent = `${value}${suffix}`;
+      el.textContent = `${num(value)}${suffix}`;
       from.current = value;
       return;
     }
     const controls = animate(from.current, value, {
       duration: 0.9,
       ease: EASE,
-      onUpdate: (v) => { el.textContent = `${Math.round(v)}${suffix}`; },
+      onUpdate: (v) => { el.textContent = `${num(Math.round(v))}${suffix}`; },
     });
     from.current = value;
     return () => controls.stop();
   }, [value, suffix, reduce]);
 
-  return <span ref={ref} className={cn("tabular-nums", className)}>{`${value}${suffix}`}</span>;
+  return <span ref={ref} className={cn("tabular-nums", className)}>{`${num(value)}${suffix}`}</span>;
 }
 
 const groupVariants: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };

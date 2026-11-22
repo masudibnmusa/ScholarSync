@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MeetingNotesButton } from "@/components/student/meeting-notes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import {intl, msg, t } from "@/lib/i18n";
+import {intl, msg, t, num } from "@/lib/i18n";
 
 type Status = KanbanTask["status"];
 
@@ -84,7 +84,7 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
     <section aria-labelledby="task-checklist-title" className="border-t pt-4">
       <h3 id="task-checklist-title" className="flex items-center gap-1.5 text-sm font-bold">
         <ListChecks weight="duotone" className="size-4 text-primary" aria-hidden /> {t("Checklist")}
-        {!!items?.length && <span className="font-semibold text-muted-foreground">{done}/{items.length}</span>}
+        {!!items?.length && <span className="font-semibold text-muted-foreground">{num(done)}/{num(items.length)}</span>}
       </h3>
       {items && items.length > 0 && (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
@@ -212,7 +212,7 @@ function TaskComments({ task, team }: { task: KanbanTask; team: Team }) {
     <section aria-labelledby="task-comments-title" className="border-t pt-4">
       <h3 id="task-comments-title" className="flex items-center gap-1.5 text-sm font-bold">
         <ChatCircle weight="duotone" className="size-4 text-primary" aria-hidden /> {t("Comments")}
-        {comments && comments.length > 0 && <span className="font-semibold text-muted-foreground">{comments.length}</span>}
+        {comments && comments.length > 0 && <span className="font-semibold text-muted-foreground">{num(comments.length)}</span>}
       </h3>
       {!comments ? (
         <div className="mt-3 space-y-2" aria-busy="true"><Skeleton className="h-12" /></div>
@@ -419,12 +419,12 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
         <span className="mt-1 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
           {task.checklistTotal > 0 && (
             <span className={cn("inline-flex items-center gap-1", task.checklistDone === task.checklistTotal && "text-success")}>
-              <ListChecks className="size-3.5" aria-hidden />{task.checklistDone}/{task.checklistTotal}<span className="sr-only"> {t("steps done")}</span>
+              <ListChecks className="size-3.5" aria-hidden />{num(task.checklistDone)}/{num(task.checklistTotal)}<span className="sr-only"> {t("steps done")}</span>
             </span>
           )}
           {task.commentCount > 0 && (
             <span className="inline-flex items-center gap-1">
-              <ChatCircle className="size-3.5" aria-hidden />{task.commentCount}<span className="sr-only"> {task.commentCount === 1 ? t("comment") : t("comments")}</span>
+              <ChatCircle className="size-3.5" aria-hidden />{num(task.commentCount)}<span className="sr-only"> {task.commentCount === 1 ? t("comment") : t("comments")}</span>
             </span>
           )}
         </span>
@@ -516,7 +516,7 @@ export function TaskBoard({ scope = "all", query = "", readOnly, onEdit }: { sco
           <h2 className="mr-1 text-sm font-extrabold">{t("Tasks")}</h2>
           {statuses.slice().sort((a, b) => a.order - b.order).map((x) => (
             <span key={x.id} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums", x.pill)}>
-              <x.icon weight="bold" className="size-3" aria-hidden />{tasks.filter((tt) => tt.status === x.id).length}<span className="font-semibold">{t(x.label).toLowerCase()}</span>
+              <x.icon weight="bold" className="size-3" aria-hidden />{num(tasks.filter((tt) => tt.status === x.id).length)}<span className="font-semibold">{t(x.label).toLowerCase()}</span>
             </span>
           ))}
           {editable && (

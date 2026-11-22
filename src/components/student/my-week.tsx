@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
 import { useT } from "@/components/locale";
-import {intl, msg, t } from "@/lib/i18n";
+import {intl, msg, t, num } from "@/lib/i18n";
 
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const hrefOf = (i: WeekItem) => (i.kind === "task" ? `/student?team=${i.teamId}&task=${i.id}` : `/student/courses/${i.courseId}`);
@@ -96,7 +96,7 @@ function MonthView({ items }: { items: WeekItem[] }) {
           return (
             <li key={date} className={cn("flex min-h-14 flex-col gap-1 rounded-xl p-1 sm:min-h-24 sm:p-1.5", date === today ? "bg-primary/8 ring-1 ring-primary/30" : "bg-muted/40")}
               aria-label={`${new Date(date + "T00:00:00").toLocaleDateString(intl(), { weekday: "long", day: "numeric", month: "long" })}${list.length ? `, ${list.length} due` : ""}`}>
-              <span className={cn("text-xs font-bold tabular-nums", date === today ? "text-primary" : "text-muted-foreground")}>{Number(date.slice(8))}</span>
+              <span className={cn("text-xs font-bold tabular-nums", date === today ? "text-primary" : "text-muted-foreground")}>{num(Number(date.slice(8)))}</span>
               {/* Phones: one dot per item */}
               {list.length > 0 && (
                 <span className="flex flex-wrap gap-0.5 sm:hidden" aria-hidden>
@@ -112,7 +112,7 @@ function MonthView({ items }: { items: WeekItem[] }) {
                     {x.kind === "office-hours" && <span className="mr-0.5 font-bold">{clock(x.startsAt!)}</span>}{x.title}
                   </Link>
                 ))}
-                {list.length > 3 && <span className="px-1.5 text-[0.6875rem] font-semibold text-muted-foreground">+{list.length - 3} {t("more")}</span>}
+                {list.length > 3 && <span className="px-1.5 text-[0.6875rem] font-semibold text-muted-foreground">+{num(list.length - 3)} {t("more")}</span>}
               </span>
             </li>
           );
@@ -207,7 +207,7 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
                 title={list.map((x) => x.title).join("\n") || undefined}
                 className="relative grid h-9 place-items-center">
                 <span className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday ? "bg-primary text-primary-foreground shadow-soft" : date < today ? "text-muted-foreground/70" : "text-foreground")}>{i + 1}</span>
+                  isToday ? "bg-primary text-primary-foreground shadow-soft" : date < today ? "text-muted-foreground/70" : "text-foreground")}>{num(i + 1)}</span>
                 {list.length > 0 && <span className={cn("absolute bottom-0.5 size-1.5 rounded-full", isToday ? "bg-warm" : date < today ? "bg-destructive" : "bg-primary")} aria-hidden />}
               </li>
             );
@@ -268,7 +268,7 @@ export function MyWeek() {
           {groups.map((g) => (
             <section key={g.label} aria-labelledby={`week-${g.label}`}>
               <h2 id={`week-${g.label}`} className={cn("mb-2 flex items-center gap-2 text-sm font-bold", g.label === t("Overdue") && "text-destructive")}>
-                {g.label}<span className="font-semibold text-muted-foreground">{g.items.length}</span>
+                {g.label}<span className="font-semibold text-muted-foreground">{num(g.items.length)}</span>
               </h2>
               <Card className="divide-y overflow-hidden">
                 {g.items.map((i) => <ItemRow key={`${i.kind}-${i.id}-${i.teamId}`} item={i} />)}

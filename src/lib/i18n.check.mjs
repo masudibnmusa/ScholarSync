@@ -6,7 +6,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bn } from "./i18n/bn.ts";
-import { translate, translatePlural } from "./i18n/index.ts";
+import { formatNumber, translate, translatePlural } from "./i18n/index.ts";
 import { NOTICE_KEYS, NOTICE_WORDS, translateNotice, translateReason } from "./i18n/notices.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url)); // src/
@@ -59,5 +59,12 @@ assert.equal(translateNotice("bn", "Something a user wrote"), "Something a user 
 assert.ok(!/overdue/.test(translateNotice("bn", "Noticed: 2 overdue tasks, no team chat for 9 days. A short update to your team, or asking for help, goes a long way.")));
 assert.ok(!/Mon|Nov/.test(translateNotice("bn", "It was due Mon 23 Nov and is not marked done.")));
 assert.equal(translateReason("bn", "1 overdue task"), translate("bn", "{n} overdue task", { n: 1 }));
+assert.equal(formatNumber("en", 1200), "1200");
+assert.equal(formatNumber("en", 4.25, 1), (4.25).toFixed(1));
+assert.equal(formatNumber("bn", 78), "৭৮");
+assert.equal(formatNumber("bn", 1200), "১২০০");
+assert.equal(formatNumber("bn", -0.5, 2), "-০.৫০");
+assert.equal(formatNumber("bn", "—"), "—");
+assert.equal(formatNumber("bn", null), "");
 
 console.log(`i18n: all checks passed (${keys.size} texts)`);

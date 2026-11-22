@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 /** One team's task board, opened from its course page. Instructors read it; members can add and edit tasks. */
 export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: string }) {
@@ -66,8 +67,8 @@ export function TeamTasks({ courseId, teamId }: { courseId: string; teamId: stri
         </div>
         <div className="flex min-w-44 flex-1 flex-col gap-1 sm:flex-none">
           <div className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="font-semibold text-muted-foreground">{team._count?.tasks ?? 0} {team._count?.tasks === 1 ? t("task") : t("tasks")}</span>
-            <span className="font-extrabold tabular-nums">{team.progress}%</span>
+            <span className="font-semibold text-muted-foreground">{num(team._count?.tasks ?? 0)} {team._count?.tasks === 1 ? t("task") : t("tasks")}</span>
+            <span className="font-extrabold tabular-nums">{num(team.progress)}%</span>
           </div>
           <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
         </div>

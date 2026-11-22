@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { t, tn } from "@/lib/i18n";
+import { t, tn, num } from "@/lib/i18n";
 
 /** Create a team (no `team`), or rename one, change its description, and pick its members from everyone enrolled in the course. */
 function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; courseId: string; courseCode: string; onDone: () => void }) {
@@ -107,7 +107,7 @@ function EditTeamForm({ team, courseId, courseCode, onDone }: { team?: Team; cou
       <fieldset className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
           <legend className="text-sm font-semibold">{t("Members")}</legend>
-          <span className="text-xs font-semibold text-muted-foreground">{members.size} {t("selected")}</span>
+          <span className="text-xs font-semibold text-muted-foreground">{num(members.size)} {t("selected")}</span>
         </div>
         <div className="relative">
           <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />

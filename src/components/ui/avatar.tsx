@@ -3,6 +3,7 @@
 import { useAppStore } from "@/lib/store";
 import { avatarColor, cn, getInitials } from "@/lib/utils";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 const sizes = { xs: "size-6 text-[0.625rem]", sm: "size-8 text-xs", md: "size-10 text-sm", lg: "size-14 text-lg", xl: "size-20 text-2xl" };
 
@@ -32,7 +33,7 @@ export function AvatarStack({ people, max = 4, size = "sm", ring = "ring-card" }
       ))}
       {rest > 0 && (
         <span className={cn("-ml-1.5 inline-flex items-center justify-center rounded-full bg-muted font-bold text-muted-foreground ring-2", ring, sizes[size])}>
-          +{rest}
+          +{num(rest)}
         </span>
       )}
     </div>

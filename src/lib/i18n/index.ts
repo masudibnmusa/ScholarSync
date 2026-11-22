@@ -54,3 +54,13 @@ export const tn = (n: number, one: string, other: string, vars?: Vars) => transl
 export const intl = () => intlOf(currentLocale());
 /** Marks module-level text (labels in constant lists) for the dictionary check; translate it where it renders with t(). */
 export const msg = <S extends string>(text: S) => text;
+
+/** A number shown on its own ("78", "4.5") in the language's digits; English output is unchanged. `digits` = toFixed. */
+export function formatNumber(locale: Locale, v: number | string | null | undefined, digits?: number): string {
+  if (typeof v !== "number") return v ?? "";
+  if (locale === "en") return digits == null ? String(v) : v.toFixed(digits);
+  return new Intl.NumberFormat(intlOf(locale), digits == null
+    ? { useGrouping: false, maximumFractionDigits: 20 }
+    : { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
+}
+export const num = (v: number | string | null | undefined, digits?: number) => formatNumber(currentLocale(), v, digits);

@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/store";
 import { useT } from "@/components/locale";
-import { msg } from "@/lib/i18n";
+import { msg, num } from "@/lib/i18n";
 
 const flagText: Record<TeamReview["flags"][number], string> = {
   "far-from-others": msg("Far from other ratings"),
@@ -51,8 +51,8 @@ export function TeamReviews({ teamId }: { teamId: string }) {
     <Card className="p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-2 text-base font-bold"><UserFocus weight="duotone" className="size-5 text-primary" aria-hidden />{t("Peer reviews")}</h2>
-        {reviews && reviews.length > 0 && <span className="text-sm text-muted-foreground">{reviews.length} {t("written")}</span>}
-        {flagged > 0 && <Badge variant="warning" className="ml-auto"><Flag weight="fill" aria-hidden />{flagged} {t("to check")}</Badge>}
+        {reviews && reviews.length > 0 && <span className="text-sm text-muted-foreground">{num(reviews.length)} {t("written")}</span>}
+        {flagged > 0 && <Badge variant="warning" className="ml-auto"><Flag weight="fill" aria-hidden />{num(flagged)} {t("to check")}</Badge>}
       </div>
       {!reviews ? (
         <div className="space-y-2" aria-busy="true"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
@@ -67,7 +67,7 @@ export function TeamReviews({ teamId }: { teamId: string }) {
                 <header className="mb-2 flex items-center gap-2">
                   <Avatar name={g[0].revieweeName} id={g[0].revieweeId} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-sm font-bold">{g[0].revieweeName}</p>
-                  <span className="text-sm font-extrabold tabular-nums">{avg.toFixed(1)}<span className="font-semibold text-muted-foreground"> {t("avg")}</span></span>
+                  <span className="text-sm font-extrabold tabular-nums">{num(avg, 1)}<span className="font-semibold text-muted-foreground"> {t("avg")}</span></span>
                 </header>
                 <ul className="space-y-1.5">
                   {g.map((r) => (

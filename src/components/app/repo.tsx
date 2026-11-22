@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Field, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { t } from "@/lib/i18n";
+import { t, num } from "@/lib/i18n";
 
 type Item = RepoFeed["activity"][number];
 
@@ -148,7 +148,7 @@ export function RepoButton({ team }: { team: Team }) {
                       <span className="block truncate text-sm font-semibold">{m.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">{m.githubLogin ? `@${m.githubLogin}` : t("No GitHub username")}</span>
                     </span>
-                    <span className="text-sm font-bold tabular-nums">{m.commits}</span>
+                    <span className="text-sm font-bold tabular-nums">{num(m.commits)}</span>
                   </li>
                 ))}
               </ul>

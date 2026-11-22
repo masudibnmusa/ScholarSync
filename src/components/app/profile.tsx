@@ -27,7 +27,7 @@ import { ProgressRing } from "@/components/ui/progress";
 import { useMounted } from "@/hooks/use-client";
 import { useT } from "@/components/locale";
 import { LanguageSwitch } from "@/components/language-switch";
-import { msg, t, tn } from "@/lib/i18n";
+import { msg, t, tn, num } from "@/lib/i18n";
 
 const skillIdeas = ["React", "Python", msg("UI design"), msg("Writing"), msg("Data analysis"), msg("Testing"), msg("Presentation"), msg("Project management"), msg("Research"), "SQL"];
 const GITHUB_RE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
@@ -316,7 +316,7 @@ export function ProfilePanel() {
           {student ? (
             <div className="flex items-center gap-5 rounded-2xl border bg-card p-4 pr-6 shadow-soft">
               <ProgressRing value={(complete / 3) * 100} size={84} stroke={8} color={complete === 3 ? "var(--success)" : "var(--warm)"} label={t("Profile strength")}>
-                <span className="text-lg font-extrabold tabular-nums">{complete}/3</span>
+                <span className="text-lg font-extrabold tabular-nums">{num(complete)}/{num(3)}</span>
               </ProgressRing>
               <div>
                 <p className="text-sm font-bold">{complete === 3 ? t("Ready for matching") : t("Profile strength")}</p>
@@ -340,7 +340,7 @@ export function ProfilePanel() {
                     <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl sm:size-10", st.tile)}><st.icon weight="fill" className="size-5" aria-hidden /></span>
                     <span className="min-w-0">
                       <span className="block truncate whitespace-nowrap text-xs font-semibold text-muted-foreground">{st.label}</span>
-                      <span className="block text-2xl font-extrabold leading-tight tabular-nums">{st.value}</span>
+                      <span className="block text-2xl font-extrabold leading-tight tabular-nums">{num(st.value)}</span>
                     </span>
                     <ArrowRight className="ml-auto hidden size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 sm:block" aria-hidden />
                   </Link>
@@ -362,7 +362,7 @@ export function ProfilePanel() {
             <Section icon={TextAlignLeft} title={t("Bio")} htmlFor="bio" hint={t("A sentence or two about what you like working on.")}>
               <Textarea id="bio" value={bio} maxLength={2000} rows={4} onChange={(e) => setBio(e.target.value)} aria-describedby="bio-hint"
                 placeholder={student ? t("e.g. Third-year CS student. I enjoy frontend work and keeping the team organised.") : t("e.g. I teach software engineering and love seeing teams ship real projects.")} />
-              <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">{bio.length}/2000</p>
+              <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">{num(bio.length)}/{num(2000)}</p>
             </Section>
 
             <Section icon={Lightning} title={t("Skills")} htmlFor="skills" hint={t("Press Enter or comma to add. {count}/{MAX_SKILLS}.", { count: skills.length, MAX_SKILLS })}>
@@ -411,7 +411,7 @@ export function ProfilePanel() {
                 <div className="mt-3 flex flex-wrap gap-1">
                   {skills.length ? skills.slice(0, 8).map((s) => <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground">{s}</span>)
                     : <span className="text-xs italic text-muted-foreground">{t("No skills listed.")}</span>}
-                  {skills.length > 8 && <span className="px-1 text-[0.6875rem] text-muted-foreground">+{skills.length - 8}</span>}
+                  {skills.length > 8 && <span className="px-1 text-[0.6875rem] text-muted-foreground">+{num(skills.length - 8)}</span>}
                 </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{t("Updates as you type. Save to share it.")}</p>

@@ -19,7 +19,7 @@ import { Tooltip } from "@/components/ui/overlays";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { t } from "@/lib/i18n";
+import { t, num } from "@/lib/i18n";
 
 type Kind = "doc" | "image" | "code" | "other";
 
@@ -105,7 +105,7 @@ export function FilesView({ team, readOnly }: { team: Team; readOnly?: boolean }
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{files.length} {files.length === 1 ? t("file") : t("files")}{files.length ? ` · ${formatBytes(totalBytes)}` : ""} {t("shared in")} {team.name}</p>
+      <p className="text-sm text-muted-foreground">{num(files.length)} {files.length === 1 ? t("file") : t("files")}{files.length ? ` · ${formatBytes(totalBytes)}` : ""} {t("shared in")} {team.name}</p>
 
       {!readOnly && (
         <>

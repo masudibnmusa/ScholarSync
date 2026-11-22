@@ -27,6 +27,7 @@ import { StandupButton } from "@/components/app/standup";
 import { RepoButton } from "@/components/app/repo";
 import { CharterButton } from "@/components/app/charter";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 
 function TeamSwitcher({ team }: { team: Team }) {
@@ -88,7 +89,7 @@ function FocusStrip({ onOpen }: { onOpen: (tt: KanbanTask) => void }) {
       <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("Up next")}</span>
       <button type="button" onClick={() => onOpen(next)} className="min-w-0 truncate rounded text-sm font-semibold hover:text-primary hover:underline">{next.title}</button>
       {due && <span className={cn("shrink-0 text-xs font-semibold", toneText[due.tone])}>{due.label}</span>}
-      {mine.length > 1 && <span className="hidden shrink-0 text-xs text-muted-foreground xl:inline">+{mine.length - 1} {t("more")}</span>}
+      {mine.length > 1 && <span className="hidden shrink-0 text-xs text-muted-foreground xl:inline">+{num(mine.length - 1)} {t("more")}</span>}
       <Tooltip label={t("Mark done")}>
         <button type="button" onClick={() => updateTask(next.id, { status: "done" })} aria-label={t("Mark \"{title}\" as done", { title: next.title })}
           className="tap flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-success/12 hover:text-success">
@@ -159,7 +160,7 @@ export function StudentWorkspace() {
         <div className="hidden w-44 flex-col gap-1 md:flex">
           <div className="flex items-baseline justify-between gap-3 text-xs">
             <span className="font-semibold text-muted-foreground">{t("{n} of {total} done", { n: done, total: tasks.length })}</span>
-            <span className="font-extrabold tabular-nums">{team.progress}%</span>
+            <span className="font-extrabold tabular-nums">{num(team.progress)}%</span>
           </div>
           <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
         </div>

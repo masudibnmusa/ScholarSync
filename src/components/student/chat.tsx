@@ -20,7 +20,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Tooltip } from "@/components/ui/overlays";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import { t } from "@/lib/i18n";
+import { t, num } from "@/lib/i18n";
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 
@@ -161,7 +161,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
                 title={r.names.join(", ")} aria-label={`${r.emoji} ${r.count}: ${r.names.join(", ")}${r.mine ? t(". Click to remove yours") : ""}`}
                 className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums transition-colors disabled:cursor-default",
                   r.mine ? "border-primary/40 bg-primary/10 text-primary" : "bg-card text-muted-foreground enabled:hover:border-primary/30")}>
-                <span className="text-sm leading-none">{r.emoji}</span>{r.count}
+                <span className="text-sm leading-none">{r.emoji}</span>{num(r.count)}
               </button>
             ))}
           </div>
@@ -176,7 +176,7 @@ function Bubble({ row, names, me, actions: allActions, highlighted }: { row: Ext
 
 /** Messages + composer for one team. Fills its parent; `instructor` adjusts the copy for the course instructor. */
 export function ChatThread({ team, instructor }: { team: Team; instructor?: boolean }) {
-  const { t } = useT();
+  const { t, tn } = useT();
   const messages = useAppStore((s) => s.chatMessages[team.id]);
   const sendMessage = useAppStore((s) => s.sendMessage);
   const uploadFile = useAppStore((s) => s.uploadFile);
@@ -358,7 +358,7 @@ export function ChatThread({ team, instructor }: { team: Team; instructor?: bool
               onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeSearch(); } }}
               placeholder={t("Search messages and files…")} className="h-9 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25" />
           </div>
-        ) : <p className="flex-1 text-xs font-semibold text-muted-foreground">{count ? `${count} ${count === 1 ? "message" : "messages"}` : ""}</p>}
+        ) : <p className="flex-1 text-xs font-semibold text-muted-foreground">{count ? tn(count, "{n} message", "{n} messages") : ""}</p>}
         <Tooltip label={searchOpen ? t("Close search") : t("Search messages and files")}>
           <Button type="button" variant="ghost" size="icon-sm" aria-label={searchOpen ? t("Close search") : t("Search messages and files")} onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}>
             {searchOpen ? <X aria-hidden /> : <MagnifyingGlass aria-hidden />}
@@ -651,7 +651,7 @@ export function ChatWidget({ team, instructor }: { team: Team; instructor?: bool
             <div className="shrink-0 border-b px-3 py-2">
               <Segmented label={t("Chat or files")} value={tab} onChange={setTab} className="w-full [&>button]:flex-1 [&>button]:justify-center" options={[
                 { value: "chat", label: <><ChatsCircle aria-hidden className="size-4" />{t("Chat")}</> },
-                { value: "files", label: <><FolderOpen aria-hidden className="size-4" />{t("Files")}{fileCount > 0 && <span className="rounded-full bg-muted px-1.5 text-[0.625rem] font-extrabold tabular-nums text-muted-foreground">{fileCount}</span>}</> },
+                { value: "files", label: <><FolderOpen aria-hidden className="size-4" />{t("Files")}{fileCount > 0 && <span className="rounded-full bg-muted px-1.5 text-[0.625rem] font-extrabold tabular-nums text-muted-foreground">{num(fileCount)}</span>}</> },
               ]} />
             </div>
             <div className="min-h-0 flex-1">

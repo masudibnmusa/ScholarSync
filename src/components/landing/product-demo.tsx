@@ -6,7 +6,7 @@ import { ChartLineUp, ChatsCircle, Check, CheckCircle, Flag, Kanban, Sparkle, Wa
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { useT } from "@/components/locale";
-import { msg } from "@/lib/i18n";
+import { msg, num } from "@/lib/i18n";
 
 const tabs = [
   { id: "board", label: msg("Board"), icon: Kanban, caption: msg("Drag tasks from to-do to done. Everyone sees it move.") },
@@ -56,7 +56,7 @@ function BoardDemo() {
               <p className="mb-2 flex items-center gap-1.5 px-1 text-[0.6875rem] font-extrabold sm:text-xs">
                 <span className={cn("size-2 rounded-full", col.dot)} />
                 <span className="truncate">{t(col.label)}</span>
-                <span className="ml-auto rounded-full bg-card px-1.5 tabular-nums text-muted-foreground">{list.length}</span>
+                <span className="ml-auto rounded-full bg-card px-1.5 tabular-nums text-muted-foreground">{num(list.length)}</span>
               </p>
               <div className="space-y-2">
                 {list.map((tt) => (
@@ -152,7 +152,7 @@ function InsightsDemo() {
           <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold sm:text-[0.6875rem]", tt.ok ? "bg-success/12 text-success" : "bg-warning/14 text-warning")}>
             {tt.ok ? <CheckCircle weight="fill" className="size-3" /> : <WarningCircle weight="fill" className="size-3" />}
             <span className="hidden sm:inline">{t(tt.health)}</span>
-            <span className="tabular-nums sm:hidden">{tt.progress}%</span>
+            <span className="tabular-nums sm:hidden">{num(tt.progress)}%</span>
           </span>
         </div>
       ))}

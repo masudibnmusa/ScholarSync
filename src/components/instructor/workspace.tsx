@@ -29,6 +29,7 @@ import { StandupButton } from "@/components/app/standup";
 import { RepoButton } from "@/components/app/repo";
 import { CharterButton } from "@/components/app/charter";
 import { useT } from "@/components/locale";
+import { num } from "@/lib/i18n";
 
 type Sort = "health" | "progress" | "name";
 
@@ -49,17 +50,17 @@ function TeamRow({ team, active, alerts, onSelect }: { team: Team; active: boole
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-extrabold">{team.name}</span>
         <span className="shrink-0 rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[0.6875rem] font-bold text-secondary-foreground" title={t("Course")}>{team.courseCode}</span>
-        {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{alerts}<span className="sr-only"> {t("open")} {alerts === 1 ? t("alert") : t("alerts")}</span></Badge>}
+        {alerts > 0 && <Badge variant="danger"><Warning weight="fill" aria-hidden />{num(alerts)}<span className="sr-only"> {t("open")} {alerts === 1 ? t("alert") : t("alerts")}</span></Badge>}
       </div>
       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
         <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: toneVar[h.tone] }} aria-hidden />
         <span className="font-semibold">{h.label}</span>
         <span aria-hidden>·</span>
-        <span>{team.members.length} {t("members")}</span>
+        <span>{num(team.members.length)} {t("members")}</span>
       </div>
       <div className="mt-2.5 flex items-center gap-2.5">
         <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5" />
-        <span className="w-9 text-right text-xs font-bold tabular-nums">{team.progress}%</span>
+        <span className="w-9 text-right text-xs font-bold tabular-nums">{num(team.progress)}%</span>
       </div>
     </button>
   );
@@ -81,7 +82,7 @@ function AlertsList({ alerts }: { alerts: ConflictAlert[] }) {
             <div className="flex flex-wrap items-center gap-2">
               {a.isResolved ? <Badge variant="success">{t("Resolved")}</Badge> : <Badge variant={severityBadge[sev] ?? "muted"} className="capitalize"><Warning weight="fill" aria-hidden />{a.severity}</Badge>}
               <time dateTime={a.createdAt} className="text-xs text-muted-foreground">{timeAgo(a.createdAt)}</time>
-              <span className="ml-auto text-xs text-muted-foreground">{t("Tone")} {a.sentimentScore > 0 ? "+" : ""}{a.sentimentScore.toFixed(2)}</span>
+              <span className="ml-auto text-xs text-muted-foreground">{t("Tone")} {a.sentimentScore > 0 ? "+" : ""}{num(a.sentimentScore, 2)}</span>
             </div>
             <p className="mt-2 text-sm leading-relaxed">{a.description}</p>
             {!a.isResolved && (
@@ -185,7 +186,7 @@ export function InstructorWorkspace() {
         <div className="space-y-3 p-4 pb-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-extrabold">{t("Teams")}</h2>
-            <span className="text-xs font-semibold text-muted-foreground">{teams.length} {t("total")}</span>
+            <span className="text-xs font-semibold text-muted-foreground">{num(teams.length)} {t("total")}</span>
           </div>
           <div className="relative">
             <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -205,11 +206,11 @@ export function InstructorWorkspace() {
         <div className="grid grid-cols-2 gap-2 border-t p-3">
           <Link href="/instructor/analytics" className="rounded-xl bg-card p-3 shadow-soft transition-shadow hover:shadow-lift">
             <p className="text-xs font-medium text-muted-foreground">{t("Avg progress")}</p>
-            <p className="text-lg font-extrabold tabular-nums">{avgProgress}%</p>
+            <p className="text-lg font-extrabold tabular-nums">{num(avgProgress)}%</p>
           </Link>
           <Link href="/instructor/conflicts" className="rounded-xl bg-card p-3 shadow-soft transition-shadow hover:shadow-lift">
             <p className="text-xs font-medium text-muted-foreground">{t("Open alerts")}</p>
-            <p className={cn("text-lg font-extrabold tabular-nums", open.length && "text-destructive")}>{open.length}</p>
+            <p className={cn("text-lg font-extrabold tabular-nums", open.length && "text-destructive")}>{num(open.length)}</p>
           </Link>
         </div>
       </aside>
@@ -231,8 +232,8 @@ export function InstructorWorkspace() {
               </div>
               <div className="hidden min-w-40 flex-col gap-1 md:flex">
                 <div className="flex items-baseline justify-between gap-3 text-xs">
-                  <span className="font-semibold text-muted-foreground">{current._count?.tasks ?? 0} {t("tasks")}</span>
-                  <span className="font-extrabold tabular-nums">{current.progress}%</span>
+                  <span className="font-semibold text-muted-foreground">{num(current._count?.tasks ?? 0)} {t("tasks")}</span>
+                  <span className="font-extrabold tabular-nums">{num(current.progress)}%</span>
                 </div>
                 <Progress value={current.progress} label={t("{name} progress", { name: current.name })} className="h-1.5" />
               </div>

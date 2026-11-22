@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlay
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
-import {intl, t } from "@/lib/i18n";
+import {intl, t, num } from "@/lib/i18n";
 
 /** The selected team plus whether the first load has finished (to tell "loading" from "no team"). */
 export function useTeam() {
@@ -40,12 +40,12 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
     <Popover>
       <PopoverTrigger className="flex items-center gap-2 rounded-full p-1 pr-2.5 transition-colors hover:bg-accent data-[state=open]:bg-accent" aria-label={tn(n, "{n} team member. Show all", "{n} team members. Show all")}>
         <AvatarStack people={team.members.map((m) => ({ id: m.userId, name: m.name }))} />
-        <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">{n}</span>
+        <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">{num(n)}</span>
         <CaretDown weight="bold" className="size-3 text-muted-foreground" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align={align} className="w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-0">
         <div className="flex items-baseline justify-between gap-3 border-b px-4 py-3">
-          <p className="text-sm font-bold">{team.name} · {n} {n === 1 ? t("member") : t("members")}</p>
+          <p className="text-sm font-bold">{team.name} · {num(n)} {n === 1 ? t("member") : t("members")}</p>
           <span className={cn("text-xs font-semibold", toneText[health.tone])}>{health.label}</span>
         </div>
         {n === 0 ? (
@@ -62,13 +62,13 @@ export function MembersButton({ team, align = "start" }: { team: Team; align?: "
                       <p className="truncate text-sm font-semibold">{m.name}{me && <span className="font-normal text-muted-foreground"> {t("(you)")}</span>}</p>
                       {m.availability && <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Clock className="size-3 shrink-0" aria-hidden />{m.availability}</p>}
                     </div>
-                    <span className="text-sm font-bold tabular-nums">{m.contribution}%</span>
+                    <span className="text-sm font-bold tabular-nums">{num(m.contribution)}%</span>
                   </div>
                   <Progress value={m.contribution} label={t("{name}: share of completed tasks", { name: m.name })} color={me ? "var(--warm)" : "var(--primary)"} className="mt-2 h-1.5" />
                   {m.skills.length > 0 && (
                     <ul className="mt-2 flex flex-wrap gap-1" aria-label={t("{name}'s skills", { name: m.name })}>
                       {m.skills.slice(0, 4).map((sk) => <li key={sk} className="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground">{sk}</li>)}
-                      {m.skills.length > 4 && <li className="px-1 py-0.5 text-[0.6875rem] text-muted-foreground">+{m.skills.length - 4}</li>}
+                      {m.skills.length > 4 && <li className="px-1 py-0.5 text-[0.6875rem] text-muted-foreground">+{num(m.skills.length - 4)}</li>}
                     </ul>
                   )}
                 </li>
@@ -319,7 +319,7 @@ export function AiSuggestionsButton() {
           <Sparkle weight="fill" aria-hidden />
           <span className="hidden xl:inline">{t("AI suggestions")}</span>
           <span className="xl:hidden">{t("AI")}</span>
-          {count > 0 && <span className="rounded-full bg-warm-foreground/15 px-1.5 text-xs font-extrabold tabular-nums">{count}</span>}
+          {count > 0 && <span className="rounded-full bg-warm-foreground/15 px-1.5 text-xs font-extrabold tabular-nums">{num(count)}</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">

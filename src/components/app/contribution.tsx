@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
 import { translateReason } from "@/lib/i18n/notices";
-import { intl } from "@/lib/i18n";
+import { intl, num } from "@/lib/i18n";
 
 type Team = NonNullable<Contribution["team"]>;
 const share = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
@@ -52,7 +52,7 @@ function WeekColumns({ weeks }: { weeks: Team["weeks"] }) {
             {WEEK_SERIES.map((s) => (
               <span key={s.key} className="relative flex h-full max-w-4 flex-1 items-end">
                 <span className="w-full rounded-t-md transition-[height] duration-700" style={{ height: `${(w[s.key] / top) * 100}%`, minHeight: w[s.key] ? 4 : 2, backgroundColor: s.color, opacity: w[s.key] ? 1 : 0.25 }} />
-                {w[s.key] > 0 && <span className="absolute inset-x-0 -translate-y-full text-center text-[0.625rem] font-bold tabular-nums text-muted-foreground" style={{ bottom: `${(w[s.key] / top) * 100}%` }} aria-hidden>{w[s.key]}</span>}
+                {w[s.key] > 0 && <span className="absolute inset-x-0 -translate-y-full text-center text-[0.625rem] font-bold tabular-nums text-muted-foreground" style={{ bottom: `${(w[s.key] / top) * 100}%` }} aria-hidden>{num(w[s.key])}</span>}
               </span>
             ))}
           </div>
@@ -95,7 +95,7 @@ function PeerReviews({ peer }: { peer: NonNullable<Team["peer"]> }) {
   return (
     <div className="space-y-4">
       <p className="flex items-baseline gap-2">
-        <span className="font-display text-3xl font-semibold">{peer.avg}</span>
+        <span className="font-display text-3xl font-semibold">{num(peer.avg)}</span>
         <span className="text-sm text-muted-foreground">{tn(peer.n, "of 5, from {n} review", "of 5, from {n} reviews")}</span>
       </p>
       {Object.keys(peer.categories).length > 0 && (
@@ -107,7 +107,7 @@ function PeerReviews({ peer }: { peer: NonNullable<Team["peer"]> }) {
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
                   <span className="block h-full rounded-full bg-butter-strong" style={{ width: `${(v / 5) * 100}%` }} />
                 </span>
-                <span className="w-8 text-right text-sm font-bold tabular-nums">{v}</span>
+                <span className="w-8 text-right text-sm font-bold tabular-nums">{num(v)}</span>
               </dd>
             </div>
           ))}

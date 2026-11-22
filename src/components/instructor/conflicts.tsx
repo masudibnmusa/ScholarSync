@@ -21,7 +21,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClientValue } from "@/hooks/use-client";
 import { useT } from "@/components/locale";
-import {intl, msg } from "@/lib/i18n";
+import { intl, msg, num } from "@/lib/i18n";
 
 type Severity = "high" | "medium" | "low";
 const SEVERITY: Record<Severity, { label: string; icon: Icon; badge: "danger" | "warning" | "info"; tile: string; bar: string; hero: string }> = {
@@ -48,13 +48,13 @@ function Tone({ score }: { score: number }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <span className={cn("inline-flex shrink-0 items-center gap-1 text-xs font-bold", mood.cls)}><mood.icon weight="fill" className="size-4" aria-hidden />{mood.label}</span>
-      <div role="meter" aria-label={t("Chat tone")} aria-valuemin={-1} aria-valuemax={1} aria-valuenow={score} aria-valuetext={`${mood.label}, ${score.toFixed(2)}`}
+      <div role="meter" aria-label={t("Chat tone")} aria-valuemin={-1} aria-valuemax={1} aria-valuenow={score} aria-valuetext={`${mood.label}, ${num(score, 2)}`}
         className="relative h-1.5 w-24 shrink-0 rounded-full bg-gradient-to-r from-destructive/70 via-muted to-success/70 sm:w-32">
         <span className="absolute left-1/2 top-1/2 h-2.5 w-px -translate-y-1/2 bg-muted-foreground/50" aria-hidden />
         <motion.span className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground shadow-soft"
           initial={{ left: "50%" }} animate={{ left: `${pct}%` }} transition={{ type: "spring", stiffness: 120, damping: 18 }} />
       </div>
-      <span className="text-xs tabular-nums text-muted-foreground">{score > 0 ? "+" : ""}{score.toFixed(2)}</span>
+      <span className="text-xs tabular-nums text-muted-foreground">{score > 0 ? "+" : ""}{num(score, 2)}</span>
     </div>
   );
 }
@@ -185,7 +185,7 @@ export function ConflictsPanel() {
               <HeroStat label={t("Medium")} value={counts.medium} swatch={SEVERITY.medium.hero} />
               <HeroStat label={t("Low")} value={counts.low} swatch={SEVERITY.low.hero} />
             </div>
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle weight="fill" className="size-3.5 text-success" aria-hidden />{resolved} {t("resolved so far")}</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle weight="fill" className="size-3.5 text-success" aria-hidden />{num(resolved)} {t("resolved so far")}</p>
           </div>
         </div>
       </motion.section>
@@ -249,7 +249,7 @@ export function ConflictsPanel() {
                         <HealthBadge score={tt.healthScore} />
                       </span>
                       {n > 0
-                        ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-extrabold tabular-nums text-destructive-foreground">{n}<span className="sr-only"> {t("open")}</span></span>
+                        ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-extrabold tabular-nums text-destructive-foreground">{num(n)}<span className="sr-only"> {t("open")}</span></span>
                         : <CheckCircle weight="fill" className="size-5 text-success" aria-label={t("No open alerts")} />}
                     </button>
                   </li>
@@ -264,7 +264,7 @@ export function ConflictsPanel() {
             <ol className="mt-3 space-y-2.5 text-sm text-muted-foreground">
               {[t("Read the summary and the chat tone."), t("Message the team or open its workspace to see the chat and tasks."), t("Mark it resolved once you've stepped in.")].map((step, i) => (
                 <li key={step} className="flex gap-2.5">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.6875rem] font-extrabold text-secondary-foreground">{i + 1}</span>
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[0.6875rem] font-extrabold text-secondary-foreground">{num(i + 1)}</span>
                   {step}
                 </li>
               ))}

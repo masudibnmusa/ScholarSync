@@ -21,7 +21,7 @@ import { AnimatedNumber, EASE, Stagger, StaggerItem } from "@/components/ui/moti
 import { ProgressRing } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT } from "@/components/locale";
-import { t, msg } from "@/lib/i18n";
+import { t, msg, num } from "@/lib/i18n";
 
 const steps = [
   { icon: IdentificationCard, title: msg("Profiles"), body: msg("Skills and availability from each student.") },
@@ -67,7 +67,7 @@ function Stepper({ current }: { current: number }) {
               {done ? <Check weight="bold" className="size-5" aria-hidden /> : <s.icon weight="duotone" className="size-5" aria-hidden />}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground"><span className="text-muted-foreground">{t("Step")} {n} · </span>{t(s.title)}{done && <span className="sr-only"> {t("(done)")}</span>}</p>
+              <p className="text-sm font-bold text-foreground"><span className="text-muted-foreground">{t("Step")} {num(n)} · </span>{t(s.title)}{done && <span className="sr-only"> {t("(done)")}</span>}</p>
               <p className="mt-0.5 text-sm text-muted-foreground">{t(s.body)}</p>
             </div>
           </li>
@@ -116,7 +116,7 @@ function ProposalCard({ p, index, onRename }: { p: Result["proposals"][number]; 
     <Card interactive className="flex h-full flex-col overflow-hidden">
       {/* Header band: number, editable name, fit ring */}
       <div className="relative flex items-start gap-3 bg-gradient-to-br from-secondary via-secondary/60 to-transparent p-5 pb-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar text-sm font-extrabold text-brand shadow-soft" aria-hidden>{index + 1}</span>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar text-sm font-extrabold text-brand shadow-soft" aria-hidden>{num(index + 1)}</span>
         <div className="min-w-0 flex-1">
           <label htmlFor={`team-name-${index}`} className="text-[0.6875rem] font-bold uppercase tracking-wider text-muted-foreground">{t("Team name")}</label>
           <input id={`team-name-${index}`} value={p.name} maxLength={100} onChange={(e) => onRename(e.target.value)} aria-invalid={invalid}
@@ -254,7 +254,7 @@ export function MatchingPanel() {
                 <Select value={courseId} onValueChange={pickCourse} disabled={busy}>
                   <SelectTrigger aria-labelledby="course-label" className="border-glass-border bg-glass text-foreground hover:border-primary/40 [&_svg]:text-muted-foreground"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.unplaced} {t("without a team)")}</SelectItem>)}
+                    {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({num(c.unplaced)} {t("without a team)")}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -263,7 +263,7 @@ export function MatchingPanel() {
             <div className="mt-3 flex items-center justify-between gap-2" role="group" aria-labelledby="size-label">
               <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label={t("Fewer students per team")} disabled={size <= 2 || busy} onClick={() => setSize((n) => n - 1)}><Minus weight="bold" /></Button>
               <output aria-live="polite" className="flex flex-col items-center">
-                <span className="text-4xl font-extrabold tabular-nums text-foreground">{size}</span>
+                <span className="text-4xl font-extrabold tabular-nums text-foreground">{num(size)}</span>
                 <span className="text-[0.6875rem] font-semibold text-muted-foreground">{t("per team")}</span>
               </output>
               <Button variant="ghost" size="icon" className="size-11 rounded-xl bg-glass text-foreground hover:bg-glass-strong hover:text-foreground" aria-label={t("More students per team")} disabled={size >= 8 || busy} onClick={() => setSize((n) => n + 1)}><Plus weight="bold" /></Button>
@@ -272,7 +272,7 @@ export function MatchingPanel() {
               {PRESETS.map((n) => (
                 <button key={n} type="button" disabled={busy} onClick={() => setSize(n)} aria-pressed={size === n}
                   className={cn("h-9 rounded-lg text-sm font-bold transition-colors disabled:opacity-50", size === n ? "bg-primary text-primary-foreground" : "bg-glass text-muted-foreground hover:bg-glass-strong hover:text-foreground")}>
-                  {n}
+                  {num(n)}
                 </button>
               ))}
             </div>
@@ -311,7 +311,7 @@ export function MatchingPanel() {
                 <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 240, damping: 14 }} className="flex size-16 items-center justify-center rounded-full bg-success/12 text-success">
                   <Confetti weight="duotone" className="size-9" aria-hidden />
                 </motion.span>
-                <h2 className="mt-4 text-xl font-extrabold">{state.count} {state.count === 1 ? t("team") : t("teams")} {t("created")}</h2>
+                <h2 className="mt-4 text-xl font-extrabold">{num(state.count)} {state.count === 1 ? t("team") : t("teams")} {t("created")}</h2>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("Students now see their team, chat and tasks the next time they open ScholarSync.")}</p>
                 <Button asChild className="mt-5"><Link href="/instructor">{t("View teams")} <ArrowRight aria-hidden /></Link></Button>
               </div>
@@ -326,7 +326,7 @@ export function MatchingPanel() {
             <>
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <h2 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold outline-none">{ready.proposals.length} {t("proposed")} {ready.proposals.length === 1 ? t("team") : t("teams")}</h2>
+                  <h2 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold outline-none">{num(ready.proposals.length)} {t("proposed")} {ready.proposals.length === 1 ? t("team") : t("teams")}</h2>
                   <p className="text-sm text-muted-foreground">{ready.courseTitle} {t("· rename any team before creating.")}</p>
                 </div>
                 <dl className="flex divide-x rounded-2xl border bg-card shadow-soft">
@@ -349,7 +349,7 @@ export function MatchingPanel() {
               <div className="sticky bottom-4 z-30">
                 <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-2xl border bg-card/95 p-2.5 shadow-lift backdrop-blur sm:gap-3 sm:p-3 sm:pl-4">
                   <span className="hidden sm:block"><AvatarStack people={ready.proposals.flatMap((p) => p.members)} max={5} /></span>
-                  <p className="hidden min-w-0 flex-1 text-sm sm:block"><span className="font-bold">{placed} {t("students")}</span> <span className="text-muted-foreground">{t("into")} {ready.proposals.length} {ready.proposals.length === 1 ? t("team") : t("teams")}</span></p>
+                  <p className="hidden min-w-0 flex-1 text-sm sm:block"><span className="font-bold">{num(placed)} {t("students")}</span> <span className="text-muted-foreground">{t("into")} {num(ready.proposals.length)} {ready.proposals.length === 1 ? t("team") : t("teams")}</span></p>
                   <Button variant="outline" className="flex-1 sm:flex-none" onClick={generate}><ArrowsClockwise aria-hidden /> {t("Regenerate")}</Button>
                   <Button className="flex-1 sm:flex-none" onClick={() => setConfirm(true)} loading={creating}>{!creating && <CheckCircle weight="fill" aria-hidden />} {t("Create")} {ready.proposals.length === 1 ? t("team") : t("teams")}</Button>
                 </div>
