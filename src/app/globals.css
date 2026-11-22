@@ -342,3 +342,12 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Printing (the contribution report's "Save as PDF"): the page only, on white, with colours kept and cards whole. */
+@media print {
+  @page { margin: 12mm; }
+  html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
+  [data-sonner-toaster] { display: none !important; }
+  [role="region"], .print-keep { break-inside: avoid; }
+}

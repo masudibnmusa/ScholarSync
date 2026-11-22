@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ChatsCircle, CheckSquare, FileText, GitCommit, HandWaving, Lifebuoy, Quotes, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ChatsCircle, CheckSquare, FilePdf, FileText, GitCommit, HandWaving, Lifebuoy, Quotes, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { getContribution } from "@/app/actions";
 import { useLive } from "@/lib/store";
 import { cn, timeAgo } from "@/lib/utils";
@@ -145,7 +145,7 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
 
   const back = `/${me.role}/courses/${courseId}`;
   const backLink = (
-    <Link href={back} className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+    <Link href={back} className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold print:hidden text-muted-foreground transition-colors hover:text-foreground">
       <ArrowLeft className="size-4" aria-hidden /> {data?.course.code ?? t("Course")}
     </Link>
   );
@@ -180,9 +180,16 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
           <h1 className="text-2xl font-extrabold sm:text-[2rem]"><span className="highlight">{self ? t("Your contribution") : data.student.name}</span></h1>
           <p className="mt-1 text-sm text-muted-foreground sm:text-[0.9375rem]">
             {team ? `${team.name} · ${data.course.code} ${data.course.title}` : `${data.course.code} ${data.course.title}`}
-            {self && t(" · what your instructor sees when grading. Peer reviews stay private.")}
+            {self && <span className="print:hidden">{t(" · what your instructor sees when grading. Peer reviews stay private.")}</span>}
+          </p>
+          <p className="mt-1 hidden text-xs text-muted-foreground print:block">
+            {t("Contribution report for {name} · made on {date} · ScholarSync", { name: data.student.name, date: new Date().toLocaleDateString(intl(), { day: "numeric", month: "long", year: "numeric" }) })}
           </p>
         </div>
+        {team && (
+          // The browser's print dialog saves it as a PDF; the print styles leave out the app around the report.
+          <Button variant="outline" onClick={() => window.print()} className="print:hidden"><FilePdf aria-hidden /> {t("Save as PDF")}</Button>
+        )}
         {team?.atRisk && <Badge variant="danger" className="gap-1"><Lifebuoy weight="fill" aria-hidden /> {t("At risk: {names}", { names: team.atRisk.map((r) => translateReason(locale, r)).join(", ") })}</Badge>}
       </header>
 
@@ -190,7 +197,7 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
         <Card><EmptyState icon={UsersThree} title={t("Not on a team yet")} description={self ? t("Once you're placed in a team, your work shows up here.") : t("This student isn't on a team in this course yet.")} /></Card>
       ) : (
         <>
-          <div className={cn("grid gap-4 sm:grid-cols-2", team.repo ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+          <div className={cn("grid gap-4 sm:grid-cols-2 print:grid-cols-5", team.repo ? "lg:grid-cols-5" : "lg:grid-cols-4 print:grid-cols-4")}>
             <StatCard compact icon={CheckSquare} tone="success" label={t("Tasks done")} value={mine.tasksDone}
               hint={t("{tasksDone}% of the team's · {tasksAssigned} assigned", { tasksDone: share(mine.tasksDone, totals.done), tasksAssigned: mine.tasksAssigned })} />
             <StatCard compact icon={ChatsCircle} tone="info" label={t("Messages")} value={mine.messages} hint={t("{messages}% of team chat", { messages: share(mine.messages, totals.messages) })} />
@@ -199,18 +206,18 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
               hint={team.standupWeeks ? tn(team.standupWeeks, "of {n} week the team did one", "of {n} weeks the team did one") : t("None yet")} />
             {team.repo && (
               <StatCard compact icon={GitCommit} tone="danger" label={t("Commits")} value={mine.commits}
-                hint={mine.githubLogin ? `${share(mine.commits, totals.commits)}% of ${team.repo}` : self ? t("Add your GitHub username in your profile") : t("No GitHub username in their profile")} />
+                hint={mine.githubLogin ? t("{n}% of {repo}", { n: share(mine.commits, totals.commits), repo: team.repo }) : self ? t("Add your GitHub username in your profile") : t("No GitHub username in their profile")} />
             )}
           </div>
 
-          <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="grid items-start gap-6 lg:grid-cols-2 print:grid-cols-2">
             <Section id="contrib-team" title={t("Compared with the team")} description={(team.repo ? t("Each member's share of the team's done tasks, messages, files and commits.") : t("Each member's share of the team's done tasks, messages and files."))}>
               <GroupedBars label={t("Share of team work by member")} max={100} suffix="%"
                 series={[{ name: "Tasks done", color: "var(--chart-1)" }, { name: "Messages", color: "var(--chart-3)" }, { name: "Files", color: "var(--chart-4)" },
                   ...(team.repo ? [{ name: "Commits", color: "var(--chart-2)" }] : [])]}
                 rows={team.members.map((m) => ({
                   id: m.userId,
-                  label: m.userId === data.student.id && self ? "You" : m.name,
+                  label: m.userId === data.student.id && self ? t("You") : m.name,
                   values: [share(m.tasksDone, totals.done), share(m.messages, totals.messages), share(m.files, totals.files), ...(team.repo ? [share(m.commits, totals.commits)] : [])],
                 }))} />
             </Section>

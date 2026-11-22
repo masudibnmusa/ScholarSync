@@ -92,7 +92,7 @@ export function Sidebar({ onSignOut, initialCollapsed }: { onSignOut: () => void
 
   return (
     // The wrapper holds the rail's space in the layout; in auto mode the panel widens over the page instead of pushing it.
-    <div className={cn("relative my-3 ml-3 hidden h-[calc(100dvh-1.5rem)] shrink-0 transition-[width] duration-300 ease-out-expo lg:block", auto ? "w-[4.25rem]" : "w-64")}>
+    <div className={cn("relative my-3 ml-3 hidden h-[calc(100dvh-1.5rem)] shrink-0 print:!hidden transition-[width] duration-300 ease-out-expo lg:block", auto ? "w-[4.25rem]" : "w-64")}>
     <aside ref={asideRef}
       onMouseEnter={() => auto && hoverAfter(true, 120)} onMouseLeave={() => auto && hoverAfter(false, 250)}
       onFocus={() => auto && hoverAfter(true, 0)}

@@ -38,7 +38,7 @@ function MobileNav() {
   const tab = "tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[0.6875rem] font-semibold transition-colors";
 
   return (
-    <nav aria-label={t("Main")} className="z-30 flex shrink-0 items-stretch gap-1 border-t bg-card/95 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl lg:hidden">
+    <nav aria-label={t("Main")} className="z-30 flex shrink-0 print:hidden items-stretch gap-1 border-t bg-card/95 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl lg:hidden">
       {primary.map((n) => {
         const active = isActive(pathname, n.href);
         const count = n.badge ? counts[n.badge] : 0;
@@ -87,7 +87,7 @@ function OfflineBanner() {
   const online = React.useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   if (online) return null;
   return (
-    <div role="status" className="flex items-center gap-2 border-b bg-butter px-4 py-2 text-sm text-foreground sm:px-6 lg:px-8">
+    <div role="status" className="flex items-center gap-2 border-b bg-butter print:hidden px-4 py-2 text-sm text-foreground sm:px-6 lg:px-8">
       <WifiSlash weight="bold" className="size-4 shrink-0" aria-hidden />
       <p><span className="font-bold">{t("You're offline.")}</span> {t("Showing what this device saw last. Messages you write are sent when you're back.")}</p>
     </div>
@@ -139,12 +139,12 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground">
         {t("Skip to content")}
       </a>
-      <div className="flex h-dvh overflow-hidden bg-background">
+      <div className="flex h-dvh overflow-hidden bg-background print:block print:h-auto print:overflow-visible print:bg-white">
         <Sidebar onSignOut={signOut} initialCollapsed={sidebarCollapsed} />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar onSignOut={signOut} />
           <OfflineBanner />
-          <main id="main" ref={mainRef} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none scroll-thin">
+          <main id="main" ref={mainRef} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none scroll-thin print:overflow-visible">
             <motion.div key={pathname} className="h-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }}>
               {children}
             </motion.div>

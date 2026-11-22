@@ -36,6 +36,17 @@ test("the contribution report shows a student's work next to the team's, with pe
   await expect(page.getByRole("img", { name: /^E2E Uma: Tasks done 100%, Messages 75%/ })).toBeVisible();
   await expect(page.getByRole("img", { name: /: 1 tasks done, 3 messages$/ })).toBeVisible(); // this week
 
+  // "Save as PDF" opens the browser's print dialog; printed, the report stands alone with a line saying whose it is.
+  await page.evaluate(() => { (window as unknown as { printed: boolean }).printed = false; window.print = () => { (window as unknown as { printed: boolean }).printed = true; }; });
+  await page.getByRole("button", { name: "Save as PDF" }).click();
+  expect(await page.evaluate(() => (window as unknown as { printed: boolean }).printed)).toBe(true);
+  await page.emulateMedia({ media: "print" });
+  await expect(page.getByText(/^Contribution report for E2E Uma · made on /)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Save as PDF" })).toBeHidden();
+  if (process.env.E2E_PDF) await page.pdf({ path: process.env.E2E_PDF, format: "A4", printBackground: true });
+  await page.emulateMedia({ media: "screen" });
+
   // Uma sees her own report from the course page, without the peer reviews.
   await uma.page.goto(courseUrl.replace("/instructor/", "/student/"));
   await uma.page.getByRole("link", { name: "Your contribution" }).click();

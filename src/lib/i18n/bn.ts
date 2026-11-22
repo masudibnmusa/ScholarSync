@@ -1638,4 +1638,8 @@ export const bn: Record<string, string> = {
   "No extension on {title}": "{title}-এর সময় বাড়ানো হয়নি",
   "Until {date}: {rest}": "{date} পর্যন্ত: {rest}",
   "It is still due {date}.": "শেষ তারিখ এখনো {date}।",
+  // Contribution report as PDF
+  "Save as PDF": "PDF হিসেবে সংরক্ষণ করুন",
+  "Contribution report for {name} · made on {date} · ScholarSync": "{name}-এর অবদান রিপোর্ট · তৈরি {date} · ScholarSync",
+  "{n}% of {repo}": "{repo}-এর {n}%",
 };
