@@ -164,10 +164,11 @@ function TeamCard({ team, alerts }: { team: Team; alerts: number }) {
           </div>
           <Progress value={team.progress} label={t("{name} progress", { name: team.name })} className="h-1.5 bg-glass-strong" />
         </div>
+        {/* Labels use foreground/75: muted text fell below 4.5:1 on the glass over the dark tints. */}
         <dl className="mt-4 grid grid-cols-3 divide-x divide-foreground/10 rounded-xl bg-glass-strong py-2 text-center">
           {([[t("Members"), team.members.length], [t("Tasks"), team._count?.tasks ?? 0], [t("Messages"), team._count?.messages ?? 0]] as const).map(([k, v]) => (
             <div key={k}>
-              <dt className="text-[0.6875rem] font-semibold text-muted-foreground">{k}</dt>
+              <dt className="text-[0.6875rem] font-semibold text-foreground/75">{k}</dt>
               <dd className="text-sm font-extrabold tabular-nums">{num(v)}</dd>
             </div>
           ))}

@@ -35,9 +35,8 @@ function TeamSwitcher({ team }: { team: Team }) {
   const teams = useAppStore((s) => s.teams);
   const setSelectedTeam = useAppStore((s) => s.setSelectedTeam);
   const badge = (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar text-base font-extrabold text-brand shadow-soft">
-      {team.name.replace(/^team\s+/i, "").charAt(0).toUpperCase()}
-    </span>
+    <span aria-hidden data-letter={team.name.replace(/^team\s+/i, "").charAt(0).toUpperCase()}
+      className="letter flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar text-base font-extrabold text-brand shadow-soft" />
   );
   const label = (
     <span className="min-w-0 text-left">
@@ -51,8 +50,8 @@ function TeamSwitcher({ team }: { team: Team }) {
   if (teams.length < 2) return <div className="flex min-w-0 items-center gap-3">{badge}{label}</div>;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="-m-1 flex min-w-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-accent" aria-label={t("Switch team. Current: {name}", { name: team.name })}>
-        {badge}{label}
+      <DropdownMenuTrigger className="-m-1 flex min-w-0 items-center gap-3 rounded-2xl p-1 transition-colors hover:bg-accent" >
+        {badge}<span className="sr-only">{t("Switch team. Current:")} </span>{label}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">
         <DropdownMenuLabel>{t("Your teams")}</DropdownMenuLabel>

@@ -1645,4 +1645,9 @@ export const bn: Record<string, string> = {
   // Search everywhere
   "Search pages, tasks, messages and files…": "পেজ, কাজ, বার্তা ও ফাইল খুঁজুন…",
   "Searching…": "খোঁজা হচ্ছে…",
+  // Accessibility labels
+  "GitHub repo": "GitHub রিপো",
+  "Find a time to meet": "মিটিংয়ের সময় খুঁজুন",
+  "Conflict alerts:": "দ্বন্দ্বের সতর্কতা:",
+  "Switch team. Current:": "দল বদলান। বর্তমান:",
 };

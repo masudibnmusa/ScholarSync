@@ -105,8 +105,9 @@ function TeamAlertsButton({ alerts, open }: { alerts: ConflictAlert[]; open: num
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className={cn("h-7 gap-1.5 rounded-full px-2.5 text-xs", open > 0 && "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive")}
-          aria-label={open ? t("Conflict alerts, {open} open", { open }) : t("Conflict alerts, none open")}>
+>
           <Warning weight={open ? "fill" : "regular"} className="size-3.5" aria-hidden />
+          <span className="sr-only">{t("Conflict alerts:")} </span>
           {open ? tn(open, "{n} open alert", "{n} open alerts") : t("No alerts")}
         </Button>
       </PopoverTrigger>

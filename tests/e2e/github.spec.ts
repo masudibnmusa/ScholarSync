@@ -20,7 +20,7 @@ test("a team's GitHub commits are matched to students and count in their contrib
 
   // Something that isn't a repository is refused before anything is sent to GitHub.
   await hal.page.goto("/student");
-  await hal.page.getByRole("button", { name: "GitHub repository" }).click();
+  await hal.page.getByRole("button", { name: "GitHub repo", exact: true }).click();
   const dialog = hal.page.getByRole("dialog", { name: "E2E Team's repository" });
   await dialog.getByLabel("GitHub repository").fill("not a repo");
   await dialog.getByRole("button", { name: "Link repository" }).click();
@@ -53,7 +53,7 @@ test("a team's GitHub commits are matched to students and count in their contrib
 
   // Ida, a teammate, unlinks it; the activity goes with it.
   await ida.page.goto("/student");
-  await ida.page.getByRole("button", { name: "GitHub repository" }).click();
+  await ida.page.getByRole("button", { name: "GitHub repo", exact: true }).click();
   const idaDialog = ida.page.getByRole("dialog", { name: "E2E Team's repository" });
   await idaDialog.getByRole("button", { name: "Unlink" }).click();
   await ida.page.getByRole("alertdialog").getByRole("button", { name: "Unlink" }).click();

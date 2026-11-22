@@ -343,6 +343,10 @@
   }
 }
 
+/* Letter avatars and team badges are pictures (aria-hidden), not labels: their letters are drawn by CSS so the
+   button around them is named by its words alone (WCAG 2.5.3, label in name). */
+.letter::after { content: attr(data-letter); }
+
 /* Printing (the contribution report's "Save as PDF"): the page only, on white, with colours kept and cards whole. */
 @media print {
   @page { margin: 12mm; }

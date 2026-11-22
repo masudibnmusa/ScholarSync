@@ -107,7 +107,7 @@ export function RepoButton({ team }: { team: Team }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label={t("GitHub repository")}><GithubLogo weight="duotone" aria-hidden /><span className="hidden xl:inline">{t("Repo")}</span></Button>
+        <Button variant="outline" aria-label={t("GitHub repo")}><GithubLogo weight="duotone" aria-hidden /><span className="hidden xl:inline">{t("Repo")}</span></Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
         <DialogHeader>

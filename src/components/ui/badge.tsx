@@ -13,7 +13,7 @@ const badgeVariants = cva(
         muted: "bg-muted text-muted-foreground",
         success: "bg-success/12 text-success",
         warning: "bg-warning/14 text-warning",
-        danger: "bg-destructive/12 text-destructive",
+        danger: "bg-rose text-destructive ring-1 ring-inset ring-destructive/15", // solid: a tint on a rose card fell below 4.5:1
         info: "bg-info/12 text-info",
         warm: "bg-warm/15 text-warm-text",
       },

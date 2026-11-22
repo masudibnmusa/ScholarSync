@@ -124,7 +124,7 @@ export function HealthBadge({ score, showScore = true }: { score: number; showSc
   return (
     <Badge variant={h.tone}>
       <I weight="fill" aria-hidden />
-      {h.label}{showScore && <span className="tabular-nums opacity-80">· {num(score)}</span>}
+      {h.label}{showScore && <span className="tabular-nums">· {num(score)}</span>}
     </Badge>
   );
 }

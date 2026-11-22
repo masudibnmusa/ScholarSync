@@ -242,7 +242,7 @@ export function MeetingButton({ team }: { team: Team }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" aria-label={t("Find a meeting time")}>
+        <Button variant="outline" aria-label={t("Find a time to meet")}>
           <CalendarPlus weight="duotone" aria-hidden />
           <span className="hidden xl:inline">{t("Find a time")}</span>
           <span className="hidden sm:inline xl:hidden">{t("Meet")}</span>

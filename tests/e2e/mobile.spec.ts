@@ -66,7 +66,7 @@ test("the workspace buttons stay on screen and chat opens full screen", async ({
   await signIn(page, STUDENT.email);
   await visit(page, "/student");
   const width = page.viewportSize()!.width;
-  for (const name of [/^Team charter/, /^Weekly stand-up/, /^GitHub repository$/, /^New( task)?$/]) {
+  for (const name of [/^Team charter/, /^Weekly stand-up/, /^GitHub repo$/, /^New( task)?$/]) {
     const box = (await page.getByRole("button", { name }).filter({ visible: true }).first().boundingBox())!;
     expect(box.x, String(name)).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width, String(name)).toBeLessThanOrEqual(width);

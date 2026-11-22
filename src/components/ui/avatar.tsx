@@ -13,10 +13,11 @@ export function Avatar({ name, id, size = "md", className }: { name: string; id?
   return (
     <span
       aria-hidden
-      className={cn("inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-bold text-white", sizes[size], className)}
+      data-letter={src ? undefined : getInitials(name)}
+      className={cn("letter inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-bold text-white", sizes[size], className)}
       style={{ backgroundColor: avatarColor(name) }}
     >
-      {src ? <img src={src} alt="" className="size-full object-cover" loading="lazy" decoding="async" /> : getInitials(name)}
+      {src && <img src={src} alt="" className="size-full object-cover" loading="lazy" decoding="async" />}
     </span>
   );
 }
@@ -32,9 +33,7 @@ export function AvatarStack({ people, max = 4, size = "sm", ring = "ring-card" }
         <Avatar key={(p.id ?? p.name) + i} name={p.name} id={p.id} size={size} className={cn("ring-2", ring, i > 0 && "-ml-1.5")} />
       ))}
       {rest > 0 && (
-        <span className={cn("-ml-1.5 inline-flex items-center justify-center rounded-full bg-muted font-bold text-muted-foreground ring-2", ring, sizes[size])}>
-          +{num(rest)}
-        </span>
+        <span data-letter={`+${num(rest)}`} className={cn("letter -ml-1.5 inline-flex items-center justify-center rounded-full bg-muted font-bold text-muted-foreground ring-2", ring, sizes[size])} />
       )}
     </div>
   );

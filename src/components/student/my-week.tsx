@@ -207,7 +207,7 @@ function TodayCard({ items, onOpenMonth }: { items: WeekItem[]; onOpenMonth: () 
                 title={list.map((x) => x.title).join("\n") || undefined}
                 className="relative grid h-9 place-items-center">
                 <span className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold tabular-nums",
-                  isToday ? "bg-primary text-primary-foreground shadow-soft" : date < today ? "text-muted-foreground/70" : "text-foreground")}>{num(i + 1)}</span>
+                  isToday ? "bg-primary text-primary-foreground shadow-soft" : date < today ? "text-muted-foreground" : "text-foreground")}>{num(i + 1)}</span>
                 {list.length > 0 && <span className={cn("absolute bottom-0.5 size-1.5 rounded-full", isToday ? "bg-warm" : date < today ? "bg-destructive" : "bg-primary")} aria-hidden />}
               </li>
             );

@@ -323,7 +323,7 @@ export function ProfilePanel() {
                 <ul className="mt-1.5 space-y-1">
                   {checks.map((c) => (
                     <li key={c.id}>
-                      <button type="button" onClick={() => jump(c.id)} className="flex items-center gap-1.5 rounded text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                      <button type="button" onClick={() => jump(c.id)} className="flex min-h-6 items-center gap-1.5 rounded text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
                         {c.done ? <CheckCircle weight="fill" className="size-4 text-success" aria-hidden /> : <Circle className="size-4" aria-hidden />}
                         {c.label}<span className="sr-only">{c.done ? t(", done") : t(", missing. Go to field")}</span>
                       </button>
