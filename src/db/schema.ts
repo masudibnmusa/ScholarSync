@@ -260,6 +260,21 @@ export const repoActivity = pgTable("repo_activity", {
   at: ts("at").notNull(),
 }, (t) => [primaryKey({ columns: [t.teamId, t.id] })]);
 
+export const officeHours = pgTable("office_hours", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull(),
+  startsAt: ts("starts_at").notNull(),
+  minutes: smallint("minutes").notNull(),
+  tz: text("tz").notNull().default("UTC"),
+  location: text("location").notNull().default(""),
+  teamId: uuid("team_id"),
+  topic: text("topic").notNull().default(""),
+  bookedBy: uuid("booked_by"),
+  bookedAt: ts("booked_at"),
+  remindedAt: ts("reminded_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
 export const teamCharters = pgTable("team_charters", {
   teamId: uuid("team_id").primaryKey(),
   roles: text("roles").notNull().default(""),

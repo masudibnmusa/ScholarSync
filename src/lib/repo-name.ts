@@ -1,4 +1,4 @@
-// No imports: shared by the server and its unit test (node --test src/lib/repo-name.test.mjs).
+// No imports: shared by the server and its unit test (node src/lib/repo-name.check.mjs).
 
 const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/; // same rule as the teams.repo check
 

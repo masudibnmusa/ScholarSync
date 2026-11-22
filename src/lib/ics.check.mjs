@@ -17,4 +17,11 @@ const unfolded = out.replace(/\r\n /g, "");
 assert.ok(unfolded.includes("SUMMARY:" + "শিক্ষার্থী ".repeat(12)), "folding keeps multi-byte text intact");
 assert.equal((out.match(/BEGIN:VEVENT/g) ?? []).length, 2);
 
+// Timed events (office hours): UTC start and end, location escaped.
+const timed = buildIcs([{ uid: "oh1", start: "2026-12-01T13:40:00.000Z", minutes: 30, title: "Office hours", description: "", url: "http://x", location: "Room 402, block B" }],
+  new Date("2026-11-20T08:09:10Z"));
+assert.ok(timed.includes("DTSTART:20261201T134000Z\r\nDTEND:20261201T141000Z"), "30 minutes later, in UTC");
+assert.ok(timed.includes("LOCATION:Room 402\\, block B"));
+assert.ok(!out.includes("LOCATION:"), "no location line when there is none");
+
 console.log("ics: all checks passed");

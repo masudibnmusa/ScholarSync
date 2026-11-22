@@ -8,6 +8,7 @@ import { digestRecipients, sendDigestTo } from "@/lib/digest";
 import { sendPendingPushes } from "@/lib/push";
 import { standupAskees, summarizeTeamStandup } from "@/lib/standups";
 import { linkedTeams, syncTeamRepo } from "@/lib/github";
+import { sendOfficeHourReminders } from "@/lib/office-hours";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
 
@@ -217,4 +218,10 @@ export const syncLinkedRepo = inngest.createFunction(
   async ({ event, step }) => step.run("sync", () => syncTeamRepo(String(event.data.teamId))),
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo];
+// Every 5 minutes: reminders for office hours starting within the hour (notification, push and email).
+export const officeHourReminders = inngest.createFunction(
+  { id: "office-hour-reminders", triggers: [{ cron: "*/5 * * * *" }] },
+  async ({ step }) => step.run("remind", () => sendOfficeHourReminders()),
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo, officeHourReminders];

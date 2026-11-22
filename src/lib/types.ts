@@ -365,3 +365,16 @@ export interface TeamCharter {
   charter: (CharterText & { updatedAt: string; updatedByName: string | null }) | null;
   members: { userId: string; name: string; agreedAt: string | null }[];
 }
+
+/** One office-hours slot. For students, other teams' bookings show only as taken (no team name or topic). */
+export interface OfficeHourSlot {
+  id: string;
+  startsAt: string;
+  minutes: number;
+  location: string;
+  booked: boolean;
+  mine: boolean;
+  teamName: string | null;
+  topic: string;
+  bookedByName: string | null;
+}

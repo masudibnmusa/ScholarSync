@@ -15,6 +15,7 @@ import type { Course, Team } from "@/lib/types";
 import { accentOf, CourseDialog } from "@/components/app/courses";
 import { CourseStudents } from "@/components/app/course-students";
 import { GradingPanel, MyGradeCard } from "@/components/app/grading";
+import { OfficeHours } from "@/components/app/office-hours";
 import { InviteButton } from "@/components/app/invite";
 import { Milestones } from "@/components/app/milestones";
 import { Announcements } from "@/components/app/announcements";
@@ -261,6 +262,7 @@ export function CourseDetail({ id }: { id: string }) {
 
       {(canEdit || (!instructor && course.enrolled)) && <Announcements courseId={course.id} canPost={canEdit} />}
       {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} readOnly={archived} />}
+      {(canEdit || (!instructor && course.enrolled)) && <OfficeHours courseId={course.id} instructor={canEdit} readOnly={archived} />}
       {canEdit && <GradingPanel courseId={course.id} />}
       {!instructor && course.enrolled && <MyGradeCard courseId={course.id} />}
 

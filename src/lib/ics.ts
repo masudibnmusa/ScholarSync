@@ -1,6 +1,8 @@
-// iCalendar (RFC 5545) export of a student's due dates. Pure: node src/lib/ics.check.mjs
+// iCalendar (RFC 5545) export of due dates (all-day) and booked office hours (timed, in UTC). Pure: node src/lib/ics.check.mjs
 
-export type IcsEvent = { uid: string; date: string; title: string; description: string; url: string };
+type Base = { uid: string; title: string; description: string; url: string; location?: string };
+/** `date` (YYYY-MM-DD) for an all-day event, or `start` (an ISO instant) and `minutes` for a timed one. */
+export type IcsEvent = Base & ({ date: string } | { start: string; minutes: number });
 
 // Commas, semicolons, backslashes and newlines must be escaped in TEXT values.
 const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
@@ -24,19 +26,23 @@ function nextDay(iso: string) {
   return d.toISOString().slice(0, 10);
 }
 
-/** All-day events, one per due date. `now` is the DTSTAMP (UTC). */
+const utc = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+
+/** One VEVENT per event. `now` is the DTSTAMP (UTC). */
 export function buildIcs(events: IcsEvent[], now = new Date()) {
-  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const stamp = utc(now);
   const lines = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ScholarSync//My week//EN", "CALSCALE:GREGORIAN", "X-WR-CALNAME:ScholarSync",
     ...events.flatMap((e) => [
       "BEGIN:VEVENT",
       `UID:${e.uid}@scholarsync`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;VALUE=DATE:${day(e.date)}`,
-      `DTEND;VALUE=DATE:${day(nextDay(e.date))}`,
+      ...("date" in e
+        ? [`DTSTART;VALUE=DATE:${day(e.date)}`, `DTEND;VALUE=DATE:${day(nextDay(e.date))}`]
+        : [`DTSTART:${utc(new Date(e.start))}`, `DTEND:${utc(new Date(new Date(e.start).getTime() + e.minutes * 60_000))}`]),
       `SUMMARY:${esc(e.title)}`,
       `DESCRIPTION:${esc(e.description)}`,
+      ...(e.location ? [`LOCATION:${esc(e.location)}`] : []),
       `URL:${e.url}`,
       "END:VEVENT",
     ]),

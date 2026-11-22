@@ -18,7 +18,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText,
+  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -856,6 +856,81 @@ export async function exportGradebook(courseId: string): Promise<{ filename: str
     const header = ["Student", "Email", "Team", ...criteria.map((c) => `${c.name} (/${c.maxPoints})`), "Team grade (%)", "Contribution factor", "Final grade (%)"];
     return { filename: `${course.code}-gradebook-${new Date().toISOString().slice(0, 10)}.csv`, csv: toCsv([header, ...rows]) };
   });
+}
+
+// ─── Office hours (the instructor publishes slots; a team books one) ────
+
+/** Upcoming slots (and ones in progress) for a course, plus whether I can book (a team in the course). */
+export async function getOfficeHours(courseId: string): Promise<{ slots: OfficeHourSlot[]; myTeamId: string | null }> {
+  Id.parse(courseId);
+  return withUser(async (tx, uid) => {
+    const [course] = await tx.select({ instructorId: s.courses.instructorId }).from(s.courses).where(eq(s.courses.id, courseId));
+    const instructor = course?.instructorId === uid;
+    const [rows, [mine]] = await Promise.all([
+      tx.select({ o: s.officeHours, teamName: s.teams.name, bookedByName: s.users.name }).from(s.officeHours) // RLS: instructor or enrolled
+        .leftJoin(s.teams, eq(s.teams.id, s.officeHours.teamId)).leftJoin(s.users, eq(s.users.id, s.officeHours.bookedBy))
+        .where(and(eq(s.officeHours.courseId, courseId), sql`${s.officeHours.startsAt} + make_interval(mins => ${s.officeHours.minutes}) > now()`))
+        .orderBy(asc(s.officeHours.startsAt)).limit(200),
+      tx.select({ id: s.teams.id }).from(s.teams).innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, uid)))
+        .where(eq(s.teams.courseId, courseId)),
+    ]);
+    return {
+      myTeamId: mine?.id ?? null,
+      slots: rows.map(({ o, teamName, bookedByName }) => {
+        const own = !!o.teamId && o.teamId === mine?.id;
+        const show = instructor || own;
+        return { id: o.id, startsAt: o.startsAt, minutes: o.minutes, location: o.location, booked: !!o.teamId, mine: own,
+          teamName: show ? teamName : null, topic: show ? o.topic : "", bookedByName: show ? bookedByName : null };
+      }),
+    };
+  });
+}
+
+const OfficeHoursInput = z.object({
+  starts: z.array(z.iso.datetime({ offset: true })).min(1).max(24),
+  minutes: z.number().int().min(5).max(240),
+  location: z.string().trim().max(300),
+  tz: z.string().max(64).refine((tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; } }, "Unknown time zone"),
+});
+
+/** Adds slots (the browser works out the instants in the instructor's time zone). Course instructor only (RLS). */
+export async function addOfficeHours(courseId: string, input: z.input<typeof OfficeHoursInput>) {
+  Id.parse(courseId);
+  const o = OfficeHoursInput.parse(input);
+  if (o.starts.some((x) => new Date(x).getTime() <= Date.now())) throw new Error("Office hours must be in the future");
+  await withUser(async (tx, uid) => {
+    const course = await ownCourse(tx, uid, courseId);
+    if (course.archivedAt) throw new Error("This course is archived");
+    await tx.insert(s.officeHours).values(o.starts.map((startsAt) => ({ courseId, startsAt, minutes: o.minutes, location: o.location, tz: o.tz })));
+  });
+}
+
+export async function deleteOfficeHour(id: string) {
+  Id.parse(id);
+  await withUser((tx) => tx.delete(s.officeHours).where(eq(s.officeHours.id, id))); // RLS: the course instructor
+}
+
+/** Why a booking or cancellation was refused, in words for the student; null when it worked. */
+async function officeHourCall(run: (tx: Tx) => Promise<unknown>): Promise<string | null> {
+  try {
+    await withUser(run);
+    return null;
+  } catch (err) {
+    const cause = (err as { cause?: { code?: string; message?: string } }).cause ?? (err as { code?: string; message?: string });
+    if (cause?.code === "P0001" || cause?.code === "P0002") return cause.message ?? "Could not do that";
+    throw err;
+  }
+}
+
+export async function bookOfficeHour(id: string, topic: string) {
+  Id.parse(id);
+  const t = z.string().max(500).parse(topic);
+  return officeHourCall((tx) => tx.execute(sql`select public.book_office_hour(${id}::uuid, ${t})`));
+}
+
+export async function cancelOfficeHour(id: string) {
+  Id.parse(id);
+  return officeHourCall((tx) => tx.execute(sql`select public.cancel_office_hour(${id}::uuid)`));
 }
 
 // ─── Team charter (members write and agree; the instructor reads) ──────

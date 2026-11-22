@@ -1,4 +1,4 @@
-// No imports: shared by the server and its unit test (node --test src/lib/action-items.test.mjs).
+// No imports: shared by the server and its unit test (node src/lib/action-items.check.mjs).
 
 export interface RawActionItem { title: string; description: string; owner: string; due: string }
 export interface ActionItem { title: string; description: string; ownerId: string | null; dueDate: string | null }
