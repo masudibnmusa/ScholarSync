@@ -20,6 +20,21 @@ export interface ChatMessage {
 
 export const REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"] as const; // same list as the database check
 
+/** One result of the search in the command menu (Ctrl+K), across every course and team the person can see. */
+export interface SearchHit {
+  kind: "task" | "message" | "file" | "milestone" | "announcement";
+  id: string;
+  /** The task, file, milestone or announcement title, or the message text. */
+  text: string;
+  /** Where it is: the team (or course) and, for messages and files, who wrote or shared it. */
+  where: string;
+  teamId: string | null;
+  courseId: string;
+  /** Files: what to download. */
+  storagePath?: string;
+  at: string;
+}
+
 export type ChatSearchHit =
   | { kind: "message"; id: string; senderName: string; content: string; timestamp: string }
   | { kind: "file"; id: string; name: string; storagePath: string; size: string; uploadedBy: string; timestamp: string };

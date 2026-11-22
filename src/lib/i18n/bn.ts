@@ -1642,4 +1642,7 @@ export const bn: Record<string, string> = {
   "Save as PDF": "PDF হিসেবে সংরক্ষণ করুন",
   "Contribution report for {name} · made on {date} · ScholarSync": "{name}-এর অবদান রিপোর্ট · তৈরি {date} · ScholarSync",
   "{n}% of {repo}": "{repo}-এর {n}%",
+  // Search everywhere
+  "Search pages, tasks, messages and files…": "পেজ, কাজ, বার্তা ও ফাইল খুঁজুন…",
+  "Searching…": "খোঁজা হচ্ছে…",
 };

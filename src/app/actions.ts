@@ -2,7 +2,7 @@
 
 // Every action runs as the signed-in user via withUser(), so Postgres RLS decides what each one may read or write.
 import { z } from "zod";
-import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { adminDb, AuthError, withUser } from "@/db";
 import { LOCALE_COOKIE, LOCALE_PENDING_COOKIE, LOCALES, translate } from "@/lib/i18n";
@@ -22,7 +22,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
+  ChatMessage, ChatSearchHit, SearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -271,6 +271,45 @@ export async function searchTeam(teamId: string, query: string): Promise<ChatSea
     return [
       ...files.map((f) => ({ kind: "file" as const, id: f.id, name: f.name, storagePath: f.path, size: fmtSize(f.bytes), uploadedBy: f.by ?? translate(L, "Former member"), timestamp: f.timestamp })),
       ...msgs.map((m) => ({ kind: "message" as const, id: m.id, content: m.content, timestamp: m.timestamp, senderName: m.senderName ?? translate(L, "Former member") })),
+    ];
+  });
+}
+
+/**
+ * Search for the command menu: tasks, messages, files, milestones and announcements in every course and team the
+ * person can see. RLS decides what that is, so a student only finds their own teams' work. A few hits per kind.
+ */
+export async function searchEverything(query: string): Promise<SearchHit[]> {
+  const L = await requestLocale();
+  const q = z.string().trim().min(2).max(100).parse(query);
+  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const PER_KIND = 6;
+  return withUser(async (tx) => {
+    const team = { teamId: s.teams.id, teamName: s.teams.name, courseId: s.teams.courseId };
+    const [tasks, msgs, files, milestones, news] = await Promise.all([
+      tx.select({ id: s.tasks.id, text: s.tasks.title, at: s.tasks.updatedAt, ...team }).from(s.tasks)
+        .innerJoin(s.teams, eq(s.teams.id, s.tasks.teamId))
+        .where(or(ilike(s.tasks.title, like), ilike(s.tasks.description, like))).orderBy(desc(s.tasks.updatedAt)).limit(PER_KIND),
+      tx.select({ id: s.messages.id, text: s.messages.content, at: s.messages.createdAt, by: s.users.name, ...team }).from(s.messages)
+        .innerJoin(s.teams, eq(s.teams.id, s.messages.teamId)).leftJoin(s.users, eq(s.users.id, s.messages.senderId))
+        .where(ilike(s.messages.content, like)).orderBy(desc(s.messages.createdAt)).limit(PER_KIND),
+      tx.select({ id: s.files.id, text: s.files.name, at: s.files.createdAt, path: s.files.storagePath, by: s.users.name, ...team }).from(s.files)
+        .innerJoin(s.teams, eq(s.teams.id, s.files.teamId)).leftJoin(s.users, eq(s.users.id, s.files.uploaderId))
+        .where(ilike(s.files.name, like)).orderBy(desc(s.files.createdAt)).limit(PER_KIND),
+      tx.select({ id: s.courseMilestones.id, text: s.courseMilestones.title, at: s.courseMilestones.createdAt, courseId: s.courseMilestones.courseId, code: s.courses.code })
+        .from(s.courseMilestones).innerJoin(s.courses, eq(s.courses.id, s.courseMilestones.courseId))
+        .where(or(ilike(s.courseMilestones.title, like), ilike(s.courseMilestones.description, like))).orderBy(desc(s.courseMilestones.dueDate)).limit(PER_KIND),
+      tx.select({ id: s.courseAnnouncements.id, text: s.courseAnnouncements.title, at: s.courseAnnouncements.createdAt, courseId: s.courseAnnouncements.courseId, code: s.courses.code })
+        .from(s.courseAnnouncements).innerJoin(s.courses, eq(s.courses.id, s.courseAnnouncements.courseId))
+        .where(or(ilike(s.courseAnnouncements.title, like), ilike(s.courseAnnouncements.body, like))).orderBy(desc(s.courseAnnouncements.createdAt)).limit(PER_KIND),
+    ]);
+    const who = (name: string | null) => name ?? translate(L, "Former member");
+    return [
+      ...tasks.map((x) => ({ kind: "task" as const, id: x.id, text: x.text, where: x.teamName, teamId: x.teamId, courseId: x.courseId, at: x.at })),
+      ...msgs.map((x) => ({ kind: "message" as const, id: x.id, text: x.text, where: `${x.teamName} · ${who(x.by)}`, teamId: x.teamId, courseId: x.courseId, at: x.at })),
+      ...files.map((x) => ({ kind: "file" as const, id: x.id, text: x.text, where: `${x.teamName} · ${who(x.by)}`, teamId: x.teamId, courseId: x.courseId, storagePath: x.path, at: x.at })),
+      ...milestones.map((x) => ({ kind: "milestone" as const, id: x.id, text: x.text, where: x.code, teamId: null, courseId: x.courseId, at: x.at })),
+      ...news.map((x) => ({ kind: "announcement" as const, id: x.id, text: x.text, where: x.code, teamId: null, courseId: x.courseId, at: x.at })),
     ];
   });
 }

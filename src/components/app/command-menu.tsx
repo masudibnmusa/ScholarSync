@@ -4,15 +4,25 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Command } from "cmdk";
-import { ChatsCircle, MagnifyingGlass, Moon, Plus, SignOut, Sun, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleText, ChatsCircle, CheckSquare, FileText, Flag, MagnifyingGlass, Megaphone, Moon, Plus, SignOut, Sun, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { searchEverything } from "@/app/actions";
+import type { SearchHit } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { navFor } from "@/components/app/nav";
 import { useUser } from "@/components/app/user-context";
 import { useT } from "@/components/locale";
-import { num } from "@/lib/i18n";
+import { msg, num } from "@/lib/i18n";
 
 const item =
   "flex min-h-11 cursor-pointer select-none items-center gap-3 rounded-xl px-3 text-sm font-medium text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg]:size-[1.125rem] [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
+const HIT_GROUPS = [
+  { kind: "task", heading: msg("Tasks"), icon: CheckSquare },
+  { kind: "message", heading: msg("Messages"), icon: ChatCircleText },
+  { kind: "file", heading: msg("Files"), icon: FileText },
+  { kind: "milestone", heading: msg("Milestones"), icon: Flag },
+  { kind: "announcement", heading: msg("Announcements"), icon: Megaphone },
+] as const;
+
 const group =
   "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-[0.6875rem] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:text-muted-foreground";
 
@@ -25,6 +35,29 @@ export function CommandMenu({ onSignOut }: { onSignOut: () => void }) {
   const user = useUser();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const [query, setQuery] = React.useState("");
+  const [result, setResult] = React.useState<{ q: string; hits: SearchHit[] } | null>(null); // hits for the query `q`
+
+  // Two letters or more also searches tasks, messages, files, milestones and announcements on the server.
+  const q = query.trim();
+  React.useEffect(() => {
+    if (q.length < 2) return;
+    let current = true; // a reply for an older query is dropped
+    const timer = setTimeout(() => {
+      searchEverything(q).then((hits) => current && setResult({ q, hits }), (err) => { console.error("Search failed:", err); if (current) setResult({ q, hits: [] }); });
+    }, 250);
+    return () => { current = false; clearTimeout(timer); };
+  }, [q]);
+  const searching = q.length >= 2 && result?.q !== q;
+  const shownHits = q.length >= 2 && result?.q === q ? result.hits : null;
+
+  const openHit = (h: SearchHit) => {
+    if (h.kind === "file") return useAppStore.getState().downloadFile(h.storagePath!);
+    const student = user.role === "student";
+    if (h.kind === "task") return router.push(student ? `/student?team=${h.teamId}&task=${h.id}` : `/instructor?team=${h.teamId}`);
+    if (h.kind === "message") return router.push(student ? `/student?team=${h.teamId}&view=chat` : `/instructor?team=${h.teamId}`);
+    router.push(`/${user.role}/courses/${h.courseId}`);
+  };
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,18 +78,38 @@ export function CommandMenu({ onSignOut }: { onSignOut: () => void }) {
   return (
     <Command.Dialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}
       label={t("Command menu")}
       overlayClassName="fixed inset-0 z-50 bg-scrim/55 backdrop-blur-[3px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
       contentClassName="fixed left-1/2 top-[12dvh] z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-3xl border bg-popover text-popover-foreground shadow-lift data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-4"
     >
       <div className="flex items-center gap-3 border-b px-4">
         <MagnifyingGlass className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-        <Command.Input placeholder={t("Search pages, teams and actions…")} className="h-14 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+        <Command.Input value={query} onValueChange={setQuery} placeholder={t("Search pages, tasks, messages and files…")} className="h-14 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
         <kbd className="hidden rounded-md border bg-muted px-1.5 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground sm:block">{t("Esc")}</kbd>
       </div>
       <Command.List className="max-h-[min(28rem,60dvh)] overflow-y-auto p-2 scroll-thin">
-        <Command.Empty className="px-3 py-10 text-center text-sm text-muted-foreground">{t("Nothing matches that search.")}</Command.Empty>
+        {searching && !shownHits?.length && <Command.Loading><p className="px-3 py-3 text-sm text-muted-foreground">{t("Searching…")}</p></Command.Loading>}
+        {!shownHits?.length && !searching && <Command.Empty className="px-3 py-10 text-center text-sm text-muted-foreground">{t("Nothing matches that search.")}</Command.Empty>}
+
+        {/* Server results: always shown (cmdk's own filter only knows the items above) */}
+        {HIT_GROUPS.map((g) => {
+          const list = shownHits?.filter((h) => h.kind === g.kind) ?? [];
+          if (!list.length) return null;
+          return (
+            <Command.Group key={g.kind} heading={t(g.heading)} className={group} forceMount>
+              {list.map((h) => (
+                <Command.Item key={h.id} value={`hit ${h.kind} ${h.id}`} forceMount onSelect={() => run(() => openHit(h))} className={item}>
+                  <g.icon aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{h.text}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{h.where}</span>
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          );
+        })}
 
         <Command.Group heading={t("Go to")} className={group}>
           {navFor(user.role).map((n) => (
