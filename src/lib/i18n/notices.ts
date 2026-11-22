@@ -34,6 +34,9 @@ const TEMPLATES: [RegExp, string][] = [
   [/^(?<team>.+) stand-up summary$/, "{team} stand-up summary"],
   [/^Weekly recap for (?<team>.+)$/, "Weekly recap for {team}"],
   [/^Weekly stand-up for (?<team>.+)$/, "Weekly stand-up for {team}"],
+  [/^(?<team>.+) asks for more time on (?<title>.+)$/, "{team} asks for more time on {title}"],
+  [/^More time on (?<title>.+): due (?<date>\w{3} \d{2} \w{3})$/, "More time on {title}: due {date}"],
+  [/^No extension on (?<title>.+)$/, "No extension on {title}"],
   [/^(?<team>.+) handed in (?<title>.+)$/, "{team} handed in {title}"],
   [/^(?<team>.+) resubmitted (?<title>.+)$/, "{team} resubmitted {title}"],
   // Bodies
@@ -42,6 +45,8 @@ const TEMPLATES: [RegExp, string][] = [
   [/^(?<code>.+) · due (?<date>\w{3} \d{2} \w{3})$/, "{code} · due {date}"],
   [/^(?<team>.+) · (?<date>\w{3} \d{2} \w{3})$/, "{team} · {date}"],
   [/^Your team's marks and feedback are on the course page\.$/, "Your team's marks and feedback are on the course page."],
+  [/^Until (?<date>\w{3} \d{2} \w{3}): (?<rest>.*)$/s, "Until {date}: {rest}"],
+  [/^It is still due (?<date>\w{3} \d{2} \w{3})\.$/, "It is still due {date}."],
   [/^It was due (?<date>\w{3} \d{2} \w{3}) and is not marked done\.$/, "It was due {date} and is not marked done."],
   [/^Oldest was due (?<date>\w{3} \d{2} \w{3})\. It may be worth checking in\.$/, "Oldest was due {date}. It may be worth checking in."],
   [/^Noticed: (?<reasons>.+)\. A short update to your team, or asking for help, goes a long way\.$/, "Noticed: {reasons}. A short update to your team, or asking for help, goes a long way."],

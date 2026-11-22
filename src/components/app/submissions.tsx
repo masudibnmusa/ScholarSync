@@ -8,7 +8,7 @@ import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { num } from "@/lib/i18n";
-import type { Milestone, Submission, Team } from "@/lib/types";
+import { dueFor, type Milestone, type Submission, type Team } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -86,7 +86,8 @@ export function HandInDialog({ team, milestone, current, open, onOpenChange, onD
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const input = React.useRef<HTMLInputElement>(null);
-  const late = new Date() > new Date(`${milestone.dueDate}T23:59:59.999`);
+  const due = dueFor(milestone, team.id);
+  const late = new Date() > new Date(`${due}T23:59:59.999`);
 
   function pick(f: File | undefined) {
     if (!f) return;
@@ -136,7 +137,7 @@ export function HandInDialog({ team, milestone, current, open, onOpenChange, onD
         <DialogHeader>
           <DialogTitle>{current ? t("Hand in a new version") : t("Hand in")}: {milestone.title}</DialogTitle>
           <DialogDescription>
-            {team.name} {t("· due")} {new Date(`${milestone.dueDate}T00:00:00`).toLocaleDateString(intl(), { weekday: "short", day: "numeric", month: "long" })}
+            {team.name} {t("· due")} {new Date(`${due}T00:00:00`).toLocaleDateString(intl(), { weekday: "short", day: "numeric", month: "long" })}
             {current ? t(". This replaces your earlier hand-in.") : "."}
           </DialogDescription>
         </DialogHeader>
@@ -214,7 +215,7 @@ export function SubmissionsReview({ milestone, teams, open, onOpenChange, onChan
 }) {
   const { t } = useT();
   const handedIn = milestone.submissions.length;
-  const overdue = new Date() > new Date(`${milestone.dueDate}T23:59:59.999`);
+  const overdueFor = (teamId: string) => new Date() > new Date(`${dueFor(milestone, teamId)}T23:59:59.999`);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -225,16 +226,19 @@ export function SubmissionsReview({ milestone, teams, open, onOpenChange, onChan
         <ul className="space-y-3">
           {teams.map((tt) => {
             const sub = milestone.submissions.find((x) => x.teamId === tt.id);
+            const overdue = overdueFor(tt.id);
+            const extended = dueFor(milestone, tt.id) !== milestone.dueDate;
             return (
               <li key={tt.id} className="rounded-2xl border p-4" aria-label={tt.name}>
                 <div className="flex items-center gap-2">
                   <Avatar name={tt.name} size="sm" />
                   <p className="min-w-0 flex-1 truncate font-bold">{tt.name}</p>
+                  {extended && <span className="rounded-full bg-sky px-2 py-0.5 text-[0.6875rem] font-bold text-info">{t("Extended to {date}", { date: new Date(`${dueFor(milestone, tt.id)}T00:00:00`).toLocaleDateString(intl(), { day: "numeric", month: "short" }) })}</span>}
                   {!sub && <span className={cn("rounded-full px-2 py-0.5 text-[0.6875rem] font-bold", overdue ? "bg-rose text-destructive" : "bg-muted text-muted-foreground")}>{overdue ? t("Missing") : t("Not yet")}</span>}
                 </div>
                 {sub && (
                   <div className="mt-3 space-y-3">
-                    <SubmissionSummary sub={sub} dueDate={milestone.dueDate} showFeedback={false} />
+                    <SubmissionSummary sub={sub} dueDate={dueFor(milestone, tt.id)} showFeedback={false} />
                     <FeedbackForm team={tt} milestone={milestone} sub={sub} onSaved={onChanged} />
                   </div>
                 )}

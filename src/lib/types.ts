@@ -81,7 +81,24 @@ export interface Milestone {
   completions: { teamId: string; completedAt: string }[];
   /** Hand-ins the viewer can see: every team's for the instructor, their own team's for a student. */
   submissions: Submission[];
+  /** Requests for more time the viewer can see (same rule as hand-ins). */
+  extensions: Extension[];
 }
+
+/** A team's request for more time on a milestone. `approvedDate` is the team's due date once one was approved. */
+export interface Extension {
+  teamId: string;
+  newDate: string;
+  reason: string;
+  status: "pending" | "approved" | "declined";
+  approvedDate: string | null;
+  requestedByName: string;
+  requestedAt: string;
+}
+
+/** A team's due date for a milestone: an approved extension, else the course's date. */
+export const dueFor = (m: Pick<Milestone, "dueDate" | "extensions">, teamId: string) =>
+  m.extensions.find((x) => x.teamId === teamId)?.approvedDate ?? m.dueDate;
 
 export interface Submission {
   teamId: string;

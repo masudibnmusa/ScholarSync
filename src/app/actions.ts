@@ -538,12 +538,18 @@ export async function getMilestones(courseId: string): Promise<Milestone[]> {
     const done = await tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.milestoneId, ids));
     const subs = await tx.select({ sub: s.submissions, by: s.users.name }).from(s.submissions)
       .leftJoin(s.users, eq(s.users.id, s.submissions.submittedBy)).where(inArray(s.submissions.milestoneId, ids));
+    const exts = await tx.select({ x: s.deadlineExtensions, by: s.users.name }).from(s.deadlineExtensions)
+      .leftJoin(s.users, eq(s.users.id, s.deadlineExtensions.requestedBy)).where(inArray(s.deadlineExtensions.milestoneId, ids));
     return ms.map((m) => ({
       id: m.id, title: m.title, description: m.description, dueDate: m.dueDate, requiresSubmission: m.requiresSubmission,
       completions: done.filter((d) => d.milestoneId === m.id).map((d) => ({ teamId: d.teamId, completedAt: d.completedAt })),
       submissions: subs.filter((x) => x.sub.milestoneId === m.id).map(({ sub, by }) => ({
         teamId: sub.teamId, link: sub.link, storagePath: sub.storagePath, fileName: sub.fileName, fileSize: sub.fileSize, note: sub.note,
         submittedByName: by ?? "A teammate", submittedAt: sub.submittedAt, feedback: sub.feedback, feedbackAt: sub.feedbackAt,
+      })),
+      extensions: exts.filter((e) => e.x.milestoneId === m.id).map(({ x, by }) => ({
+        teamId: x.teamId, newDate: x.newDate, reason: x.reason, status: x.status, approvedDate: x.approvedDate,
+        requestedByName: by ?? "A teammate", requestedAt: x.requestedAt,
       })),
     }));
   });
@@ -650,6 +656,30 @@ export async function setMilestoneDone(teamId: string, milestoneId: string, done
     if (done) await tx.insert(s.teamMilestones).values({ teamId, milestoneId }).onConflictDoNothing();
     else await tx.delete(s.teamMilestones).where(and(eq(s.teamMilestones.teamId, teamId), eq(s.teamMilestones.milestoneId, milestoneId)));
   });
+}
+
+const ExtensionInput = z.object({
+  newDate: z.iso.date(),
+  reason: z.string().trim().min(1, "Say why the team needs more time").max(1000),
+});
+
+/** A team asks for more time on a milestone (again, if an earlier request was decided). The database checks the date. */
+export async function requestExtension(teamId: string, milestoneId: string, input: z.input<typeof ExtensionInput>) {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  const x = ExtensionInput.parse(input);
+  await withUser((tx) => tx.insert(s.deadlineExtensions).values({ teamId, milestoneId, ...x })
+    .onConflictDoUpdate({ target: [s.deadlineExtensions.teamId, s.deadlineExtensions.milestoneId], set: x }));
+}
+
+/** The instructor approves or declines a pending request. */
+export async function decideExtension(teamId: string, milestoneId: string, approve: boolean) {
+  Id.parse(teamId);
+  Id.parse(milestoneId);
+  const updated = await withUser((tx) => tx.update(s.deadlineExtensions).set({ status: approve ? "approved" : "declined" })
+    .where(and(eq(s.deadlineExtensions.teamId, teamId), eq(s.deadlineExtensions.milestoneId, milestoneId)))
+    .returning({ status: s.deadlineExtensions.status }));
+  if (!updated.length) throw new Error("Request not found");
 }
 
 // ─── Grading (rubric per course; team marks; per-student contribution factor) ─
@@ -1229,7 +1259,7 @@ export async function getMyWeek(): Promise<WeekItem[]> {
     if (!myTeams.length) return [];
     const teamOf = (id: string) => myTeams.find((t) => t.id === id)!;
 
-    const [tasks, milestones, done, office] = await Promise.all([
+    const [tasks, milestones, done, office, extended] = await Promise.all([
       tx.select().from(s.tasks).where(and(
         eq(s.tasks.assigneeId, uid), ne(s.tasks.status, "done"), isNotNull(s.tasks.dueDate), lte(s.tasks.dueDate, horizon),
         inArray(s.tasks.teamId, myTeams.map((t) => t.id)),
@@ -1243,6 +1273,8 @@ export async function getMyWeek(): Promise<WeekItem[]> {
           inArray(s.officeHours.teamId, myTeams.map((t) => t.id)), lte(s.officeHours.startsAt, sql`${horizon}::date + 1`),
           sql`${s.officeHours.startsAt} + make_interval(mins => ${s.officeHours.minutes}) > now()`,
         )),
+      tx.select({ teamId: s.deadlineExtensions.teamId, milestoneId: s.deadlineExtensions.milestoneId, date: s.deadlineExtensions.approvedDate })
+        .from(s.deadlineExtensions).where(and(inArray(s.deadlineExtensions.teamId, myTeams.map((t) => t.id)), isNotNull(s.deadlineExtensions.approvedDate))),
     ]);
 
     const items: WeekItem[] = tasks.map((k) => {
@@ -1252,7 +1284,9 @@ export async function getMyWeek(): Promise<WeekItem[]> {
     for (const m of milestones) {
       for (const t of myTeams.filter((x) => x.courseId === m.courseId)) {
         if (done.some((d) => d.teamId === t.id && d.milestoneId === m.id)) continue;
-        items.push({ kind: "milestone", id: m.id, title: m.title, date: m.dueDate, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode });
+        const date = extended.find((x) => x.teamId === t.id && x.milestoneId === m.id)?.date ?? m.dueDate; // an approved extension
+        if (date > horizon) continue;
+        items.push({ kind: "milestone", id: m.id, title: m.title, date, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode });
       }
     }
     for (const { o, day } of office) {

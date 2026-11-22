@@ -59,6 +59,9 @@ assert.equal(translateNotice("bn", "Something a user wrote"), "Something a user 
 assert.ok(!/overdue/.test(translateNotice("bn", "Noticed: 2 overdue tasks, no team chat for 9 days. A short update to your team, or asking for help, goes a long way.")));
 assert.ok(!/Mon|Nov/.test(translateNotice("bn", "It was due Mon 23 Nov and is not marked done.")));
 assert.equal(translateReason("bn", "1 overdue task"), translate("bn", "{n} overdue task", { n: 1 }));
+assert.ok(!/asks for more time/.test(translateNotice("bn", "Team Nova asks for more time on Proposal")));
+assert.ok(translateNotice("bn", "More time on Proposal: due Tue 01 Dec").includes("ডিসে"));
+assert.ok(translateNotice("bn", "Until Tue 01 Dec: our tests moved").endsWith("our tests moved"));
 assert.equal(formatNumber("en", 1200), "1200");
 assert.equal(formatNumber("en", 4.25, 1), (4.25).toFixed(1));
 assert.equal(formatNumber("bn", 78), "৭৮");

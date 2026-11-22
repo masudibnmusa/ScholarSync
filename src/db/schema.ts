@@ -230,6 +230,19 @@ export const teamMilestones = pgTable("team_milestones", {
   completedBy: uuid("completed_by"),
 }, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
 
+export const deadlineExtensions = pgTable("deadline_extensions", {
+  teamId: uuid("team_id").notNull(),
+  milestoneId: uuid("milestone_id").notNull(),
+  newDate: date("new_date").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status", { enum: ["pending", "approved", "declined"] }).notNull().default("pending"),
+  approvedDate: date("approved_date"),
+  requestedBy: uuid("requested_by"),
+  requestedAt: ts("requested_at").notNull().defaultNow(),
+  decidedBy: uuid("decided_by"),
+  decidedAt: ts("decided_at"),
+}, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
+
 export const standups = pgTable("standups", {
   teamId: uuid("team_id").notNull(),
   userId: uuid("user_id").notNull(),

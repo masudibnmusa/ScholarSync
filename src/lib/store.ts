@@ -102,7 +102,7 @@ let onlineListener = false;
 const LIVE_TABLES = [
   "users", "courses", "course_enrollments", "teams", "team_members", "tasks", "files", "task_comments",
   "task_checklist_items", "course_announcements", "course_milestones", "team_milestones", "submissions",
-  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind", "repo_activity", "team_charters", "charter_agreements", "office_hours",
+  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind", "repo_activity", "team_charters", "charter_agreements", "office_hours", "deadline_extensions",
 ] as const;
 export type LiveTable = (typeof LIVE_TABLES)[number];
 const TEAM_TABLES: LiveTable[] = ["courses", "course_enrollments", "teams", "team_members", "tasks"]; // team cards show task progress
