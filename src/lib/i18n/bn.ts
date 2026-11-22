@@ -1650,4 +1650,17 @@ export const bn: Record<string, string> = {
   "Find a time to meet": "মিটিংয়ের সময় খুঁজুন",
   "Conflict alerts:": "দ্বন্দ্বের সতর্কতা:",
   "Switch team. Current:": "দল বদলান। বর্তমান:",
+  // Your data and deleting the account
+  "That isn't the email address of this account.": "এটি এই অ্যাকাউন্টের ইমেইল ঠিকানা নয়।",
+  "You teach courses. Delete them first, then your account.": "আপনি কোর্স পড়ান। আগে সেগুলো মুছুন, তারপর অ্যাকাউন্ট।",
+  "Your account was deleted": "আপনার অ্যাকাউন্ট মুছে ফেলা হয়েছে",
+  "Could not delete your account": "আপনার অ্যাকাউন্ট মোছা যায়নি",
+  "Delete your account?": "আপনার অ্যাকাউন্ট মুছবেন?",
+  "Your profile, photo, course places, team memberships, stand-ups, peer reviews and notifications are deleted. Tasks, messages and files you shared stay with your team, without your name. This can't be undone.": "আপনার প্রোফাইল, ছবি, কোর্সে জায়গা, দলের সদস্যপদ, স্ট্যান্ড-আপ, পিয়ার রিভিউ ও নোটিফিকেশন মুছে যাবে। আপনার শেয়ার করা কাজ, বার্তা ও ফাইল আপনার নাম ছাড়া দলের কাছে থেকে যাবে। এটি আর ফেরানো যাবে না।",
+  "Type your email address to confirm": "নিশ্চিত করতে আপনার ইমেইল ঠিকানা লিখুন",
+  "Delete account": "অ্যাকাউন্ট মুছুন",
+  "Could not download your data": "আপনার ডেটা ডাউনলোড করা যায়নি",
+  "Your data": "আপনার ডেটা",
+  "A copy of everything ScholarSync stores about you, as a JSON file.": "ScholarSync আপনার সম্পর্কে যা কিছু রাখে তার একটি কপি, JSON ফাইল হিসেবে।",
+  "Download my data": "আমার ডেটা ডাউনলোড করুন",
 };

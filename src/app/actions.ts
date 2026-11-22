@@ -88,6 +88,78 @@ export async function getAvatars(): Promise<Record<string, string>> {
   });
 }
 
+/**
+ * Everything the app stores about me, ready to save as JSON (Profile → Download my data). Read as me, so it is exactly
+ * what RLS lets me see: peer reviews written about me stay out, as they do in the app (they're for the instructor).
+ */
+export async function exportMyData() {
+  return withUser(async (tx, uid) => {
+    const [u] = await tx.select().from(s.users).where(eq(s.users.id, uid));
+    if (!u) throw new Error("Profile not found");
+    const teamName = s.teams.name;
+    const [courses, taught, teams, tasks, messages, comments, files, standups, reviews, notifications, officeHours, extensions, agreements] = await Promise.all([
+      tx.select({ code: s.courses.code, title: s.courses.title, term: s.courses.term, enrolledAt: s.courseEnrollments.enrolledAt })
+        .from(s.courseEnrollments).innerJoin(s.courses, eq(s.courses.id, s.courseEnrollments.courseId)).where(eq(s.courseEnrollments.userId, uid)),
+      tx.select({ code: s.courses.code, title: s.courses.title, term: s.courses.term }).from(s.courses).where(eq(s.courses.instructorId, uid)),
+      tx.select({ team: teamName, course: s.courses.code, joinedAt: s.teamMembers.joinedAt }).from(s.teamMembers)
+        .innerJoin(s.teams, eq(s.teams.id, s.teamMembers.teamId)).innerJoin(s.courses, eq(s.courses.id, s.teams.courseId)).where(eq(s.teamMembers.userId, uid)),
+      tx.select({ team: teamName, title: s.tasks.title, description: s.tasks.description, status: s.tasks.status, priority: s.tasks.priority, dueDate: s.tasks.dueDate,
+        assignedToMe: sql<boolean>`${s.tasks.assigneeId} is not distinct from ${uid}`, createdByMe: sql<boolean>`${s.tasks.createdBy} is not distinct from ${uid}`, createdAt: s.tasks.createdAt })
+        .from(s.tasks).innerJoin(s.teams, eq(s.teams.id, s.tasks.teamId)).where(or(eq(s.tasks.assigneeId, uid), eq(s.tasks.createdBy, uid))).orderBy(asc(s.tasks.createdAt)),
+      tx.select({ team: teamName, content: s.messages.content, sentAt: s.messages.createdAt }).from(s.messages)
+        .innerJoin(s.teams, eq(s.teams.id, s.messages.teamId)).where(eq(s.messages.senderId, uid)).orderBy(asc(s.messages.createdAt)),
+      tx.select({ task: s.tasks.title, comment: s.taskComments.body, at: s.taskComments.createdAt }).from(s.taskComments)
+        .innerJoin(s.tasks, eq(s.tasks.id, s.taskComments.taskId)).where(eq(s.taskComments.authorId, uid)).orderBy(asc(s.taskComments.createdAt)),
+      tx.select({ team: teamName, name: s.files.name, type: s.files.mimeType, bytes: s.files.sizeBytes, sharedAt: s.files.createdAt }).from(s.files)
+        .innerJoin(s.teams, eq(s.teams.id, s.files.teamId)).where(eq(s.files.uploaderId, uid)).orderBy(asc(s.files.createdAt)),
+      tx.select({ team: teamName, weekStart: s.standups.weekStart, done: s.standups.done, next: s.standups.next, blocked: s.standups.blocked }).from(s.standups)
+        .innerJoin(s.teams, eq(s.teams.id, s.standups.teamId)).where(eq(s.standups.userId, uid)),
+      tx.select({ about: s.users.name, rating: s.peerReviews.rating, categories: s.peerReviews.categoryRatings, feedback: s.peerReviews.feedback, at: s.peerReviews.createdAt })
+        .from(s.peerReviews).leftJoin(s.users, eq(s.users.id, s.peerReviews.revieweeId)).where(eq(s.peerReviews.reviewerId, uid)),
+      tx.select({ title: s.notifications.title, body: s.notifications.body, at: s.notifications.createdAt, readAt: s.notifications.readAt }).from(s.notifications)
+        .where(eq(s.notifications.userId, uid)).orderBy(asc(s.notifications.createdAt)),
+      tx.select({ startsAt: s.officeHours.startsAt, minutes: s.officeHours.minutes, location: s.officeHours.location, topic: s.officeHours.topic }).from(s.officeHours)
+        .where(eq(s.officeHours.bookedBy, uid)),
+      tx.select({ milestone: s.courseMilestones.title, newDate: s.deadlineExtensions.newDate, reason: s.deadlineExtensions.reason, status: s.deadlineExtensions.status })
+        .from(s.deadlineExtensions).innerJoin(s.courseMilestones, eq(s.courseMilestones.id, s.deadlineExtensions.milestoneId)).where(eq(s.deadlineExtensions.requestedBy, uid)),
+      tx.select({ team: teamName, agreedAt: s.charterAgreements.agreedAt }).from(s.charterAgreements)
+        .innerJoin(s.teams, eq(s.teams.id, s.charterAgreements.teamId)).where(eq(s.charterAgreements.userId, uid)),
+    ]);
+    return {
+      app: "ScholarSync", exportedAt: new Date().toISOString(),
+      profile: { name: u.name, email: u.email, role: u.role, bio: u.bio, skills: u.skills, availability: u.availability, githubUsername: u.githubLogin,
+        language: u.locale, dailyEmail: u.emailDigest, hasProfilePhoto: !!u.avatarPath, joinedAt: u.createdAt },
+      courses, coursesTaught: taught, teams, tasks, messages, taskComments: comments, filesShared: files, standups,
+      peerReviewsWritten: reviews, notifications, officeHoursBooked: officeHours, extensionRequests: extensions, charterAgreements: agreements,
+    };
+  });
+}
+
+/**
+ * Deletes my account for good (Profile → Delete account), after I type my email to confirm. Removing the sign-in
+ * (auth.users) cascades to the profile and everything personal: enrollments, team memberships, notifications, peer
+ * reviews, stand-ups, grade factors, push devices. Shared team work stays with the team, unnamed: tasks, messages,
+ * files, comments and hand-ins keep their rows with the person's column set to null ("Former member"). My profile
+ * photo goes too. Instructors must delete their courses first (courses.instructor_id is "on delete restrict").
+ */
+export async function deleteAccount(confirmEmail: string): Promise<"deleted" | "wrong-email" | "has-courses"> {
+  const me = await withUser(async (tx, uid) => {
+    const [u] = await tx.select({ email: s.users.email, avatarPath: s.users.avatarPath }).from(s.users).where(eq(s.users.id, uid));
+    const [taught] = await tx.select({ n: count() }).from(s.courses).where(eq(s.courses.instructorId, uid));
+    return u && { ...u, id: uid, teaches: taught.n > 0 };
+  });
+  if (!me) throw new Error("Profile not found");
+  if (z.string().trim().toLowerCase().parse(confirmEmail) !== me.email.toLowerCase()) return "wrong-email";
+  if (me.teaches) return "has-courses";
+  const supabase = await supabaseServer();
+  if (me.avatarPath) await supabase.storage.from("avatars").remove([me.avatarPath]); // best effort: the account matters more
+  // adminDb on purpose, after the identity check above: the rows clean up as a system change, so the triggers that
+  // guard what a signed-in person may edit (hand-ins, extensions) and record who did what don't take it as theirs.
+  await adminDb.execute(sql`delete from auth.users where id = ${me.id}`);
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {}); // clears this browser's session cookies
+  return "deleted";
+}
+
 /** Points my profile at a photo I just uploaded, or removes it (null). Returns the previous path so its file can be deleted. */
 export async function setAvatar(path: string | null): Promise<string | null> {
   return withUser(async (tx, uid) => {
