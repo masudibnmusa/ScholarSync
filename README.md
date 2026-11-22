@@ -195,7 +195,7 @@ Phone and desktop alerts need a VAPID key pair: run `npx web-push generate-vapid
 
 ### End-to-end tests
 
-Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, creating and deleting a task, My week's live clock and month view, the auto-hiding sidebar, the command menu, the profile photo crop/replace/remove flow and the instructor pages.
+Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, the student workspace and My week, the profile photo, installing and alerts, course management, hand-ins, team chat, live updates, the stand-up, grading and the gradebook export, offline mode, the at-risk page, contribution reports, GitHub, the team charter, office hours and tasks from meeting notes. Every row in the results table below names what it checks.
 
 ```bash
 npx playwright install chromium    # once
@@ -211,14 +211,23 @@ They need local Supabase with the seed. Tests that change data use a fresh accou
 
 **Test data**
 
+Tests that change data never touch the seed accounts' teams. They make their own accounts and courses, and clean up after themselves.
+
 | Data | Used for |
 |---|---|
 | Seed student `masud@university.edu` (Team Nova, team id `00000000-0000-4000-a000-000000000001`) | Workspace, task, My week, sidebar and command menu tests. The task test deletes the task it creates. |
-| Seed instructor `selim.reja@university.edu` (teaches `CSE-3200`) | Instructor pages and role guards (read only) |
-| A new `e2e-<time>-<random>@university.edu` account per test | Sign-up and profile photo tests, so no real photo is replaced or removed |
+| Seed instructor `selim.reja@university.edu` (teaches `CSE-3200`) | Instructor pages and role guards (read only). Also the instructor of every throwaway course below, so it gets those courses' notifications (bookings, hand-ins). |
+| A new `e2e-<time>-<random>@university.edu` account per student in a test | Sign-up, profile photo, alerts and every team test, so no real photo, device or team is touched. Names start with `E2E` (e.g. *E2E Ada*). The teardown deletes all `e2e-` accounts. |
+| A throwaway course `E2E-<base36 time>` with one team, *E2E Team*, of new students (`courseWithTeam()` in [`helpers.ts`](tests/e2e/helpers.ts)) | Course management, submissions, chat, live updates, stand-up, at risk, grading, offline, contribution, GitHub, charter, office hours and meeting notes. Each test deletes its course; the teardown removes any `E2E-` course a failed run left. |
+| Rows added with the local service role (`adminRest()` in [`helpers.ts`](tests/e2e/helpers.ts)), only for throwaway teams | History a browser can't create in a test run: a falling-behind case (flagged 4 days ago, escalated 1 day ago); a done task, 4 messages and a 4/5 peer review (*"E2E: always on time"*) for the contribution report; a linked repo `e2e-org/e2e-project` with 3 commits (2 by `e2e-hal-dev`, 1 by `someone-else`) and a merged PR #7. No test calls GitHub. |
+| Rubric *Code* (/40) and *Report* (/60), marks 30 and 54, factor override 0.9 | Grading: team grade 84%, final grades 84 and 75.6 in the exported CSV |
+| GitHub usernames `bad_name!` (refused) and `@e2e-hal-dev` (saved) | Profile validation and matching commits to a student (GitHub's `E2E-Hal-Dev` matches regardless of case) |
+| Repo input `not a repo` | Refused before anything is sent to GitHub |
+| Office hours: three 20-minute slots from 15:00 tomorrow in *Room 402*, topic *"E2E: our database design"* | Booking, the .ics file, cancelling and removing a slot |
+| Meeting notes naming *E2E Ada* (due 2026-12-04), *E2E Ben* (due 2026-12-08), an unowned test plan and a decision | The Gemini test (`E2E_AI=1` only): 3 items, the decision skipped |
 | [`tests/e2e/fixtures/photo.png`](tests/e2e/fixtures/photo.png) (600 × 360, four coloured quarters) | A wide photo to crop into a square |
 | A generated `notes.txt` (`text/plain`) | Checks that non-images are refused |
-| A throwaway course `E2E-<time>` with new students | The course management, submissions, live, stand-up, at-risk, grading, offline, contribution, GitHub, charter and office-hours tests; it deletes the course itself, and the teardown removes any `E2E-` course left by a failed run |
+| A fake push service (`https://push.e2e.invalid/<uuid>`) | Test browsers have none; the alerts test replaces `PushManager` with it |
 | Wrong password `not-the-password` | The sign-in error message |
 
 All seed accounts use the password `password123`.
