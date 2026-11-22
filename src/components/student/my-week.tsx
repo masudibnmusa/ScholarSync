@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarCheck, CaretLeft, CaretRight, CheckSquare, DownloadSimple, Flag } from "@phosphor-icons/react/dist/ssr";
+import { CalendarCheck, CaretLeft, CaretRight, ChalkboardTeacher, CheckSquare, DownloadSimple, Flag } from "@phosphor-icons/react/dist/ssr";
 import { getMyWeek } from "@/app/actions";
 import { withSnapshot } from "@/lib/offline";
 import { useUser } from "@/components/app/user-context";
@@ -19,19 +19,34 @@ import { useLive } from "@/lib/store";
 const priorityBadge = { high: "danger", medium: "warning", low: "muted" } as const;
 const hrefOf = (i: WeekItem) => (i.kind === "task" ? `/student?team=${i.teamId}&task=${i.id}` : `/student/courses/${i.courseId}`);
 
+const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const KIND = {
+  task: { icon: CheckSquare, tile: "bg-peach text-warm-text", chip: "bg-peach text-warm-text", dot: "bg-primary" },
+  milestone: { icon: Flag, tile: "bg-butter text-warm-text", chip: "bg-sky text-info", dot: "bg-info" },
+  "office-hours": { icon: ChalkboardTeacher, tile: "bg-sage text-success", chip: "bg-sage text-success", dot: "bg-success" },
+} as const;
+
+/** Due-date wording for tasks and milestones; office hours show their time (they can't be overdue). */
+function whenOf(item: WeekItem) {
+  if (item.kind !== "office-hours") return dueInfo(item.date);
+  const soon = dueInfo(item.date);
+  const day = soon?.label === "Due today" ? "Today" : soon?.label === "Due tomorrow" ? "Tomorrow" : new Date(item.startsAt!).toLocaleDateString([], { month: "short", day: "numeric" });
+  return { label: `${day}, ${clock(item.startsAt!)}`, tone: soon?.tone === "warning" ? "warning" as const : "muted" as const };
+}
+
 function ItemRow({ item }: { item: WeekItem }) {
-  const due = dueInfo(item.date);
-  const Icon = item.kind === "task" ? CheckSquare : Flag;
+  const due = whenOf(item);
+  const Icon = KIND[item.kind].icon;
   return (
     <Link href={hrefOf(item)} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 outline-none">
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", item.kind === "task" ? "bg-peach text-warm-text" : "bg-butter text-warm-text")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", KIND[item.kind].tile)}>
         <Icon weight="fill" className="size-[1.125rem]" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold group-hover:text-primary">
           {item.kind === "milestone" && <span className="text-muted-foreground">Milestone · </span>}{item.title}
         </span>
-        <span className="block truncate text-xs text-muted-foreground">{item.teamName} · {item.courseCode}</span>
+        <span className="block truncate text-xs text-muted-foreground">{item.teamName} · {item.courseCode}{item.location ? ` · ${item.location}` : ""}</span>
       </span>
       {item.priority && <Badge variant={priorityBadge[item.priority]} className="hidden capitalize sm:inline-flex">{item.priority}</Badge>}
       {due && <span className={cn("w-28 shrink-0 text-right text-xs font-semibold", toneText[due.tone])}>{due.label}</span>}
@@ -80,15 +95,16 @@ function MonthView({ items }: { items: WeekItem[] }) {
               {/* Phones: one dot per item */}
               {list.length > 0 && (
                 <span className="flex flex-wrap gap-0.5 sm:hidden" aria-hidden>
-                  {list.slice(0, 4).map((x) => <span key={`${x.kind}-${x.id}-${x.teamId}`} className={cn("size-1.5 rounded-full", late ? "bg-destructive" : x.kind === "task" ? "bg-primary" : "bg-info")} />)}
+                  {list.slice(0, 4).map((x) => <span key={`${x.kind}-${x.id}-${x.teamId}`} className={cn("size-1.5 rounded-full", late ? "bg-destructive" : KIND[x.kind].dot)} />)}
                 </span>
               )}
               <span className="hidden flex-col gap-0.5 sm:flex">
                 {list.slice(0, 3).map((x) => (
                   <Link key={`${x.kind}-${x.id}-${x.teamId}`} href={hrefOf(x)} title={`${x.title} · ${x.teamName}`}
                     className={cn("truncate rounded-md px-1.5 py-0.5 text-left text-[0.6875rem] font-semibold outline-none hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring",
-                      late ? "bg-rose text-destructive" : x.kind === "task" ? "bg-peach text-warm-text" : "bg-sky text-info")}>
-                    {x.kind === "milestone" && <Flag weight="fill" className="mr-0.5 inline size-2.5" aria-hidden />}{x.title}
+                      late ? "bg-rose text-destructive" : KIND[x.kind].chip)}>
+                    {x.kind === "milestone" && <Flag weight="fill" className="mr-0.5 inline size-2.5" aria-hidden />}
+                    {x.kind === "office-hours" && <span className="mr-0.5 font-bold">{clock(x.startsAt!)}</span>}{x.title}
                   </Link>
                 ))}
                 {list.length > 3 && <span className="px-1.5 text-[0.6875rem] font-semibold text-muted-foreground">+{list.length - 3} more</span>}
@@ -201,7 +217,7 @@ export function MyWeek() {
   const user = useUser();
   const [all, setAll] = React.useState<WeekItem[] | null>(null);
   const [view, setView] = React.useState<"list" | "month">("list");
-  const live = useLive("tasks", "course_milestones", "team_milestones", "submissions", "team_members");
+  const live = useLive("tasks", "course_milestones", "team_milestones", "submissions", "team_members", "office_hours");
   const items = React.useMemo(() => all?.filter((i) => daysUntil(i.date) <= LIST_DAYS) ?? null, [all]);
   React.useEffect(() => {
     withSnapshot(user.id, "week", getMyWeek).then(setAll).catch((err) => { console.error("Loading your week failed:", err); setAll([]); });
@@ -239,7 +255,7 @@ export function MyWeek() {
       {!items ? (
         <Card className="space-y-3 p-5" aria-busy="true"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></Card>
       ) : items.length === 0 ? (
-        <Card><EmptyState icon={CalendarCheck} title="You're all caught up" description="Tasks assigned to you with a due date, and your teams' milestones, show up here." /></Card>
+        <Card><EmptyState icon={CalendarCheck} title="You're all caught up" description="Tasks assigned to you with a due date, your teams' milestones and booked office hours show up here." /></Card>
       ) : (
         <div className="space-y-5">
           {groups.map((g) => (

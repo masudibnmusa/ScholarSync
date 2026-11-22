@@ -53,6 +53,16 @@ test("the instructor opens office hours and a team books, downloads and loses a 
   expect(ics).toContain("DESCRIPTION:Topic: E2E: our database design");
   expect(ics).toMatch(/DTSTART:\d{8}T\d{6}Z\r\nDTEND:\d{8}T\d{6}Z/);
 
+  // My week lists it at its time, and its calendar export has it as a timed event.
+  await joy.page.goto("/student/week");
+  const row = joy.page.getByRole("link", { name: /Office hours: E2E: our database design/ });
+  await expect(row).toContainText("Tomorrow, 3:20 PM");
+  await expect(row).toContainText(`E2E Team · ${code} · Room 402`);
+  const week = await (await joy.page.request.get("/api/calendar")).text();
+  expect(week).toContain(`SUMMARY:Office hours: E2E: our database design · ${code}`);
+  expect(week).toMatch(/UID:office-hours-[0-9a-f-]+@scholarsync\r\nDTSTAMP:\d{8}T\d{6}Z\r\nDTSTART:\d{8}T\d{6}Z/);
+  await joy.page.goto(studentUrl);
+
   // The instructor cancels the booking: the team is told and can book again.
   await card.getByRole("button", { name: "Cancel E2E Team's booking at 3:20 PM" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel booking" }).click();

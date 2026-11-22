@@ -1159,7 +1159,7 @@ export async function getMyWeek(): Promise<WeekItem[]> {
     if (!myTeams.length) return [];
     const teamOf = (id: string) => myTeams.find((t) => t.id === id)!;
 
-    const [tasks, milestones, done] = await Promise.all([
+    const [tasks, milestones, done, office] = await Promise.all([
       tx.select().from(s.tasks).where(and(
         eq(s.tasks.assigneeId, uid), ne(s.tasks.status, "done"), isNotNull(s.tasks.dueDate), lte(s.tasks.dueDate, horizon),
         inArray(s.tasks.teamId, myTeams.map((t) => t.id)),
@@ -1168,6 +1168,11 @@ export async function getMyWeek(): Promise<WeekItem[]> {
         inArray(s.courseMilestones.courseId, myTeams.map((t) => t.courseId)), lte(s.courseMilestones.dueDate, horizon),
       )),
       tx.select().from(s.teamMilestones).where(inArray(s.teamMilestones.teamId, myTeams.map((t) => t.id))),
+      tx.select({ o: s.officeHours, day: sql<string>`to_char(${s.officeHours.startsAt} at time zone ${s.officeHours.tz}, 'YYYY-MM-DD')` })
+        .from(s.officeHours).where(and(
+          inArray(s.officeHours.teamId, myTeams.map((t) => t.id)), lte(s.officeHours.startsAt, sql`${horizon}::date + 1`),
+          sql`${s.officeHours.startsAt} + make_interval(mins => ${s.officeHours.minutes}) > now()`,
+        )),
     ]);
 
     const items: WeekItem[] = tasks.map((k) => {
@@ -1180,7 +1185,13 @@ export async function getMyWeek(): Promise<WeekItem[]> {
         items.push({ kind: "milestone", id: m.id, title: m.title, date: m.dueDate, teamId: t.id, teamName: t.name, courseId: t.courseId, courseCode: t.courseCode });
       }
     }
-    return items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? 0 : a.kind === "milestone" ? -1 : 1));
+    for (const { o, day } of office) {
+      const t = teamOf(o.teamId!);
+      items.push({ kind: "office-hours", id: o.id, title: o.topic ? `Office hours: ${o.topic}` : "Office hours", date: day, teamId: t.id, teamName: t.name,
+        courseId: t.courseId, courseCode: t.courseCode, startsAt: o.startsAt, minutes: o.minutes, location: o.location });
+    }
+    const order = { milestone: 0, "office-hours": 1, task: 2 } as const;
+    return items.sort((a, b) => a.date.localeCompare(b.date) || order[a.kind] - order[b.kind] || (a.startsAt ?? "").localeCompare(b.startsAt ?? ""));
   });
 }
 

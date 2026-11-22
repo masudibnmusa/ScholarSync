@@ -137,10 +137,14 @@ export interface MyReview {
 
 /** One dated item on a student's "My week" page. */
 export interface WeekItem {
-  kind: "task" | "milestone";
+  kind: "task" | "milestone" | "office-hours";
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (office hours: the day in the slot's time zone)
+  /** Office hours only: when, how long and where. */
+  startsAt?: string;
+  minutes?: number;
+  location?: string;
   teamId: string;
   teamName: string;
   courseId: string;
