@@ -35,15 +35,17 @@ export function translate(locale: Locale, text: string, vars?: Vars): string {
 export const translatePlural = (locale: Locale, n: number, one: string, other: string, vars?: Vars) =>
   translate(locale, n === 1 ? one : other, { n, ...vars });
 
-// shortcut: one module-wide value on the server, so two requests in different languages rendering at the same moment
-// could swap a date's language (React then repairs it on hydration); move to AsyncLocalStorage if that shows up.
-let serverLocale: Locale = "en";
-/** Called by LocaleProvider while server rendering, so t() and intl() in helpers match the page's language. */
-export const setServerLocale = (l: Locale) => { serverLocale = l; };
+// While server rendering, the request's language lives in AsyncLocalStorage (Next.js puts it on globalThis), so two
+// requests in different languages rendering at the same moment each keep their own. The browser has no such global.
+type Store = { enterWith(l: Locale): void; getStore(): Locale | undefined };
+const ALS = (globalThis as { AsyncLocalStorage?: new () => Store }).AsyncLocalStorage;
+const requestLocaleStore: Store | null = typeof document === "undefined" && ALS ? new ALS() : null;
+/** Called by LocaleProvider while server rendering, so t(), num() and intl() in helpers match the page's language. */
+export const setServerLocale = (l: Locale) => requestLocaleStore?.enterWith(l);
 
 /** The page's language: from <html lang> in the browser; the request's language while server rendering. */
 export function currentLocale(): Locale {
-  if (typeof document === "undefined") return serverLocale;
+  if (typeof document === "undefined") return requestLocaleStore?.getStore() ?? "en";
   return isLocale(document.documentElement.lang) ? document.documentElement.lang : "en";
 }
 
