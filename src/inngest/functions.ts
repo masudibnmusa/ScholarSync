@@ -1,4 +1,5 @@
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import * as Sentry from "@sentry/nextjs";
 import { inngest } from "./client";
 import { adminDb as db } from "@/db";
 import { conflictAlerts, messages, notifications, taskSuggestions, tasks, teamMembers, teams } from "@/db/schema";
@@ -224,4 +225,16 @@ export const officeHourReminders = inngest.createFunction(
   async ({ step }) => step.run("remind", () => sendOfficeHourReminders()),
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo, officeHourReminders];
+// A job that failed every retry: report it, so background failures (pushes, reminders, syncs) don't go unnoticed.
+export const reportJobFailures = inngest.createFunction(
+  { id: "report-job-failures", triggers: [{ event: "inngest/function.failed" }] },
+  async ({ event }) => {
+    const d = event.data as { function_id?: string; run_id?: string; error?: { name?: string; message?: string; stack?: string } };
+    const err = Object.assign(new Error(d.error?.message ?? "Background job failed"), { name: d.error?.name ?? "JobFailed", stack: d.error?.stack });
+    Sentry.captureException(err, { tags: { job: d.function_id ?? "unknown", run: d.run_id ?? "" } });
+    await Sentry.flush(2000);
+    return { reported: !!Sentry.getClient() };
+  },
+);
+
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo, officeHourReminders, reportJobFailures];

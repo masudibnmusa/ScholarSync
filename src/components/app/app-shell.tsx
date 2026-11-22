@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import * as Sentry from "@sentry/nextjs";
 import { DotsThreeOutline, WifiSlash } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
@@ -97,6 +98,7 @@ export function AppShell({ user, sidebarCollapsed, children }: { user: UserProfi
   // Load this user's data and live updates once the shell is in the browser.
   React.useEffect(() => {
     useAppStore.getState().boot(user);
+    Sentry.setUser({ id: user.id }); // the id only: no name or email leaves the app
   }, [user]);
 
   const signOut = React.useCallback(async () => {

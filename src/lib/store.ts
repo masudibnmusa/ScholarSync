@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import * as Sentry from "@sentry/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -207,6 +208,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   logout: async () => {
     await supabaseBrowser().auth.signOut();
     await clearOffline();
+    Sentry.setUser(null);
     closeChannels();
     set(empty);
   },
