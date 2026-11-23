@@ -10,7 +10,7 @@ import { translateNotice } from "@/lib/i18n/notices";
 import { requestLocale } from "@/lib/locale-server";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
-import { answerFromSources, extractActionItems, matchTeams, suggestMeetings } from "@/lib/ai";
+import { answerFromSources, extractActionItems, matchTeams, suggestMeetings, summarizeRetros } from "@/lib/ai";
 import { cleanActionItems, MAX_ACTION_ITEMS, type ActionItem } from "@/lib/action-items";
 import type { MeetingSlot } from "@/lib/meeting";
 import { citeAnswer, type CitedSource, type StudySource } from "@/lib/study-buddy";
@@ -23,7 +23,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends, RubricCheck,
+  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends, RubricCheck, TeamRetro, RetroThemes,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -686,6 +686,8 @@ export async function getMilestones(courseId: string): Promise<Milestone[]> {
       .leftJoin(s.users, eq(s.users.id, s.submissions.submittedBy)).where(inArray(s.submissions.milestoneId, ids));
     const exts = await tx.select({ x: s.deadlineExtensions, by: s.users.name }).from(s.deadlineExtensions)
       .leftJoin(s.users, eq(s.users.id, s.deadlineExtensions.requestedBy)).where(inArray(s.deadlineExtensions.milestoneId, ids));
+    const retros = await tx.select({ teamId: s.teamRetros.teamId, milestoneId: s.teamRetros.milestoneId }).from(s.teamRetros)
+      .where(inArray(s.teamRetros.milestoneId, ids));
     return ms.map((m) => ({
       id: m.id, title: m.title, description: m.description, dueDate: m.dueDate, requiresSubmission: m.requiresSubmission,
       completions: done.filter((d) => d.milestoneId === m.id).map((d) => ({ teamId: d.teamId, completedAt: d.completedAt })),
@@ -697,8 +699,54 @@ export async function getMilestones(courseId: string): Promise<Milestone[]> {
         teamId: x.teamId, newDate: x.newDate, reason: x.reason, status: x.status, approvedDate: x.approvedDate,
         requestedByName: by ?? "A teammate", requestedAt: x.requestedAt,
       })),
+      retroTeams: retros.filter((r) => r.milestoneId === m.id).map((r) => r.teamId),
     }));
   });
+}
+
+// ─── Retrospectives ───────────────────────────────────────────────────
+
+/** The retrospectives on a milestone: the student's own team's, or every team's for the instructor (RLS). */
+export async function getRetros(milestoneId: string): Promise<TeamRetro[]> {
+  const L = await requestLocale();
+  Id.parse(milestoneId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ r: s.teamRetros, team: s.teams.name, by: s.users.name }).from(s.teamRetros)
+      .innerJoin(s.teams, eq(s.teams.id, s.teamRetros.teamId)).leftJoin(s.users, eq(s.users.id, s.teamRetros.updatedBy))
+      .where(eq(s.teamRetros.milestoneId, milestoneId)).orderBy(asc(s.teams.name));
+    return rows.map(({ r, team, by }) => ({ teamId: r.teamId, teamName: team, wentWell: r.wentWell, didnt: r.didnt,
+      updatedByName: by ?? translate(L, "Former member"), updatedAt: r.updatedAt }));
+  });
+}
+
+const RetroInput = z.object({ wentWell: z.string().trim().max(2000), didnt: z.string().trim().max(2000) })
+  .refine((r) => r.wentWell || r.didnt, "Write at least one of the two");
+
+/** Saves the team's retrospective on a milestone (one shared answer per team; any member edits it). */
+export async function saveRetro(teamId: string, milestoneId: string, input: z.input<typeof RetroInput>) {
+  Id.parse(teamId); Id.parse(milestoneId);
+  const r = RetroInput.parse(input);
+  await withUser((tx) => tx.insert(s.teamRetros).values({ teamId, milestoneId, ...r })
+    .onConflictDoUpdate({ target: [s.teamRetros.teamId, s.teamRetros.milestoneId], set: { wentWell: r.wentWell, didnt: r.didnt } }));
+}
+
+/** Instructor: themes across the teams' retrospectives on a milestone, found by the AI. Needs two or more. */
+export async function findRetroThemes(milestoneId: string): Promise<RetroThemes> {
+  Id.parse(milestoneId);
+  const L = await requestLocale();
+  const retros = await withUser(async (tx, uid) => {
+    const [m] = await tx.select({ instructorId: s.courses.instructorId }).from(s.courseMilestones)
+      .innerJoin(s.courses, eq(s.courses.id, s.courseMilestones.courseId)).where(eq(s.courseMilestones.id, milestoneId));
+    if (m?.instructorId !== uid) throw new Error("Only the course's instructor can see themes");
+    return tx.select({ team: s.teams.name, wentWell: s.teamRetros.wentWell, didnt: s.teamRetros.didnt }).from(s.teamRetros)
+      .innerJoin(s.teams, eq(s.teams.id, s.teamRetros.teamId)).where(eq(s.teamRetros.milestoneId, milestoneId));
+  });
+  if (retros.length < 2) throw new Error("Themes need at least two retrospectives");
+  const themes = await summarizeRetros(retros, L);
+  if (!themes) throw new Error("The AI returned nothing");
+  const names = new Set(retros.map((r) => r.team)); // keep only real team names
+  const clean = (xs: { theme: string; teams: string[] }[]) => xs.map((x) => ({ theme: x.theme, teams: x.teams.filter((n) => names.has(n)) }));
+  return { wentWell: clean(themes.went_well), didnt: clean(themes.didnt) };
 }
 
 const MilestoneInput = z.object({

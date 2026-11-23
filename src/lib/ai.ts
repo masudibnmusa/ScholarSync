@@ -248,3 +248,19 @@ export async function answerFromSources(question: string, sources: StudySource[]
   );
   return out?.answer ?? null;
 }
+
+const Themes = z.object({
+  went_well: z.array(z.object({ theme: z.string().describe("A short theme, max 12 words"), teams: z.array(z.string()).describe("Team names that mentioned it") })),
+  didnt: z.array(z.object({ theme: z.string().describe("A short theme, max 12 words"), teams: z.array(z.string()).describe("Team names that mentioned it") })),
+});
+
+/** Common themes across teams' retrospectives on one milestone, for the instructor. */
+export async function summarizeRetros(retros: { team: string; wentWell: string; didnt: string }[], language: "en" | "bn") {
+  return ask(
+    Themes,
+    "You help a university instructor read their project teams' retrospectives on one milestone. Group what the teams wrote into " +
+      "at most 5 themes for what went well and at most 5 for what didn't, most common first, each with the names of the teams that " +
+      "mentioned it. Merge similar points; skip one-off details unless they matter. " + (language === "bn" ? "Write the themes in Bangla." : "Write the themes in English."),
+    `<answers>\n${retros.map((r) => `Team: ${r.team}\nWent well: ${r.wentWell || "(nothing)"}\nDidn't go well: ${r.didnt || "(nothing)"}`).join("\n\n")}\n</answers>`,
+  );
+}

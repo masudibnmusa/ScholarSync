@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck, CalendarPlus, Check, CheckCircle, Clock, DotsThree, Flag, PencilSimple, Plus, Trash, Tray, UploadSimple, X } from "@phosphor-icons/react/dist/ssr";
+import { CalendarCheck, CalendarPlus, ChatsCircle, Check, CheckCircle, Clock, DotsThree, Flag, PencilSimple, Plus, Trash, Tray, UploadSimple, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { decideExtension, deleteMilestone, getMilestones, requestExtension, saveMilestone, setMilestoneDone } from "@/app/actions";
 import { cn, dueInfo, toneText } from "@/lib/utils";
 import { dueFor, type Extension, type Milestone, type Team } from "@/lib/types";
 import { HandInDialog, isLate, SubmissionSummary, SubmissionsReview } from "@/components/app/submissions";
+import { RetroDialog, RetroReview } from "@/components/app/retros";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,7 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
   const [handingIn, setHandingIn] = React.useState<Milestone | null>(null);
   const [reviewingId, setReviewingId] = React.useState<string | null>(null);
   const [extending, setExtending] = React.useState<Milestone | null>(null);
+  const [retro, setRetro] = React.useState<Milestone | null>(null);
   const reviewing = items?.find((m) => m.id === reviewingId) ?? null; // follows reloads, so saved feedback shows
   const myTeam = instructor ? null : teams[0] ?? null;
 
@@ -192,7 +194,7 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
     console.error("Loading milestones failed:", err);
     setItems((x) => x ?? []);
   }), [courseId]);
-  const live = useLive("course_milestones", "team_milestones", "submissions", "deadline_extensions");
+  const live = useLive("course_milestones", "team_milestones", "submissions", "deadline_extensions", "team_retros");
   React.useEffect(() => { load(); }, [load, live]);
 
   async function toggle(m: Milestone, done: boolean) {
@@ -329,6 +331,17 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
                   })}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {/* A retrospective once the milestone is over for the team: done, handed in, or past its date. */}
+                  {myTeam && !readOnly && (mine === "done" || mySub || overdueFor(myTeam.id)) && (
+                    <Button size="sm" variant="ghost" onClick={() => setRetro(m)}>
+                      {m.retroTeams.includes(myTeam.id) ? <CheckCircle weight="fill" className="text-success" aria-hidden /> : <ChatsCircle aria-hidden />} {t("Retrospective")}
+                    </Button>
+                  )}
+                  {instructor && teams.length > 0 && m.retroTeams.length > 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => setRetro(m)}>
+                      <ChatsCircle aria-hidden /> {t("Retros")} <span className="tabular-nums text-muted-foreground">{num(m.retroTeams.length)}/{num(teams.length)}</span>
+                    </Button>
+                  )}
                   {myTeam && !readOnly && mine !== "done" && myExt?.status !== "pending" && (
                     <Button size="sm" variant="ghost" onClick={() => setExtending(m)}><CalendarPlus aria-hidden /> {t("Ask for more time")}</Button>
                   )}
@@ -375,6 +388,10 @@ export function Milestones({ courseId, teams, instructor, canEdit, readOnly = fa
         <HandInDialog key={handingIn.id} team={myTeam} milestone={handingIn} current={handingIn.submissions.find((x) => x.teamId === myTeam.id) ?? null}
           open onOpenChange={(o) => { if (!o) setHandingIn(null); }} onDone={load} />
       )}
+      {myTeam && retro && (
+        <RetroDialog key={retro.id} team={myTeam} milestone={retro} open onOpenChange={(o) => { if (!o) setRetro(null); }} onSaved={load} />
+      )}
+      {instructor && retro && <RetroReview key={retro.id} milestone={retro} teams={teams} open onOpenChange={(o) => { if (!o) setRetro(null); }} />}
       {myTeam && extending && (
         <ExtensionDialog key={extending.id} team={myTeam} milestone={extending} open onOpenChange={(o) => { if (!o) setExtending(null); }} onSent={load} />
       )}

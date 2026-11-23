@@ -102,6 +102,24 @@ export interface Milestone {
   submissions: Submission[];
   /** Requests for more time the viewer can see (same rule as hand-ins). */
   extensions: Extension[];
+  /** Teams (that the viewer can see) which wrote a retrospective for it. */
+  retroTeams: string[];
+}
+
+/** A team's retrospective on a milestone. */
+export interface TeamRetro {
+  teamId: string;
+  teamName: string;
+  wentWell: string;
+  didnt: string;
+  updatedByName: string;
+  updatedAt: string;
+}
+
+/** Themes the AI found across teams' retrospectives. */
+export interface RetroThemes {
+  wentWell: { theme: string; teams: string[] }[];
+  didnt: { theme: string; teams: string[] }[];
 }
 
 /** A team's request for more time on a milestone. `approvedDate` is the team's due date once one was approved. */
