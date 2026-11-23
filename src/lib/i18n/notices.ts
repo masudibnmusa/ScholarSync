@@ -34,6 +34,8 @@ const TEMPLATES: [RegExp, string][] = [
   [/^(?<team>.+) stand-up summary$/, "{team} stand-up summary"],
   [/^Weekly recap for (?<team>.+)$/, "Weekly recap for {team}"],
   [/^Weekly stand-up for (?<team>.+)$/, "Weekly stand-up for {team}"],
+  [/^(?<name>.+) answered your question: (?<title>.+)$/, "{name} answered your question: {title}"],
+  [/^Your answer solved a question: (?<title>.+)$/, "Your answer solved a question: {title}"],
   [/^(?<team>.+) asks for more time on (?<title>.+)$/, "{team} asks for more time on {title}"],
   [/^More time on (?<title>.+): due (?<date>\w{3} \d{2} \w{3})$/, "More time on {title}: due {date}"],
   [/^No extension on (?<title>.+)$/, "No extension on {title}"],
@@ -61,7 +63,7 @@ const TEMPLATES: [RegExp, string][] = [
 ];
 
 // Words inside the filled-in values that the SQL also wrote in English.
-const FALLBACK_NAMES = new Set(["a teammate", "A teammate", "A student"]);
+const FALLBACK_NAMES = new Set(["a teammate", "A teammate", "A student", "A classmate"]);
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

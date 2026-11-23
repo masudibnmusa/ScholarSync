@@ -19,6 +19,7 @@ import { OfficeHours } from "@/components/app/office-hours";
 import { InviteButton } from "@/components/app/invite";
 import { Milestones } from "@/components/app/milestones";
 import { Announcements } from "@/components/app/announcements";
+import { HelpBoard } from "@/components/app/help-board";
 import { EmptyState, Page, StatCard } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { HealthBadge } from "@/components/instructor/charts";
@@ -266,6 +267,7 @@ export function CourseDetail({ id }: { id: string }) {
       </Stagger>
 
       {(canEdit || (!instructor && course.enrolled)) && <Announcements courseId={course.id} canPost={canEdit} />}
+      {(canEdit || (!instructor && course.enrolled)) && <HelpBoard courseId={course.id} instructor={canEdit} readOnly={archived} />}
       {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} readOnly={archived} />}
       {(canEdit || (!instructor && course.enrolled)) && <OfficeHours courseId={course.id} instructor={canEdit} readOnly={archived} />}
       {canEdit && <GradingPanel courseId={course.id} />}

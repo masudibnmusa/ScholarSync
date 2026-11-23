@@ -351,9 +351,24 @@ export interface AtRiskStudent {
 }
 
 /** One student's work in one course, for the contribution report. `peer` and `atRisk` are for the instructor only. */
+/** A question on a course's peer help board, with its answers (oldest first). */
+export interface HelpQuestion {
+  id: string;
+  title: string;
+  body: string;
+  authorId: string | null;
+  authorName: string;
+  createdAt: string;
+  /** The answer the asker marked as the one that solved it. */
+  solvedBy: string | null;
+  answers: { id: string; body: string; authorId: string | null; authorName: string; byInstructor: boolean; createdAt: string }[];
+}
+
 export interface Contribution {
   course: { id: string; code: string; title: string };
   student: { id: string; name: string };
+  /** The course's help board: answers the student gave, and how many solved the question. */
+  helped: { answers: number; solved: number };
   team: null | {
     id: string;
     name: string;

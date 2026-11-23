@@ -22,7 +22,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, SearchHit, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
+  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -722,6 +722,56 @@ export async function deleteAnnouncement(id: string) {
   await withUser((tx) => tx.delete(s.courseAnnouncements).where(eq(s.courseAnnouncements.id, id)));
 }
 
+// ─── Peer help board (students ask the course; anyone in it answers) ───
+
+export async function getHelpBoard(courseId: string): Promise<HelpQuestion[]> {
+  const L = await requestLocale();
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const [course] = await tx.select({ instructorId: s.courses.instructorId }).from(s.courses).where(eq(s.courses.id, courseId));
+    const qs = await tx.select({ q: s.helpQuestions, name: s.users.name }).from(s.helpQuestions).leftJoin(s.users, eq(s.users.id, s.helpQuestions.authorId))
+      .where(eq(s.helpQuestions.courseId, courseId)).orderBy(desc(s.helpQuestions.createdAt)).limit(100);
+    if (!qs.length) return [];
+    const ans = await tx.select({ a: s.helpAnswers, name: s.users.name }).from(s.helpAnswers).leftJoin(s.users, eq(s.users.id, s.helpAnswers.authorId))
+      .where(inArray(s.helpAnswers.questionId, qs.map(({ q }) => q.id))).orderBy(asc(s.helpAnswers.createdAt));
+    const who = (name: string | null) => name ?? translate(L, "Former member");
+    return qs.map(({ q, name }) => ({
+      id: q.id, title: q.title, body: q.body, authorId: q.authorId, authorName: who(name), createdAt: q.createdAt, solvedBy: q.solvedBy,
+      answers: ans.filter(({ a }) => a.questionId === q.id).map(({ a, name: n }) => ({
+        id: a.id, body: a.body, authorId: a.authorId, authorName: who(n), byInstructor: !!a.authorId && a.authorId === course?.instructorId, createdAt: a.createdAt,
+      })),
+    }));
+  });
+}
+
+const HelpInput = z.object({ title: z.string().trim().min(1, "Write your question").max(160), body: z.string().trim().max(4000) });
+
+export async function askQuestion(courseId: string, input: z.input<typeof HelpInput>) {
+  Id.parse(courseId);
+  const q = HelpInput.parse(input);
+  await withUser((tx, uid) => tx.insert(s.helpQuestions).values({ ...q, courseId, authorId: uid }));
+}
+
+export async function answerQuestion(questionId: string, body: string) {
+  Id.parse(questionId);
+  const text = z.string().trim().min(1).max(4000).parse(body);
+  await withUser((tx, uid) => tx.insert(s.helpAnswers).values({ questionId, body: text, authorId: uid }));
+}
+
+/** The asker marks the answer that solved it (null: none). RLS lets only the asker change it. */
+export async function markSolution(questionId: string, answerId: string | null) {
+  Id.parse(questionId);
+  if (answerId) Id.parse(answerId);
+  const updated = await withUser((tx) => tx.update(s.helpQuestions).set({ solvedBy: answerId }).where(eq(s.helpQuestions.id, questionId)).returning({ id: s.helpQuestions.id }));
+  if (!updated.length) throw new Error("Only the person who asked can mark the solution");
+}
+
+export async function deleteHelpPost(kind: "question" | "answer", id: string) {
+  Id.parse(id);
+  const table = kind === "question" ? s.helpQuestions : s.helpAnswers;
+  await withUser((tx) => tx.delete(table).where(eq(table.id, id)));
+}
+
 const SubmissionInput = z.object({
   link: z.url({ protocol: /^https?$/, message: "Use a web link starting with http:// or https://" }).max(2000).nullable(),
   file: z.object({ path: z.string().max(500), name: z.string().trim().min(1).max(255), size: z.number().int().min(0) }).nullable(),
@@ -1288,7 +1338,10 @@ export async function getContribution(courseId: string, userId: string): Promise
     const [team] = await tx.select({ id: s.teams.id, name: s.teams.name, repo: s.teams.repo, joinedAt: s.teamMembers.joinedAt }).from(s.teams)
       .innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, userId)))
       .where(eq(s.teams.courseId, courseId));
-    const base = { course: { id: course.id, code: course.code, title: course.title }, student };
+    const [helped] = await tx.select({ answers: count(), solved: sql<number>`count(*) filter (where ${s.helpQuestions.solvedBy} = ${s.helpAnswers.id})::int` })
+      .from(s.helpAnswers).innerJoin(s.helpQuestions, eq(s.helpQuestions.id, s.helpAnswers.questionId))
+      .where(and(eq(s.helpQuestions.courseId, courseId), eq(s.helpAnswers.authorId, userId)));
+    const base = { course: { id: course.id, code: course.code, title: course.title }, student, helped: { answers: helped?.answers ?? 0, solved: helped?.solved ?? 0 } };
     if (!team) return { ...base, team: null };
 
     const since = sql`date_trunc('week', now()) - interval '7 weeks'`;
