@@ -1826,10 +1826,35 @@ const CourseInput = z.object({
   rationale: z.string().trim().max(4000).optional(),
 });
 
-export async function createCourse(input: z.input<typeof CourseInput>) {
+/**
+ * Creates a course. With `copyFrom` (one of your own courses) it also copies that course's milestones, rubric and
+ * announcements. Milestone dates move forward by the whole weeks since that course was created, so a milestone keeps its
+ * weekday and its place in the term; the instructor can edit them after.
+ */
+export async function createCourse(input: z.input<typeof CourseInput>, copyFrom?: string) {
   const c = CourseInput.parse(input);
+  if (copyFrom) Id.parse(copyFrom);
   // RLS (courses_write) rejects non-instructors.
-  await withUser((tx, uid) => tx.insert(s.courses).values({ ...c, instructorId: uid }));
+  await withUser(async (tx, uid) => {
+    const [course] = await tx.insert(s.courses).values({ ...c, instructorId: uid }).returning({ id: s.courses.id });
+    if (!copyFrom) return;
+    const [src] = await tx.select({ createdAt: s.courses.createdAt }).from(s.courses)
+      .where(and(eq(s.courses.id, copyFrom), eq(s.courses.instructorId, uid)));
+    if (!src) throw new Error("You can only copy your own courses");
+    const weeks = Math.max(0, Math.round((Date.now() - new Date(src.createdAt).getTime()) / (7 * 86_400_000)));
+    await tx.execute(sql`
+      insert into public.course_milestones (course_id, title, description, due_date, requires_submission)
+      select ${course.id}, title, description, due_date + ${weeks * 7}::int, requires_submission
+      from public.course_milestones where course_id = ${copyFrom}`);
+    await tx.execute(sql`
+      insert into public.rubric_criteria (course_id, name, max_points, position)
+      select ${course.id}, name, max_points, position from public.rubric_criteria where course_id = ${copyFrom}`);
+    // Same order as before: one statement shares one now(), so space them a second apart, newest first.
+    await tx.execute(sql`
+      insert into public.course_announcements (course_id, author_id, title, body, created_at)
+      select ${course.id}, ${uid}, title, body, now() - (row_number() over (order by created_at desc) - 1) * interval '1 second'
+      from public.course_announcements where course_id = ${copyFrom}`);
+  });
 }
 
 export async function updateCourse(id: string, input: z.input<typeof CourseInput>) {

@@ -23,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EASE, Stagger, StaggerItem } from "@/components/ui/motion";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -133,9 +134,14 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete, onA
 }
 
 /** Creates a course, or edits `course` when given. Remount it (key) per course so the form starts from that course. */
-export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?: Course; open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void }) {
+const NO_TEMPLATE = "__blank__";
+
+export function CourseDialog({ course, templates = [], open, onOpenChange, onSaved }: {
+  course?: Course; templates?: Course[]; open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void;
+}) {
   const { t } = useT();
   const blank = { code: "", title: "", term: defaultTerm(), description: "", goals: "", rationale: "" };
+  const [copyFrom, setCopyFrom] = React.useState(NO_TEMPLATE);
   const [form, setForm] = React.useState(course ? { code: course.code, title: course.title, term: course.term, description: course.description, goals: course.goals, rationale: course.rationale } : blank);
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
@@ -152,9 +158,10 @@ export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?:
         await updateCourse(course.id, form);
         toast.success(`${code} updated`);
       } else {
-        await createCourse(form);
+        await createCourse(form, copyFrom === NO_TEMPLATE ? undefined : copyFrom);
         toast.success(`${code} created`, { description: t("Students can now find and join it from their dashboard.") });
         setForm(blank);
+        setCopyFrom(NO_TEMPLATE);
       }
       onOpenChange(false);
       onSaved();
@@ -173,6 +180,24 @@ export function CourseDialog({ course, open, onOpenChange, onSaved }: { course?:
           <DialogDescription>{course ? t("Enrolled students and teams stay as they are.") : t("Students join it from their dashboard. Then let AI match them into teams.")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4" noValidate>
+          {!course && templates.length > 0 && (
+            <Field label={t("Copy from")} htmlFor="course-template" optional
+              hint={copyFrom === NO_TEMPLATE ? t("Start from one of your courses: its milestones, rubric and announcements come along.")
+                : t("Its milestones, rubric and announcements are copied. Milestone dates move forward by the weeks since that course was created, keeping their weekday; you can change them after.")}>
+              <Select value={copyFrom} onValueChange={(v) => {
+                setCopyFrom(v);
+                const src = templates.find((c) => c.id === v);
+                // Fill in what's still empty from the earlier course; the code, title and term stay the instructor's.
+                if (src) setForm((f) => ({ ...f, title: f.title || src.title, description: f.description || src.description, goals: f.goals || src.goals, rationale: f.rationale || src.rationale }));
+              }}>
+                <SelectTrigger id="course-template"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TEMPLATE}>{t("Nothing, start blank")}</SelectItem>
+                  {templates.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} · {c.title} ({c.term})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
           <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
             <Field label={t("Code")} htmlFor="course-code"><Input id="course-code" value={form.code} onChange={set("code")} placeholder={t("CSE-3200")} maxLength={20} className="font-mono uppercase" autoFocus /></Field>
             <Field label={t("Term")} htmlFor="course-term"><Input id="course-term" value={form.term} onChange={set("term")} maxLength={40} /></Field>
@@ -357,7 +382,7 @@ export function CoursesDashboard({ initialCourses = null }: { initialCourses?: C
         </AnimatePresence>
       )}
 
-      {instructor && <CourseDialog open={creating} onOpenChange={setCreating} onSaved={load} />}
+      {instructor && <CourseDialog templates={courses?.filter((c) => c.isMine)} open={creating} onOpenChange={setCreating} onSaved={load} />}
       {editing && <CourseDialog key={editing.id} course={editing} open onOpenChange={(o) => !o && setEditing(null)} onSaved={load} />}
       <ConfirmDialog
         open={!!pending}

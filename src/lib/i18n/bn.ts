@@ -1749,4 +1749,9 @@ export const bn: Record<string, string> = {
   // Study buddy
   "Ask the study buddy": "স্টাডি বাডিকে জিজ্ঞেস করুন",
   "Study buddy answers": "স্টাডি বাডির উত্তর",
+  // Course templates
+  "Copy from": "যেখান থেকে কপি করবেন",
+  "Start from one of your courses: its milestones, rubric and announcements come along.": "আপনার কোনো কোর্স থেকে শুরু করুন: এর মাইলস্টোন, রুব্রিক ও ঘোষণা সঙ্গে আসবে।",
+  "Its milestones, rubric and announcements are copied. Milestone dates move forward by the weeks since that course was created, keeping their weekday; you can change them after.": "এর মাইলস্টোন, রুব্রিক ও ঘোষণা কপি হবে। ওই কোর্স তৈরির পর যত সপ্তাহ গেছে, মাইলস্টোনের তারিখ তত সপ্তাহ এগিয়ে যাবে, বার একই থাকবে; পরে বদলাতে পারবেন।",
+  "Nothing, start blank": "কিছু না, খালি থেকে শুরু",
 };
