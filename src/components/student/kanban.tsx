@@ -3,11 +3,11 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Timer, Trash,
+  CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, LinkSimpleHorizontal, ListChecks, LockSimple, PencilSimple, Plus, Spinner, Timer, Trash, X,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, getTaskHistory, setChecklistItemDone } from "@/app/actions";
+import { addChecklistItem, addTaskComment, deleteChecklistItem, deleteTaskComment, getChecklist, getTaskComments, getTaskHistory, setChecklistItemDone, setTaskBlocker } from "@/app/actions";
 import { useAppStore, useLive } from "@/lib/store";
 import { cn, dueInfo, timeAgo, toneText } from "@/lib/utils";
 import type { ChecklistItem, KanbanTask, TaskComment, TaskEvent, Team } from "@/lib/types";
@@ -114,6 +114,71 @@ function TaskChecklist({ task, team }: { task: KanbanTask; team: Team }) {
         <Input id="task-step" value={draft} maxLength={200} placeholder={t("Add a step…")} className="h-9 flex-1" onChange={(e) => setDraft(e.target.value)} />
         <Button type="submit" variant="secondary" size="sm" className="h-9" disabled={!draft.trim()}><Plus aria-hidden />{t("Add")}</Button>
       </form>
+    </section>
+  );
+}
+
+// ─── Blocked by (inside the edit dialog) ─────────────────────────────────
+
+/** True while any task this one waits on is unfinished. */
+const isBlocked = (task: KanbanTask, all: KanbanTask[]) => all.some((x) => task.blockedBy.includes(x.id) && x.status !== "done");
+
+const NONE = "__none__";
+
+/** The tasks this one waits on: add one from the team's other tasks, or remove one. */
+function TaskBlockers({ task, team }: { task: KanbanTask; team: Team }) {
+  const { t } = useT();
+  const all = useAppStore((s) => s.kanbanTasks);
+  const fetchTasks = useAppStore((s) => s.fetchTasks);
+  const blockedBy = all.find((x) => x.id === task.id)?.blockedBy ?? task.blockedBy; // the dialog's task is a snapshot
+  const blockers = all.filter((x) => blockedBy.includes(x.id));
+  const options = all.filter((x) => x.id !== task.id && !blockedBy.includes(x.id) && x.status !== "done");
+  const readOnly = team.courseArchived;
+
+  async function change(id: string, blocked: boolean) {
+    try {
+      if (await setTaskBlocker(task.id, id, blocked) === "loop") toast.error(t("That task already waits on this one."));
+    } catch (err) {
+      console.error("Changing what the task waits on failed:", err);
+      toast.error(t("Could not update what the task waits on"));
+    }
+    await fetchTasks(team.id);
+  }
+
+  return (
+    <section aria-labelledby="task-blockers-title" className="border-t pt-4">
+      <h3 id="task-blockers-title" className="flex items-center gap-1.5 text-sm font-bold">
+        <LinkSimpleHorizontal weight="bold" className="size-4 text-primary" aria-hidden /> {t("Waiting on")}
+      </h3>
+      {blockers.length > 0 ? (
+        <ul className="mt-2 space-y-1" aria-label={t("Tasks this one waits on")}>
+          {blockers.map((b) => (
+            <li key={b.id} className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-sm">
+              {b.status === "done" ? <CheckCircle weight="fill" className="size-4 shrink-0 text-success" aria-hidden /> : <LockSimple weight="fill" className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+              <span className={cn("min-w-0 flex-1 truncate", b.status === "done" && "text-muted-foreground line-through")}>{b.title}</span>
+              <span className="sr-only">{b.status === "done" ? t("done") : t("not done yet")}</span>
+              {!readOnly && (
+                <button type="button" onClick={() => change(b.id, false)} aria-label={t("Stop waiting on {title}", { title: b.title })}
+                  className="rounded p-0.5 text-muted-foreground hover:text-destructive"><X className="size-3.5" aria-hidden /></button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-sm text-muted-foreground">{t("Nothing. Add a task that has to be finished first.")}</p>
+      )}
+      {!readOnly && options.length > 0 && (
+        <div className="mt-2">
+          <label htmlFor="task-blocker" className="sr-only">{t("Add a task it waits on")}</label>
+          <Select value={NONE} onValueChange={(v) => v !== NONE && change(v, true)}>
+            <SelectTrigger id="task-blocker" className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>{t("Add a task it waits on…")}</SelectItem>
+              {options.map((o) => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </section>
   );
 }
@@ -337,6 +402,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
           </DialogFooter>
         </form>
         {task && <FocusButton task={task} teamId={team.id} disabled={team.courseArchived} />}
+        {task && <TaskBlockers task={task} team={team} />}
         {task && <TaskChecklist task={task} team={team} />}
         {task && <TaskComments task={task} team={team} />}
         {task && <TaskHistory task={task} />}
@@ -414,12 +480,20 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
   const { t } = useT();
   const done = task.status === "done";
   const minutes = useMinutes();
+  const all = useAppStore((s) => s.kanbanTasks);
+  const blocked = !done && isBlocked(task, all);
+  const waitingOn = blocked ? all.filter((x) => task.blockedBy.includes(x.id) && x.status !== "done").map((x) => x.title) : [];
   const title = (
     <>
-      <span className={cn("block text-[0.9375rem] font-bold leading-snug md:truncate", done && "text-muted-foreground line-through decoration-muted-foreground/60")}>{task.title}</span>
+      <span className={cn("task-title block text-[0.9375rem] font-bold leading-snug md:truncate", done && "text-muted-foreground line-through decoration-muted-foreground/60")}>{task.title}</span>
       {task.description && <span className="mt-0.5 block text-sm text-muted-foreground line-clamp-2 md:line-clamp-none md:truncate">{task.description}</span>}
-      {(task.commentCount > 0 || task.checklistTotal > 0 || task.focusMinutes > 0) && (
+      {(task.commentCount > 0 || task.checklistTotal > 0 || task.focusMinutes > 0 || blocked) && (
         <span className="mt-1 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+          {blocked && (
+            <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-foreground/80">
+              <LockSimple weight="fill" className="size-3 shrink-0" aria-hidden /><span className="truncate">{t("Waiting on {titles}", { titles: waitingOn.join(", ") })}</span>
+            </span>
+          )}
           {task.checklistTotal > 0 && (
             <span className={cn("inline-flex items-center gap-1", task.checklistDone === task.checklistTotal && "text-success")}>
               <ListChecks className="size-3.5" aria-hidden />{num(task.checklistDone)}/{num(task.checklistTotal)}<span className="sr-only"> {t("steps done")}</span>
@@ -441,7 +515,7 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
   );
   return (
     <motion.li layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}
-      className={cn("group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-accent/40", COLS, done && "bg-muted/30")}>
+      className={cn("group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-accent/40", COLS, done && "bg-muted/30", blocked && "bg-muted/40 [&_.task-title]:text-muted-foreground")}>
       <div className="min-w-0 flex-1">
         {onEdit
           ? <button type="button" onClick={onEdit} className="block w-full min-w-0 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40" aria-label={t("{title}. Edit task", { title: task.title })}>{title}</button>

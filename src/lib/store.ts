@@ -247,6 +247,10 @@ const baseStore = create<AppState>((set, get) => ({
         () => get().fetchTasks(team.id)) // team progress refreshes through the live tables
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "focus_sessions", filter: `team_id=eq.${team.id}` },
         () => get().fetchTasks(team.id)) // the focus total on each task
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "task_dependencies", filter: `team_id=eq.${team.id}` },
+        () => get().fetchTasks(team.id))
+      // Deletes can't be filtered (they carry only the key), so any team's unlink reloads the board: cheap and rare.
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "task_dependencies" }, () => get().fetchTasks(team.id))
       .subscribe();
   },
 

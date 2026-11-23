@@ -1724,4 +1724,16 @@ export const bn: Record<string, string> = {
   "{done} of {total}": "{total}টির মধ্যে {done}টি",
   "How your instructor grades it. Tick each one your team has covered; your teammates see the ticks too.": "আপনার শিক্ষক এভাবে নম্বর দেবেন। আপনার দল যেগুলো সম্পন্ন করেছে সেগুলোতে টিক দিন; সহপাঠীরাও টিকগুলো দেখতে পাবে।",
   "{n} pts": "{n} পয়েন্ট",
+  // Task dependencies
+  "That task already waits on this one.": "ওই কাজটি আগে থেকেই এই কাজের জন্য অপেক্ষা করছে।",
+  "Could not update what the task waits on": "কাজটি কিসের জন্য অপেক্ষা করছে তা আপডেট করা যায়নি",
+  "Tasks this one waits on": "এই কাজটি যেসব কাজের জন্য অপেক্ষা করছে",
+  "not done yet": "এখনো শেষ হয়নি",
+  "Stop waiting on {title}": "{title}-এর জন্য অপেক্ষা বন্ধ করুন",
+  "Nothing. Add a task that has to be finished first.": "কিছু না। আগে শেষ করতে হবে এমন একটি কাজ যোগ করুন।",
+  "Add a task it waits on": "এটি যে কাজের জন্য অপেক্ষা করে তা যোগ করুন",
+  "Add a task it waits on…": "এটি যে কাজের জন্য অপেক্ষা করে তা যোগ করুন…",
+  "Waiting on {titles}": "{titles}-এর জন্য অপেক্ষা",
+  "Ready to start: {title}": "শুরু করার জন্য প্রস্তুত: {title}",
+  "{title} is done.": "{title} শেষ হয়েছে।",
 };

@@ -413,17 +413,39 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
         commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
         checklist: sql<[number, number]>`(select array[count(*) filter (where i.done), count(*)]::int[] from public.task_checklist_items i where i.task_id = ${s.tasks.id})`,
         focusMinutes: sql<number>`(select coalesce(sum(f.minutes), 0) from public.focus_sessions f where f.task_id = ${s.tasks.id})::int`,
+        blockedBy: sql<string[]>`(select coalesce(array_agg(d.blocked_by), '{}') from public.task_dependencies d where d.task_id = ${s.tasks.id})`,
       })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName, commentCount, checklist, focusMinutes }) => ({
+    return rows.map(({ t, assigneeName, commentCount, checklist, focusMinutes, blockedBy }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
       assigneeId: t.assigneeId, assigneeName: assigneeName ?? translate(L, "Unassigned"), dueDate: t.dueDate, commentCount,
-      checklistDone: checklist[0], checklistTotal: checklist[1], focusMinutes,
+      checklistDone: checklist[0], checklistTotal: checklist[1], focusMinutes, blockedBy,
     }));
   });
+}
+
+/** Makes a task wait on another task of its team, or stops it waiting. Returns "loop" when the other task already waits on this one. */
+export async function setTaskBlocker(taskId: string, blockedBy: string, blocked: boolean): Promise<"ok" | "loop"> {
+  Id.parse(taskId); Id.parse(blockedBy);
+  try {
+    await withUser(async (tx) => {
+      if (!blocked) {
+        await tx.delete(s.taskDependencies).where(and(eq(s.taskDependencies.taskId, taskId), eq(s.taskDependencies.blockedBy, blockedBy)));
+        return;
+      }
+      const [task] = await tx.select({ teamId: s.tasks.teamId }).from(s.tasks).where(eq(s.tasks.id, taskId));
+      if (!task) throw new Error("Task not found");
+      await tx.insert(s.taskDependencies).values({ taskId, blockedBy, teamId: task.teamId }).onConflictDoNothing();
+    });
+  } catch (err) {
+    // Drizzle wraps the database error; its cause has the trigger's message (0038).
+    if (/wait on each other/.test(String((err as { cause?: unknown }).cause ?? ""))) return "loop";
+    throw err;
+  }
+  return "ok";
 }
 
 /** Saves a finished (or stopped) focus-timer session on a task. The database stamps the end time and refuses overlaps. */

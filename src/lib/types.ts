@@ -53,6 +53,8 @@ export interface KanbanTask {
   checklistTotal: number;
   /** Minutes the team spent on it with the focus timer. */
   focusMinutes: number;
+  /** Ids of the tasks this one waits on (same team). */
+  blockedBy: string[];
 }
 
 export interface ChecklistItem {

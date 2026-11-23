@@ -36,6 +36,8 @@ const TEMPLATES: [RegExp, string][] = [
   [/^Weekly stand-up for (?<team>.+)$/, "Weekly stand-up for {team}"],
   [/^(?<name>.+) answered your question: (?<title>.+)$/, "{name} answered your question: {title}"],
   [/^Your answer solved a question: (?<title>.+)$/, "Your answer solved a question: {title}"],
+  [/^Ready to start: (?<title>.+)$/, "Ready to start: {title}"],
+  [/^(?<title>.+) is done\.$/s, "{title} is done."],
   [/^(?<team>.+) asks for more time on (?<title>.+)$/, "{team} asks for more time on {title}"],
   [/^More time on (?<title>.+): due (?<date>\w{3} \d{2} \w{3})$/, "More time on {title}: due {date}"],
   [/^No extension on (?<title>.+)$/, "No extension on {title}"],

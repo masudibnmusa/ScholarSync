@@ -184,6 +184,14 @@ export const taskChecklistItems = pgTable("task_checklist_items", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const taskDependencies = pgTable("task_dependencies", {
+  taskId: uuid("task_id").notNull(),
+  blockedBy: uuid("blocked_by").notNull(),
+  teamId: uuid("team_id").notNull(),
+  createdBy: uuid("created_by"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.taskId, t.blockedBy] })]);
+
 export const focusSessions = pgTable("focus_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   taskId: uuid("task_id").notNull(),
