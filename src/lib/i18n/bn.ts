@@ -1799,4 +1799,16 @@ export const bn: Record<string, string> = {
   "Remove {name} as TA?": "{name}-কে TA থেকে সরাবেন?",
   "They stop seeing this course's teams. Grades they gave stay.": "তাঁরা আর এই কোর্সের দল দেখতে পাবেন না। তাঁদের দেওয়া নম্বর থেকে যাবে।",
   "You are a teaching assistant for {code}": "আপনি {code}-এর টিচিং অ্যাসিস্ট্যান্ট",
+  // Similarity check
+  "A team": "একটি দল",
+  "Could not compare the hand-ins": "জমা দেওয়া কাজগুলো মেলানো যায়নি",
+  "Similarity check": "মিল যাচাই",
+  "Compare again": "আবার মেলান",
+  "Compare hand-ins": "জমা দেওয়া কাজ মেলান",
+  "Compares notes, links and text files (code, Markdown, plain text) between teams. PDFs, documents and images aren't read. A match is a reason to look closer, not proof.": "দলগুলোর নোট, লিংক ও টেক্সট ফাইল (কোড, Markdown, সাধারণ টেক্সট) মেলায়। PDF, ডকুমেন্ট ও ছবি পড়া হয় না। মিল পাওয়া মানে ভালো করে দেখার কারণ, প্রমাণ নয়।",
+  "No two hand-ins look alike.": "কোনো দুটি জমা দেওয়া কাজ একরকম মনে হচ্ছে না।",
+  "Similar hand-ins": "একরকম জমা দেওয়া কাজ",
+  "{a} and {b}": "{a} ও {b}",
+  "the same link": "একই লিংক",
+  "{n}% of the text matches": "লেখার {n}% মিলে যায়",
 };

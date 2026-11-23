@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { ChatCircleText, CheckCircle, ClipboardText, Clock, DownloadSimple, LinkSimple, Paperclip, UploadSimple, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleText, CheckCircle, ClipboardText, Clock, CopySimple, DownloadSimple, LinkSimple, Paperclip, UploadSimple, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { getRubricChecks, saveSubmissionFeedback, setRubricCheck, submitWork } from "@/app/actions";
+import { getRubricChecks, getSimilarityHints, saveSubmissionFeedback, setRubricCheck, submitWork } from "@/app/actions";
 import { MAX_FILE_BYTES, useAppStore, useLive } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { num } from "@/lib/i18n";
 import { dueFor, type Milestone, type RubricCheck, type Submission, type Team } from "@/lib/types";
+import type { SimilarPair } from "@/lib/similarity";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -260,6 +261,50 @@ function FeedbackForm({ team, milestone, sub, onSaved }: { team: Team; milestone
 }
 
 /** Instructor: every team's hand-in for one milestone, with feedback. */
+/** Staff: compares the hand-ins on request and lists pairs that look alike. A hint to look closer, not a verdict. */
+function SimilarityCheck({ milestone, teams }: { milestone: Milestone; teams: Team[] }) {
+  const { t } = useT();
+  const [pairs, setPairs] = React.useState<SimilarPair[] | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const name = (id: string) => teams.find((tt) => tt.id === id)?.name ?? t("A team");
+
+  async function run() {
+    setBusy(true);
+    try {
+      setPairs(await getSimilarityHints(milestone.id));
+    } catch (err) {
+      console.error("Comparing hand-ins failed:", err);
+      toast.error(t("Could not compare the hand-ins"));
+    }
+    setBusy(false);
+  }
+
+  return (
+    <section aria-labelledby="similarity-title" className="rounded-2xl bg-muted/50 p-3.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 id="similarity-title" className="flex items-center gap-1.5 text-sm font-bold"><CopySimple weight="bold" className="size-4 text-primary" aria-hidden /> {t("Similarity check")}</h3>
+        <Button size="sm" variant="outline" className="ml-auto" loading={busy} onClick={run}>{pairs ? t("Compare again") : t("Compare hand-ins")}</Button>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t("Compares notes, links and text files (code, Markdown, plain text) between teams. PDFs, documents and images aren't read. A match is a reason to look closer, not proof.")}</p>
+      {pairs && (pairs.length === 0
+        ? <p className="mt-2 text-sm font-semibold text-success" role="status">{t("No two hand-ins look alike.")}</p>
+        : (
+          <ul className="mt-2 space-y-1.5" aria-label={t("Similar hand-ins")}>
+            {pairs.map((p) => (
+              <li key={`${p.a}-${p.b}`} className="flex flex-wrap items-center gap-2 rounded-xl bg-butter/70 px-3 py-2 text-sm">
+                <WarningCircle weight="fill" className="size-4 shrink-0 text-warning" aria-hidden />
+                <span className="font-semibold">{t("{a} and {b}", { a: name(p.a), b: name(p.b) })}</span>
+                <span className="text-muted-foreground">
+                  {[p.sameLink && t("the same link"), p.score >= 50 && t("{n}% of the text matches", { n: p.score })].filter(Boolean).join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ))}
+    </section>
+  );
+}
+
 export function SubmissionsReview({ milestone, teams, open, onOpenChange, onChanged }: {
   milestone: Milestone; teams: Team[]; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void;
 }) {
@@ -273,6 +318,7 @@ export function SubmissionsReview({ milestone, teams, open, onOpenChange, onChan
           <DialogTitle>{t("Hand-ins: {title}", { title: milestone.title })}</DialogTitle>
           <DialogDescription>{t("{n} of {total} teams handed in · due {date}. Marks go in Grading.", { n: handedIn, total: teams.length, date: new Date(`${milestone.dueDate}T00:00:00`).toLocaleDateString(intl(), { day: "numeric", month: "long" }) })}</DialogDescription>
         </DialogHeader>
+        {handedIn >= 2 && <SimilarityCheck milestone={milestone} teams={teams} />}
         <ul className="space-y-3">
           {teams.map((tt) => {
             const sub = milestone.submissions.find((x) => x.teamId === tt.id);

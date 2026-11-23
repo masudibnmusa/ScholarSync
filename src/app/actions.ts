@@ -14,6 +14,7 @@ import { answerFromSources, extractActionItems, matchTeams, suggestMeetings, sum
 import { cleanActionItems, MAX_ACTION_ITEMS, type ActionItem } from "@/lib/action-items";
 import type { MeetingSlot } from "@/lib/meeting";
 import { citeAnswer, type CitedSource, type StudySource } from "@/lib/study-buddy";
+import { similarPairs, type SimilarPair } from "@/lib/similarity";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { summarizeTeamStandup } from "@/lib/standups";
 import { checkRepo, parseRepo, RepoError, syncTeamRepo } from "@/lib/github";
@@ -916,6 +917,30 @@ export async function saveSubmissionFeedback(teamId: string, milestoneId: string
     .where(and(eq(s.submissions.teamId, teamId), eq(s.submissions.milestoneId, milestoneId), sql`public.staffs_team(${s.submissions.teamId})`))
     .returning({ teamId: s.submissions.teamId }));
   if (!rows.length) throw new Error("Submission not found or not your course");
+}
+
+/**
+ * Staff: pairs of hand-ins on a milestone that share a link or whose text overlaps a lot (the note, plus the contents of
+ * small text files). A hint for the instructor to look closer, not a verdict. Reads files as the user (storage RLS).
+ */
+export async function getSimilarityHints(milestoneId: string): Promise<SimilarPair[]> {
+  Id.parse(milestoneId);
+  const subs = await withUser(async (tx, uid) => {
+    const [m] = await tx.select({ courseId: s.courseMilestones.courseId }).from(s.courseMilestones).where(eq(s.courseMilestones.id, milestoneId));
+    if (!m) throw new Error("Milestone not found");
+    await staffCourse(tx, uid, m.courseId);
+    return tx.select().from(s.submissions).where(eq(s.submissions.milestoneId, milestoneId));
+  });
+  const bucket = (await supabaseServer()).storage.from("team-files");
+  const items = await Promise.all(subs.map(async (x) => {
+    let text = x.note;
+    if (x.storagePath && x.fileName && (x.fileSize ?? Infinity) <= MAX_READ && TEXT_FILE.test(x.fileName)) {
+      const { data } = await bucket.download(x.storagePath);
+      if (data) text += `\n${await data.text()}`;
+    }
+    return { id: x.teamId, text, link: x.link };
+  }));
+  return similarPairs(items);
 }
 
 export async function setMilestoneDone(teamId: string, milestoneId: string, done: boolean) {
