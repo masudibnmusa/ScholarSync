@@ -21,6 +21,7 @@ import { Milestones } from "@/components/app/milestones";
 import { Announcements } from "@/components/app/announcements";
 import { HelpBoard } from "@/components/app/help-board";
 import { StudyBuddy } from "@/components/app/study-buddy";
+import { TeachingAssistants } from "@/components/app/teaching-assistants";
 import { EmptyState, Page, StatCard } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { HealthBadge } from "@/components/instructor/charts";
@@ -186,6 +187,7 @@ export function CourseDetail({ id }: { id: string }) {
 
   const accent = accentOf(course.code);
   const canEdit = instructor && course.isMine;
+  const staff = canEdit || (instructor && course.isTA); // the instructor or a TA: sees every team and grades
   const archived = !!course.archivedAt;
   const canManage = canEdit && !archived; // people and teams; an archived course is read-only
   // RLS limits teams to what the viewer may see: all of them for the course's instructor, their own for a student.
@@ -213,7 +215,7 @@ export function CourseDetail({ id }: { id: string }) {
             </div>
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{course.title}</h1>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-foreground/75">
-              <ChalkboardTeacher className="size-4" aria-hidden /> {course.isMine ? t("You teach this course") : t("Taught by {instructorName}", { instructorName: course.instructorName })}
+              <ChalkboardTeacher className="size-4" aria-hidden /> {course.isMine ? t("You teach this course") : course.isTA ? t("You're a teaching assistant · taught by {instructorName}", { instructorName: course.instructorName }) : t("Taught by {instructorName}", { instructorName: course.instructorName })}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -267,12 +269,13 @@ export function CourseDetail({ id }: { id: string }) {
         </StaggerItem>
       </Stagger>
 
-      {(canEdit || (!instructor && course.enrolled)) && <Announcements courseId={course.id} canPost={canEdit} />}
-      {(canEdit || (!instructor && course.enrolled)) && <StudyBuddy courseId={course.id} />}
-      {(canEdit || (!instructor && course.enrolled)) && <HelpBoard courseId={course.id} instructor={canEdit} readOnly={archived} />}
-      {(canEdit || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} readOnly={archived} />}
+      {(staff || (!instructor && course.enrolled)) && <Announcements courseId={course.id} canPost={canEdit} />}
+      {(staff || (!instructor && course.enrolled)) && <StudyBuddy courseId={course.id} />}
+      {(staff || (!instructor && course.enrolled)) && <HelpBoard courseId={course.id} instructor={staff} readOnly={archived} />}
+      {(staff || (!instructor && course.enrolled)) && <Milestones courseId={course.id} teams={teams} instructor={instructor} canEdit={canEdit} readOnly={archived} />}
       {(canEdit || (!instructor && course.enrolled)) && <OfficeHours courseId={course.id} instructor={canEdit} readOnly={archived} />}
-      {canEdit && <GradingPanel courseId={course.id} />}
+      {staff && <GradingPanel courseId={course.id} />}
+      {canEdit && <TeachingAssistants courseId={course.id} />}
       {!instructor && course.enrolled && <MyGradeCard courseId={course.id} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">

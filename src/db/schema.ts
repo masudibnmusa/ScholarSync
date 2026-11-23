@@ -247,6 +247,13 @@ export const teamMilestones = pgTable("team_milestones", {
   completedBy: uuid("completed_by"),
 }, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId] })]);
 
+export const courseTas = pgTable("course_tas", {
+  courseId: uuid("course_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  addedBy: uuid("added_by"),
+  addedAt: ts("added_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.courseId, t.userId] })]);
+
 export const teamRetros = pgTable("team_retros", {
   teamId: uuid("team_id").notNull(),
   milestoneId: uuid("milestone_id").notNull(),

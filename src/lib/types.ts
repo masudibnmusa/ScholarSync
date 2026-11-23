@@ -169,6 +169,8 @@ export interface GradedMember {
 }
 
 export interface CourseGrading {
+  /** The viewer owns the course (edits the rubric, releases grades); false for a TA. */
+  owner: boolean;
   released: boolean;
   criteria: RubricCriterion[];
   teams: { teamId: string; teamName: string; scores: Record<string, CriterionScore>; members: GradedMember[] }[];
@@ -308,6 +310,7 @@ export interface Course {
   rationale: string; // why take it
   instructorName: string;
   isMine: boolean; // I teach it
+  isTA: boolean; // I'm a teaching assistant on it: I see its teams and grade, but don't own it
   enrolled: boolean;
   studentCount: number;
   teamCount: number; // every team in the course
@@ -467,4 +470,12 @@ export interface RubricCheck {
   name: string;
   maxPoints: number;
   checkedBy: string | null; // name; null = not ticked
+}
+
+/** A teaching assistant on a course. */
+export interface CourseTA {
+  userId: string;
+  name: string;
+  email: string;
+  addedAt: string;
 }

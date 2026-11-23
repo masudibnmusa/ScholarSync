@@ -82,7 +82,7 @@ function CourseCard({ course, role, busy, onJoin, onLeave, onEdit, onDelete, onA
         </div>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
           <ChalkboardTeacher className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">{course.isMine ? t("You teach this course") : course.instructorName}</span>
+          <span className="truncate">{course.isMine ? t("You teach this course") : course.isTA ? t("Teaching assistant · {name}", { name: course.instructorName }) : course.instructorName}</span>
         </p>
 
         <dl className="mt-4 grid grid-cols-2 gap-2 text-center">
@@ -283,7 +283,7 @@ export function CoursesDashboard({ initialCourses = null }: { initialCourses?: C
 
   const list = courses ?? [];
   // Instructors keep archived courses on their own shelf; students see theirs under My courses, and the catalog only lists live ones.
-  const allMine = list.filter((c) => (instructor ? c.isMine : c.enrolled));
+  const allMine = list.filter((c) => (instructor ? c.isMine || c.isTA : c.enrolled));
   const archivedMine = instructor ? allMine.filter((c) => c.archivedAt) : [];
   const mine = instructor ? allMine.filter((c) => !c.archivedAt) : allMine;
   const q = query.trim().toLowerCase();

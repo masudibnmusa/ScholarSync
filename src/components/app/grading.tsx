@@ -266,8 +266,8 @@ export function GradingPanel({ courseId }: { courseId: string }) {
         <div className="flex flex-wrap items-center gap-2">
           {data.released ? <Badge variant="success"><Eye aria-hidden /> {t("Visible to students")}</Badge> : <Badge variant="muted"><EyeSlash aria-hidden /> {t("Draft")}</Badge>}
           {graded > 0 && <Button size="sm" variant="outline" loading={exporting} onClick={exportCsv}>{!exporting && <DownloadSimple aria-hidden />} {t("Export gradebook")}</Button>}
-          <Button size="sm" variant="outline" onClick={() => setRubricOpen(true)}><PencilSimple aria-hidden /> {data.criteria.length ? t("Edit rubric") : t("Set up rubric")}</Button>
-          {data.criteria.length > 0 && (data.released
+          {data.owner && <Button size="sm" variant="outline" onClick={() => setRubricOpen(true)}><PencilSimple aria-hidden /> {data.criteria.length ? t("Edit rubric") : t("Set up rubric")}</Button>}
+          {data.owner && data.criteria.length > 0 && (data.released
             ? <Button size="sm" variant="outline" loading={busy} onClick={() => release(false)}>{t("Hide grades")}</Button>
             : <Button size="sm" loading={busy} disabled={!graded} onClick={() => setConfirmRelease(true)}>{t("Release grades")}</Button>)}
         </div>
@@ -275,7 +275,9 @@ export function GradingPanel({ courseId }: { courseId: string }) {
         {t("Grading")}
       </CardTitle>
 
-      {!data.criteria.length ? (
+      {!data.criteria.length && !data.owner ? (
+        <p className="mt-4 text-sm text-muted-foreground">{t("The instructor hasn't set up a rubric yet.")}</p>
+      ) : !data.criteria.length ? (
         <button type="button" onClick={() => setRubricOpen(true)}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary">
           <Exam aria-hidden className="size-4" /> {t("Set up a rubric, then mark each team against it")}

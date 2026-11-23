@@ -23,7 +23,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends, RubricCheck, TeamRetro, RetroThemes,
+  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends, RubricCheck, TeamRetro, RetroThemes, CourseTA,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -735,9 +735,9 @@ export async function findRetroThemes(milestoneId: string): Promise<RetroThemes>
   Id.parse(milestoneId);
   const L = await requestLocale();
   const retros = await withUser(async (tx, uid) => {
-    const [m] = await tx.select({ instructorId: s.courses.instructorId }).from(s.courseMilestones)
-      .innerJoin(s.courses, eq(s.courses.id, s.courseMilestones.courseId)).where(eq(s.courseMilestones.id, milestoneId));
-    if (m?.instructorId !== uid) throw new Error("Only the course's instructor can see themes");
+    const [m] = await tx.select({ courseId: s.courseMilestones.courseId }).from(s.courseMilestones).where(eq(s.courseMilestones.id, milestoneId));
+    if (!m) throw new Error("Milestone not found");
+    await staffCourse(tx, uid, m.courseId);
     return tx.select({ team: s.teams.name, wentWell: s.teamRetros.wentWell, didnt: s.teamRetros.didnt }).from(s.teamRetros)
       .innerJoin(s.teams, eq(s.teams.id, s.teamRetros.teamId)).where(eq(s.teamRetros.milestoneId, milestoneId));
   });
@@ -913,7 +913,7 @@ export async function saveSubmissionFeedback(teamId: string, milestoneId: string
   Id.parse(milestoneId);
   const text = z.string().trim().max(4000).parse(feedback);
   const rows = await withUser((tx) => tx.update(s.submissions).set({ feedback: text })
-    .where(and(eq(s.submissions.teamId, teamId), eq(s.submissions.milestoneId, milestoneId), sql`public.teaches_team(${s.submissions.teamId})`))
+    .where(and(eq(s.submissions.teamId, teamId), eq(s.submissions.milestoneId, milestoneId), sql`public.staffs_team(${s.submissions.teamId})`))
     .returning({ teamId: s.submissions.teamId }));
   if (!rows.length) throw new Error("Submission not found or not your course");
 }
@@ -955,6 +955,14 @@ export async function decideExtension(teamId: string, milestoneId: string, appro
 
 type Tx = Parameters<Parameters<typeof withUser>[0]>[0];
 
+/** The course, if the signed-in user is its instructor or one of its TAs (grading); throws otherwise. */
+async function staffCourse(tx: Tx, uid: string, courseId: string) {
+  const [course] = await tx.select().from(s.courses).where(and(eq(s.courses.id, courseId),
+    or(eq(s.courses.instructorId, uid), sql`exists (select 1 from public.course_tas a where a.course_id = ${s.courses.id} and a.user_id = ${uid})`)));
+  if (!course) throw new Error("Only the course's instructor and TAs can do this");
+  return course;
+}
+
 /** The course, if the signed-in user is its instructor; throws otherwise. */
 async function ownCourse(tx: Tx, uid: string, courseId: string) {
   const [course] = await tx.select().from(s.courses).where(and(eq(s.courses.id, courseId), eq(s.courses.instructorId, uid)));
@@ -987,7 +995,7 @@ async function peerFactors(tx: Tx, teamIds: string[]) {
 export async function getCourseGrading(courseId: string): Promise<CourseGrading> {
   Id.parse(courseId);
   return withUser(async (tx, uid) => {
-    const course = await ownCourse(tx, uid, courseId);
+    const course = await staffCourse(tx, uid, courseId);
     const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId)).orderBy(asc(s.teams.name));
     const ids = teams.map((t) => t.id);
     const [criteria, grades, factors, members] = await Promise.all([
@@ -998,6 +1006,7 @@ export async function getCourseGrading(courseId: string): Promise<CourseGrading>
     ]);
     return {
       released: course.gradesReleased,
+      owner: course.instructorId === uid,
       criteria,
       teams: teams.map((t) => ({
         teamId: t.id,
@@ -1045,7 +1054,7 @@ export async function saveTeamGrade(teamId: string, input: z.input<typeof TeamGr
   await withUser(async (tx, uid) => {
     const [team] = await tx.select({ courseId: s.teams.courseId }).from(s.teams).where(eq(s.teams.id, teamId));
     if (!team) throw new Error("Team not found");
-    await ownCourse(tx, uid, team.courseId);
+    await staffCourse(tx, uid, team.courseId);
     for (const sc of g.scores) {
       // The database trigger rejects points above the criterion's maximum or criteria from another course.
       await tx.insert(s.teamGrades).values({ teamId, criterionId: sc.criterionId, points: sc.points, feedback: sc.feedback })
@@ -1156,7 +1165,7 @@ export async function exportCourseReport(courseId: string): Promise<{ filename: 
 export async function exportGradebook(courseId: string): Promise<{ filename: string; csv: string }> {
   Id.parse(courseId);
   return withUser(async (tx, uid) => {
-    const course = await ownCourse(tx, uid, courseId);
+    const course = await staffCourse(tx, uid, courseId);
     const teams = await tx.select({ id: s.teams.id, name: s.teams.name }).from(s.teams).where(eq(s.teams.courseId, courseId));
     const ids = teams.map((t) => t.id);
     const none = !ids.length;
@@ -1439,7 +1448,8 @@ export async function getContribution(courseId: string, userId: string): Promise
   return withUser(async (tx, uid) => {
     const [course] = await tx.select({ id: s.courses.id, code: s.courses.code, title: s.courses.title, instructorId: s.courses.instructorId })
       .from(s.courses).where(eq(s.courses.id, courseId));
-    const instructor = course?.instructorId === uid;
+    const instructor = !!course && (course.instructorId === uid
+      || (await tx.select({ id: s.courseTas.userId }).from(s.courseTas).where(and(eq(s.courseTas.courseId, courseId), eq(s.courseTas.userId, uid)))).length > 0);
     if (!course || (uid !== userId && !instructor)) throw new Error("Only the student and their instructor can see this report");
     const [student] = await tx.select({ id: s.users.id, name: s.users.name }).from(s.users).where(eq(s.users.id, userId));
     if (!student) throw new Error("Student not found");
@@ -1840,6 +1850,7 @@ export async function getCourses(): Promise<Course[]> {
     const members = teams.length
       ? await tx.select().from(s.teamMembers).where(inArray(s.teamMembers.teamId, teams.map((t) => t.id)))
       : [];
+    const assisted = new Set((await tx.select({ id: s.courseTas.courseId }).from(s.courseTas).where(eq(s.courseTas.userId, uid))).map((r) => r.id));
 
     return rows.map(({ c, instructorName, studentCount, teamTotal }) => {
       const courseTeams = teams.filter((t) => t.courseId === c.id);
@@ -1851,6 +1862,7 @@ export async function getCourses(): Promise<Course[]> {
         id: c.id, code: c.code, title: c.title, term: c.term, description: c.description, goals: c.goals, rationale: c.rationale,
         instructorName: instructorName ?? translate(L, "Instructor"),
         isMine,
+        isTA: assisted.has(c.id),
         enrolled: roster.some((e) => e.userId === uid),
         studentCount,
         teamCount: teamTotal,
@@ -2129,6 +2141,37 @@ export async function updateTeam(teamId: string, input: z.infer<typeof TeamEdit>
     await tx.delete(s.teamMembers).where(and(inArray(s.teamMembers.teamId, courseTeams), inArray(s.teamMembers.userId, ids), sql`${s.teamMembers.teamId} <> ${teamId}`));
     await tx.insert(s.teamMembers).values(ids.map((userId) => ({ teamId, userId }))).onConflictDoNothing();
   });
+}
+
+// ─── Teaching assistants (the course's instructor manages them) ───────
+
+export async function getCourseTAs(courseId: string): Promise<CourseTA[]> {
+  Id.parse(courseId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ userId: s.courseTas.userId, name: s.users.name, email: s.users.email, addedAt: s.courseTas.addedAt }).from(s.courseTas)
+      .innerJoin(s.users, eq(s.users.id, s.courseTas.userId)).where(eq(s.courseTas.courseId, courseId)).orderBy(asc(s.users.name));
+    return rows;
+  });
+}
+
+/** Adds a staff account as a TA by email. "not-staff" when no staff account has that email. */
+export async function addCourseTA(courseId: string, email: string): Promise<"ok" | "not-staff" | "self"> {
+  Id.parse(courseId);
+  const e = z.email().parse(email.trim().toLowerCase());
+  return withUser(async (tx, uid) => {
+    await ownCourse(tx, uid, courseId);
+    // Staff accounts are visible to everyone (users_select_instructors); students aren't, so they can't be found here.
+    const [user] = await tx.select({ id: s.users.id }).from(s.users).where(and(sql`lower(${s.users.email}) = ${e}`, eq(s.users.role, "instructor")));
+    if (!user) return "not-staff";
+    if (user.id === uid) return "self";
+    await tx.insert(s.courseTas).values({ courseId, userId: user.id }).onConflictDoNothing();
+    return "ok";
+  });
+}
+
+export async function removeCourseTA(courseId: string, userId: string) {
+  Id.parse(courseId); Id.parse(userId);
+  await withUser((tx) => tx.delete(s.courseTas).where(and(eq(s.courseTas.courseId, courseId), eq(s.courseTas.userId, userId))));
 }
 
 // ─── AI team matching (instructors) ────────────────────────────────────
