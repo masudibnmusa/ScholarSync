@@ -10,9 +10,10 @@ import { translateNotice } from "@/lib/i18n/notices";
 import { requestLocale } from "@/lib/locale-server";
 import * as s from "@/db/schema";
 import { inngest } from "@/inngest/client";
-import { extractActionItems, matchTeams, suggestMeetings } from "@/lib/ai";
+import { answerFromSources, extractActionItems, matchTeams, suggestMeetings } from "@/lib/ai";
 import { cleanActionItems, MAX_ACTION_ITEMS, type ActionItem } from "@/lib/action-items";
 import type { MeetingSlot } from "@/lib/meeting";
+import { citeAnswer, type CitedSource, type StudySource } from "@/lib/study-buddy";
 import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { summarizeTeamStandup } from "@/lib/standups";
 import { checkRepo, parseRepo, RepoError, syncTeamRepo } from "@/lib/github";
@@ -1598,6 +1599,59 @@ export async function deleteFile(fileId: string) {
     const { error } = await sb.storage.from("team-files").remove([row.path]);
     if (error) throw error;
   });
+}
+
+// ─── Study buddy ──────────────────────────────────────────────────────
+
+export interface StudyAnswer { answer: string; cited: CitedSource[] }
+
+const TEXT_FILE = /^(text\/|application\/(json|xml|x-yaml|javascript|typescript|sql))|\.(md|txt|csv|json|ya?ml|py|js|ts|tsx|jsx|java|c|cpp|h|cs|go|rs|rb|php|sql|html|css)$/i;
+const MAX_READ = 200_000; // bytes; bigger files are listed by name only
+
+/**
+ * A question about a course, answered by the AI from that course's announcements and milestones and (for a student)
+ * their team's files, with numbered sources. Everything is read as the user, so RLS decides what the AI sees.
+ */
+// shortcut: no per-user limit on AI calls (like the other AI actions); add one if costs or abuse show up.
+export async function askStudyBuddy(courseId: string, question: string): Promise<StudyAnswer> {
+  Id.parse(courseId);
+  const q = z.string().trim().min(3).max(500).parse(question);
+  const L = await requestLocale();
+  const { sources, files, teamId } = await withUser(async (tx, uid) => {
+    const [course] = await tx.select({ instructorId: s.courses.instructorId }).from(s.courses).where(eq(s.courses.id, courseId));
+    if (!course) throw new Error("Course not found");
+    const role = course.instructorId === uid ? "instructor" : "student";
+    const page = `/${role}/courses/${courseId}`;
+    const [ann, ms, team] = await Promise.all([
+      tx.select().from(s.courseAnnouncements).where(eq(s.courseAnnouncements.courseId, courseId)).orderBy(desc(s.courseAnnouncements.createdAt)).limit(30),
+      tx.select().from(s.courseMilestones).where(eq(s.courseMilestones.courseId, courseId)).orderBy(asc(s.courseMilestones.dueDate)),
+      tx.select({ id: s.teams.id }).from(s.teams).innerJoin(s.teamMembers, and(eq(s.teamMembers.teamId, s.teams.id), eq(s.teamMembers.userId, uid)))
+        .where(eq(s.teams.courseId, courseId)).limit(1),
+    ]);
+    const teamId = team[0]?.id ?? null;
+    const files = teamId ? await tx.select().from(s.files).where(eq(s.files.teamId, teamId)).orderBy(desc(s.files.createdAt)).limit(20) : [];
+    const sources: StudySource[] = [
+      ...ann.map((a) => ({ kind: "announcement" as const, title: a.title, text: `Posted ${a.createdAt.slice(0, 10)}.\n${a.body}`, link: page })),
+      ...ms.map((m) => ({ kind: "milestone" as const, title: m.title,
+        text: `Due ${m.dueDate}.${m.requiresSubmission ? " Teams hand in work for it." : ""}\n${m.description}`, link: page })),
+    ];
+    return { sources, files, teamId };
+  });
+  // Small text files are read for their contents; the rest are listed by name so "which files do we have" still works.
+  const bucket = (await supabaseServer()).storage.from("team-files");
+  let read = 0;
+  for (const f of files) {
+    let text = `${f.name} (${f.mimeType}, ${Math.ceil(f.sizeBytes / 1024)} KB), shared ${f.createdAt.slice(0, 10)}. Its contents can't be read here.`;
+    if (read < 8 && f.sizeBytes <= MAX_READ && (TEXT_FILE.test(f.mimeType) || TEXT_FILE.test(f.name))) {
+      const { data } = await bucket.download(f.storagePath);
+      if (data) { text = `${f.name}, shared ${f.createdAt.slice(0, 10)}:\n${await data.text()}`; read++; }
+    }
+    sources.push({ kind: "file", title: f.name, text, link: `/student?team=${teamId}&view=files` });
+  }
+  if (!sources.length) return { answer: translate(L, "This course has no announcements, milestones or files yet, so there's nothing to answer from."), cited: [] };
+  const answer = await answerFromSources(q, sources, L);
+  if (!answer) throw new Error("The AI returned nothing");
+  return citeAnswer(answer, sources);
 }
 
 // ─── Peer review ───────────────────────────────────────────────────────

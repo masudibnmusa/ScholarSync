@@ -1736,4 +1736,17 @@ export const bn: Record<string, string> = {
   "Waiting on {titles}": "{titles}-এর জন্য অপেক্ষা",
   "Ready to start: {title}": "শুরু করার জন্য প্রস্তুত: {title}",
   "{title} is done.": "{title} শেষ হয়েছে।",
+  // Study buddy
+  "This course has no announcements, milestones or files yet, so there's nothing to answer from.": "এই কোর্সে এখনো কোনো ঘোষণা, মাইলস্টোন বা ফাইল নেই, তাই উত্তর দেওয়ার মতো কিছু নেই।",
+  "source {n}": "সূত্র {n}",
+  "Sources": "সূত্র",
+  "Study buddy": "স্টাডি বাডি",
+  "Ask about this course. Answers come only from its announcements, milestones and your team's files, with the sources. AI can be wrong, so check them.": "এই কোর্স সম্পর্কে জিজ্ঞেস করুন। উত্তর আসে শুধু এর ঘোষণা, মাইলস্টোন ও আপনার দলের ফাইল থেকে, সূত্রসহ। AI ভুল করতে পারে, তাই সূত্রগুলো মিলিয়ে দেখুন।",
+  "Ask about this course": "এই কোর্স সম্পর্কে জিজ্ঞেস করুন",
+  "e.g. When is the report due, and what goes in it?": "যেমন: রিপোর্ট কবে জমা দিতে হবে, আর তাতে কী থাকবে?",
+  "The study buddy couldn't answer just now. Try again in a moment.": "স্টাডি বাডি এখন উত্তর দিতে পারেনি। একটু পরে আবার চেষ্টা করুন।",
+  "Reading the course…": "কোর্স পড়া হচ্ছে…",
+  // Study buddy
+  "Ask the study buddy": "স্টাডি বাডিকে জিজ্ঞেস করুন",
+  "Study buddy answers": "স্টাডি বাডির উত্তর",
 };
