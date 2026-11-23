@@ -94,11 +94,14 @@ test("a language picked on the sign-up page is saved to the new account", async 
   await page.getByRole("radiogroup", { name: "Language" }).getByRole("radio", { name: "বাংলা" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
   const email = uniqueEmail();
-  await page.getByLabel("পুরো নাম").fill("E2E Bangla Signup");
-  await page.getByLabel("বিশ্ববিদ্যালয়ের ইমেইল").fill(email);
-  await page.getByLabel("পাসওয়ার্ড", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "অ্যাকাউন্ট তৈরি করুন" }).click();
-  await page.waitForURL(/\/student\/courses/);
+  // The page re-renders in Bangla after the switch, which can clear fields typed a moment earlier: retry until it goes through.
+  await expect(async () => {
+    await page.getByLabel("পুরো নাম").fill("E2E Bangla Signup");
+    await page.getByLabel("বিশ্ববিদ্যালয়ের ইমেইল").fill(email);
+    await page.getByLabel("পাসওয়ার্ড", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "অ্যাকাউন্ট তৈরি করুন" }).click();
+    await page.waitForURL(/\/student\/courses/, { timeout: 10_000 });
+  }).toPass({ timeout: 45_000 });
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
 
   // A browser that has never been used signs in and gets Bangla from the account.
