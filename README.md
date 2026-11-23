@@ -15,7 +15,7 @@
 
 A collaboration hub for university group projects. Students work in teams with chat, a shared task list (each task shows whether it is to do, in progress or done), shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
-> **Status:** the Supabase backend is implemented: auth, teams, tasks, chat (Realtime), files (Storage), notifications, peer review, conflict alerts, and the AI jobs. See [Implementation notes](#implementation-notes) for where the code differs from the diagram.
+> **Status:** every item on the [roadmap](#roadmap) (43) is built and runs locally on 40 migrations, in English and বাংলা. The browser suite (65 tests), 16 unit checks and 8 SQL tests cover it; see [End-to-end tests](#end-to-end-tests). Not deployed yet: the migrations go to the hosted Supabase project with `npx supabase db push`. See [Implementation notes](#implementation-notes) for how each feature works and where the code differs from the diagrams.
 
 ## Tech stack
 
@@ -26,7 +26,11 @@ A collaboration hub for university group projects. Students work in teams with c
 | State | Zustand store in the browser: calls Server Actions, subscribes to Realtime |
 | Backend | Supabase: Postgres, Auth, Realtime, Storage |
 | Data access | Drizzle ORM, zod validation |
-| AI | Google Gen AI (Gemini), run as background jobs (Inngest) |
+| AI | Google Gen AI (Gemini): background jobs, plus on-request features (team matching, study buddy, retrospective themes, meeting notes) |
+| Background jobs | Inngest: schedules and events (see [Background jobs](#background-jobs)) |
+| Email | Resend in production, Mailpit locally (comes with `supabase start`) |
+| Alerts | Web Push (VAPID) through a service worker |
+| Monitoring | Sentry (optional) |
 | Hosting | Vercel + Supabase |
 
 ## System architecture
@@ -43,6 +47,28 @@ Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.
 4. Changes go through **Server Actions**, which validate input with zod and write with Drizzle. RLS checks every write too.
 5. **Realtime** pushes inserts and updates on `messages`, `tasks` and `notifications` to every open client.
 6. **AI jobs** react to new data (new messages, nightly runs) and write their results back as rows: `task_suggestions`, `conflict_alerts`, `teams.health_score`. A person accepts or resolves each one.
+7. **On-request AI** (team matching, the study buddy, retrospective themes, tasks from meeting notes) runs inside the Server Action: the data is read as the user first, then Gemini is called outside the transaction, and its answer is checked against a zod schema before anything uses it.
+
+### Background jobs
+
+All in [`src/inngest/functions.ts`](src/inngest/functions.ts); times are UTC. They use the service role (`adminDb`), so each one scopes its own queries.
+
+| Job | When | What it does |
+|---|---|---|
+| `extract-chat-tasks` | 2 min after a team's chat goes quiet | Suggests tasks from the chat (AI) |
+| `assess-team-health` | Daily 02:00 | Health score and conflict alerts per team (AI) |
+| `weekly-team-recaps` | Mondays 06:00 | A weekly summary per team (AI) |
+| `ask-for-standups` | Mondays 06:05 | Asks every student for the weekly stand-up |
+| `summarize-standups` | 10 min after a team's last answer | The instructor's stand-up summary with blockers (AI) |
+| `remind-due-tasks` | Daily 07:00 | Reminders for tasks due soon |
+| `instructor-risk-alerts` | Daily 07:15 | Teams that missed a milestone or have 3+ overdue tasks |
+| `falling-behind-check` | Daily 07:20 | Students falling behind: a private nudge, then the instructor |
+| `daily-email-digests` | Daily 07:30 | One email per person with what they haven't read |
+| `weekly-instructor-digests` | Mondays 07:45 | Each instructor's week: falling behind, conflicts, extension requests, missing hand-ins |
+| `push-notifications` | Every minute | Sends new notifications to phones and desktops |
+| `office-hour-reminders` | Every 5 min | Reminds the team and instructor an hour before a booking |
+| `sync-github-repos` | Every 30 min, and when a repo is linked | Commits and pull requests per team |
+| `report-job-failures` | When a job fails every retry | Reports it to Sentry |
 
 ## Database architecture
 
@@ -51,6 +77,17 @@ Every row belongs to a **course** or a **team**, and the access rules follow tha
 ![ScholarSync database architecture: 12 tables, 2 views and 6 enums, grouped by people & courses, teams, team work and AI output](docs/database-architecture.svg)
 
 Lines connect each parent's primary key to the child's foreign key column. Foreign keys to `users` are shown as blue `uuid → users` labels instead of lines, so the diagram stays readable. Colors use the same tokens as the system diagram.
+
+The diagram shows the core schema from `0001_init.sql`. Later migrations (40 in all, in [`supabase/migrations/`](supabase/migrations)) add tables that hang off the same two owners:
+
+| Belongs to | Tables added later |
+|---|---|
+| A course | `course_milestones`, `course_announcements`, `rubric_criteria`, `office_hours`, `help_questions` and `help_answers`, `course_tas` |
+| A team | `submissions`, `team_milestones`, `deadline_extensions`, `team_grades`, `student_grade_factors`, `standups`, `standup_summaries`, `team_summaries`, `team_charters`, `charter_agreements`, `falling_behind`, `repo_activity`, `team_health_history`, `rubric_checks`, `team_retros` |
+| A task | `task_comments`, `task_checklist_items`, `task_events`, `task_dependencies`, `focus_sessions` |
+| A person | `push_subscriptions`, plus `users.locale`, `users.email_digest`, `users.github_login` and the profile photo |
+
+Each migration starts with a comment saying what it adds and who may do what.
 
 ### Views
 
@@ -63,20 +100,23 @@ Both views use `security_invoker = true`, so they follow the caller's access rul
 
 ### Access rules (RLS)
 
-| Table | Team member | Course instructor | Anyone else |
-|---|---|---|---|
-| `tasks` | read, write | read | none |
-| `messages` | read, post as self | read, post as self | none |
-| `files` + storage | read, upload, delete own | read, upload (chat attachments), delete own | none |
-| `peer_reviews` | write about teammates, read own | read all | none (the reviewee can't see them either) |
-| `conflict_alerts` | none | read, resolve | none |
-| `teams`, `team_members` | read | read, write | none |
-| `users` | edit own profile | read their students | teammates only |
-| `notifications` | owner only | owner only | owner only |
+| Table | Team member | Course instructor | Teaching assistant | Anyone else |
+|---|---|---|---|---|
+| `tasks` | read, write | read | read | none |
+| `messages` | read, post as self | read, post as self | read, post as self | none |
+| `files` + storage | read, upload, delete own | read, upload (chat attachments), delete own | read, upload, delete own | none |
+| `peer_reviews` | write about teammates, read own | read all | read all | none (the reviewee can't see them either) |
+| `conflict_alerts` | none | read, resolve | read | none |
+| `teams`, `team_members` | read | read, write | read | none |
+| `team_grades`, `student_grade_factors` | read once released | read, write | read, write | none |
+| `users` | edit own profile | read their students | read the course's students | teammates only |
+| `notifications` | owner only | owner only | owner only | owner only |
 
 - `users.role` and `users.email` can't be changed by any client (column-level grants).
 - Sign-up always creates a **student**. Instructors are promoted by an admin using the service role.
 - Background jobs use the service role and bypass RLS.
+- Instructor and TA checks go through `teaches_course` / `teaches_team` (the owner) and `staffs_course` / `staffs_team` (the owner or a TA). Triggers guard the cases a policy can't express: which columns each side may change on a hand-in or an extension request, and the archive lock.
+- Each feature since 0034 has a SQL test in [`supabase/tests/`](supabase/tests) that tries these rules as each kind of user (see [Database check](#database-check)).
 
 ### Indexes
 
@@ -94,7 +134,8 @@ ScholarSync/
 │   │   ├── globals.css                   Design tokens (light + dark): navy brand, amber accent, chart palette
 │   │   ├── error.tsx · not-found.tsx     Error and 404 pages
 │   │   ├── icon.tsx                      Generated favicon
-│   │   ├── api/inngest/route.ts          Inngest endpoint that serves the AI jobs
+│   │   ├── api/inngest/route.ts          Inngest endpoint that serves the background jobs
+│   │   ├── api/calendar/ · api/office-hours/   .ics downloads (My week, an office-hours slot)
 │   │   ├── (auth)/                       Signed-out pages; signed-in users are redirected home
 │   │   │   ├── login/page.tsx
 │   │   │   └── register/page.tsx
@@ -102,13 +143,17 @@ ScholarSync/
 │   │       ├── loading.tsx               Shared loading skeleton
 │   │       ├── student/                  layout.tsx allows students only
 │   │       │   ├── page.tsx              Workspace: board + floating chat & files popup
+│   │       │   ├── courses/              Course dashboard, a course page, my contribution report
+│   │       │   ├── week/                 My week: list, month and calendar export
 │   │       │   ├── peer-review/          Review teammates
 │   │       │   ├── notifications/
 │   │       │   ├── profile/
 │   │       │   └── chat/ · tasks/ · files/   Old URLs, redirect into the workspace
 │   │       └── instructor/               layout.tsx allows instructors only
 │   │           ├── page.tsx              Workspace: team list, read-only board, alerts dropdown in the team header, floating chat & files popup
-│   │           ├── analytics/            Progress, contribution and health per team
+│   │           ├── courses/              Course dashboard, a course page, team tasks, a student's report
+│   │           ├── analytics/            Progress, contribution, health and trends per team
+│   │           ├── at-risk/              Students falling behind
 │   │           ├── conflicts/            AI conflict alerts to resolve
 │   │           ├── matching/             AI team matching: run, review, approve
 │   │           ├── notifications/
@@ -117,16 +162,21 @@ ScholarSync/
 │   ├── components/
 │   │   ├── providers.tsx                 Theme, motion, tooltip and toast providers
 │   │   ├── locale.tsx · language-switch.tsx  useT() (the page's language) and the English / বাংলা switch
-│   │   ├── app/                          App shell
+│   │   ├── app/                          App shell and the shared course features
 │   │   │   ├── app-shell.tsx             Layout: icon rail (desktop), top bar + tab bar (phones)
 │   │   │   ├── sidebar.tsx · topbar.tsx
 │   │   │   ├── nav.ts                    Student and instructor navigation
-│   │   │   ├── command-menu.tsx          Ctrl/Cmd+K
-│   │   │   ├── notifications.tsx · profile.tsx
+│   │   │   ├── command-menu.tsx          Ctrl/Cmd+K: pages, actions and search
+│   │   │   ├── notifications.tsx · profile.tsx · my-data.tsx · push.tsx
+│   │   │   ├── courses.tsx · course-detail.tsx · course-students.tsx · invite.tsx · join-invite.tsx
+│   │   │   ├── announcements.tsx · milestones.tsx · submissions.tsx · grading.tsx · office-hours.tsx
+│   │   │   ├── help-board.tsx · study-buddy.tsx · retros.tsx · teaching-assistants.tsx
+│   │   │   ├── contribution.tsx · team-tasks.tsx · team-reviews.tsx · standup.tsx · charter.tsx · repo.tsx
 │   │   │   ├── page.tsx                  Page, PageHeader, StatCard, EmptyState, Logo
 │   │   │   └── user-context.tsx          Signed-in user for client components
-│   │   ├── student/                      workspace, kanban, chat, files, peer-review, shared (team hooks, AI button)
-│   │   ├── instructor/                   workspace, analytics, charts, conflicts, matching
+│   │   ├── student/                      workspace, kanban (tasks, checklist, dependencies), focus-timer, chat, files,
+│   │   │                                 my-week, meeting-notes, peer-review, shared (team hooks, AI button)
+│   │   ├── instructor/                   workspace, analytics, charts, at-risk, conflicts, matching, edit-team
 │   │   ├── landing/                      Landing page and its interactive product demo
 │   │   ├── auth/                         Sign-in / sign-up form and frame
 │   │   └── ui/                           Primitives: button, card, badge, dialog, alert-dialog, dropdown-menu,
@@ -136,9 +186,12 @@ ScholarSync/
 │   │   └── index.ts                      withUser(): runs queries as the signed-in user; adminDb for jobs only
 │   ├── inngest/
 │   │   ├── client.ts                     Inngest client
-│   │   └── functions.ts                  Jobs: task extraction (debounced), nightly team health
-│   ├── lib/
-│   │   ├── ai.ts                         Gemini calls (JSON schema output, chat treated as untrusted data)
+│   │   └── functions.ts                  Every scheduled and event job (see Background jobs)
+│   ├── lib/                              Each *.ts with a *.check.mjs beside it is pure and unit-checked
+│   │   ├── ai.ts                         Gemini calls (JSON schema output, user text treated as untrusted data)
+│   │   ├── study-buddy.ts · similarity.ts · action-items.ts · team-sizes.ts · meeting.ts · grading.ts
+│   │   ├── digest.ts · digest-format.ts · email.ts · push.ts      Daily and weekly emails, sending, push alerts
+│   │   ├── github.ts · repo-name.ts · standups.ts · summaries.ts · office-hours.ts · ics.ts · offline.ts · monitoring.ts
 │   │   ├── store.ts                      Zustand store: calls Server Actions, subscribes to Realtime
 │   │   ├── session.ts                    Signed-in profile for server layouts (cached per request)
 │   │   ├── i18n/                         index.ts (t, tn, msg) · bn.ts (Bangla) · notices.ts (notification text)
@@ -149,14 +202,12 @@ ScholarSync/
 │   ├── hooks/use-client.ts               useMounted, useStoredValue (localStorage), useClientValue
 │   └── proxy.ts                          Refreshes the Supabase session cookie on each request
 ├── supabase/
-│   ├── migrations/
-│   │   ├── 0001_init.sql                 Schema, RLS, views, indexes, storage
-│   │   ├── 0002_notifications.sql        Notification triggers
-│   │   └── 0003_instructor_chat.sql      Instructors post and attach files in team chat; reply notifications
+│   ├── migrations/                       0001_init.sql (schema, RLS, views, storage) … 0040_teaching_assistants.sql
+│   ├── tests/                            SQL tests of the access rules, each in a rolled-back transaction
 │   ├── seed.sql                          Local demo data
 │   ├── ai-test-data.sql                  Data for testing the AI features
 │   └── config.toml                       Local Supabase config
-├── tests/e2e/                            Black-box Playwright tests: auth, student, profile, instructor
+├── tests/e2e/                            Black-box Playwright tests, one file per feature (39 files)
 │   ├── helpers.ts · global-setup.ts · global-teardown.ts   Sign-in helpers; checks the seeded accounts are in English; deletes the e2e accounts after a run
 │   └── fixtures/photo.png                Image for the profile photo tests
 ├── docs/
@@ -186,11 +237,12 @@ npm run dev:inngest               # optional: runs the AI jobs locally (needs GE
 ```bash
 npx supabase start
 npm run dev
+npm run dev:inngest               # only if you need the background jobs, alerts or emails
 ```
 
-Stop with `Ctrl+C` for the dev server and `npx supabase stop` for Supabase. Local data is kept between runs.
+Stop with `Ctrl+C` for the dev server and Inngest, and `npx supabase stop` for Supabase. Local data is kept between runs. Emails sent locally land in Mailpit at http://127.0.0.1:54324.
 
-`.env.local` needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable key), `DATABASE_URL` (the DB URL; use the transaction pooler in production) and `GEMINI_API_KEY` (from Google AI Studio). `DATABASE_URL` and `GEMINI_API_KEY` are server-only. Optional: `GEMINI_MODEL` (overrides the default model) and `INNGEST_DEV=1` (use the local Inngest dev server). In production also set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`.
+`.env.local` needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable key), `DATABASE_URL` (the DB URL; use the transaction pooler in production) and `GEMINI_API_KEY` (from Google AI Studio). `DATABASE_URL` and `GEMINI_API_KEY` are server-only. Optional: `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` (override the models), `INNGEST_DEV=1` (use the local Inngest dev server), `GITHUB_TOKEN` (private repos and a higher GitHub rate limit) and the Sentry variables (see Error monitoring below). In production also set `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `APP_URL` (used for links in emails), and `RESEND_API_KEY` with `EMAIL_FROM` for email; without Resend, development sends to Mailpit (`MAILPIT_URL` to change where).
 
 Phone and desktop alerts need a VAPID key pair: run `npx web-push generate-vapid-keys` once and set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (server-only) and `VAPID_SUBJECT` (a `mailto:` address push services can contact). Without them the app works and the Alerts switch says alerts aren't set up. Alerts are sent by an Inngest job, so `npm run dev:inngest` must be running locally.
 
@@ -198,7 +250,7 @@ Phone and desktop alerts need a VAPID key pair: run `npx web-push generate-vapid
 
 ### End-to-end tests
 
-Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, the student workspace and My week, the profile photo, installing and alerts, course management, hand-ins, team chat, live updates, the stand-up, grading and the gradebook export, offline mode, the at-risk page, contribution reports, GitHub, the team charter, office hours, tasks from meeting notes and the Bangla interface. Every row in the results table below names what it checks.
+Black-box tests in [`tests/e2e/`](tests/e2e) drive the running app in a real browser with [Playwright](https://playwright.dev): they sign in, click and type like a user, and import nothing from `src/`. They cover sign-in and role guards, the student workspace and My week, the profile photo, installing and alerts, course management, hand-ins, team chat, live updates, the stand-up, grading and the gradebook export, offline mode, the at-risk page, contribution reports, GitHub, the team charter, office hours, tasks from meeting notes, the Bangla interface, accessibility, search, your data, the help board, the focus timer, the rubric checklist, task dependencies, the study buddy, course templates, retrospectives, teaching assistants, the similarity check and the weekly instructor digest. Every row in the results table below names what it checks.
 
 ```bash
 npx playwright install chromium    # once
@@ -223,7 +275,7 @@ Tests that change data never touch the seed accounts' teams. They make their own
 | Seed student `masud@university.edu` (Team Nova, team id `00000000-0000-4000-a000-000000000001`) | Workspace, task, My week, sidebar and command menu tests. The task test deletes the task it creates. |
 | Seed instructor `selim.reja@university.edu` (teaches `CSE-3200`) | Instructor pages and role guards (read only). Also the instructor of every throwaway course below, so it gets those courses' notifications (bookings, hand-ins). |
 | A new `e2e-<time>-<random>@university.edu` account per student in a test | Sign-up, profile photo, alerts and every team test, so no real photo, device or team is touched. Names start with `E2E` (e.g. *E2E Ada*). The teardown deletes all `e2e-` accounts. |
-| A throwaway course `E2E-<base36 time>` with one team, *E2E Team*, of new students (`courseWithTeam()` in [`helpers.ts`](tests/e2e/helpers.ts)) | Course management, submissions, chat, live updates, stand-up, at risk, grading, offline, contribution, GitHub, charter, office hours, meeting notes and trends. Each test deletes its course; the teardown removes any `E2E-` course a failed run left. |
+| A throwaway course `E2E-<base36 time>` with one team, *E2E Team*, of new students (`courseWithTeam()` in [`helpers.ts`](tests/e2e/helpers.ts)) | Course management, submissions, chat, live updates, stand-up, at risk, grading, offline, contribution, GitHub, charter, office hours, meeting notes, trends, extensions, search, your data, help board, focus timer, rubric checklist, task dependencies, study buddy, retrospectives, teaching assistants, similarity and the weekly digest. Some add a second team (*E2E Team Two*, with a new student *E2E Cy*). Each test deletes its course; the teardown removes any `E2E-` course a failed run left. |
 | Rows added with the local service role (`adminRest()` in [`helpers.ts`](tests/e2e/helpers.ts)), only for throwaway teams | History a browser can't create in a test run: a falling-behind case (flagged 4 days ago, escalated 1 day ago); a done task, 4 messages and a 4/5 peer review (*"E2E: always on time"*) for the contribution report; a linked repo `e2e-org/e2e-project` with 3 commits (2 by `e2e-hal-dev`, 1 by `someone-else`) and a merged PR #7. No test calls GitHub. For trends: two tasks, a past status change, three messages, health scores and a second team, *E2E Second*, all dated relative to this week's Monday. |
 | Rubric *Code* (/40) and *Report* (/60), marks 30 and 54, factor override 0.9 | Grading: team grade 84%, final grades 84 and 75.6 in the exported CSV |
 | GitHub usernames `bad_name!` (refused) and `@e2e-hal-dev` (saved) | Profile validation and matching commits to a student (GitHub's `E2E-Hal-Dev` matches regardless of case) |
@@ -237,6 +289,13 @@ Tests that change data never touch the seed accounts' teams. They make their own
 | Wrong password `not-the-password` | The sign-in error message |
 | A new `e2e-…` account that switches to বাংলা on its profile, then signs in from a second, fresh browser | The language test: the saved language follows the account. A seed account is never switched, since that would change its emails. |
 | A signed-out browser with the `lang=bn` cookie, cleared at the end | Picking বাংলা on the sign-in page |
+| A new `e2e-…` account made staff with the service role (*E2E Tara*) | The teaching-assistant test; a student's email is the refused case |
+| Two seeded-instructor courses `E2E-<time>A` and `E2E-<time>B` (announcement *E2E welcome to the course*, milestone *E2E proposal* in 14 days, criterion *E2E design* /30) | Course templates: B is copied from A |
+| A paragraph about an order queue, handed in as `report.md` (with a heading) and as `notes.txt` (plus a sentence), with `https://github.com/e2e/shop` and `https://www.github.com/e2e/shop/` | The similarity check: one pair, the same link, over 90% matching |
+| A falling-behind case, a conflict alert (*E2E arguing about the API design*), a pending extension and a hand-in due 2 days ago, all for a throwaway team | The weekly digest; the email is read from Mailpit and deleted |
+| The focus timer's start moved 25 minutes back in `localStorage` | A finished 25-minute session without waiting |
+| Retrospectives about stand-ups and merge conflicts from two teams | *Find themes* (`E2E_AI=1` only) |
+| The announcement *E2E lab moved to room 402* | The study buddy (`E2E_AI=1` only) |
 
 All seed accounts use the password `password123`.
 
@@ -280,6 +339,7 @@ All seed accounts use the password `password123`.
 | Team chat | Two students: a question and a reply quoting it (live), a 👍 reaction seen live, add and take back your own reaction, search finds messages and a shared file, a hit jumps to the message, no-match message | ✅ Pass |
 | Language | A new student switches to বাংলা in Profile: the page reloads with `lang="bn"`, Bangla navigation, headings and tab title, on every page, with no hydration errors; signing in from a fresh browser switches it to Bangla too (saved on the account); switching back gives English | ✅ Pass |
 | Language follows the account | A second browser with an old `lang=en` cookie, signed in to the same account, switches to Bangla after the account does instead of saving English back; a language picked on the sign-up page is saved to the new account and a fresh browser gets it | ✅ Pass |
+| | A visitor picks বাংলা on the sign-in page: the form and the landing page are in Bangla | ✅ Pass |
 | First load | The seeded student's and instructor's dashboards and workspaces arrive from the server with their courses and teams (no loading skeleton in the HTML), and 16 pages open without hydration errors with the browser at UTC+14, far from the server's time zone | ✅ Pass |
 | Deadline extensions | A new student asks for more time on a milestone: a date that isn't later is refused, then the request waits; the instructor sees it live with the reason and approves it; the student's milestone moves to the new date live, and the team is notified | ✅ Pass |
 | Contribution report as PDF | On the instructor's view of a student's report, *Save as PDF* opens the print dialog; in print, the navigation and the button are gone and the line naming the student and date shows | ✅ Pass |
@@ -296,21 +356,35 @@ All seed accounts use the password `password123`.
 | Teaching assistants | In a throwaway course the instructor sets a rubric, is refused when adding a student's email as TA, and adds a throwaway staff account. The TA is notified, sees the course marked *Teaching assistant* and its team, has no edit, rubric, release, roster or TA controls, grades the team (the instructor sees 80%), and loses access when removed | ✅ Pass |
 | Similarity check | In a throwaway course with two teams, one hands in a Markdown report and a GitHub link, the other a text file with the same paragraph and the same link written differently; the instructor's *Compare hand-ins* flags that one pair with "the same link" and over 90% matching text | ✅ Pass |
 | Weekly instructor digest | In a throwaway course with a falling-behind student, a conflict alert, a pending request for more time and a hand-in two days late, the seeded instructor sends this week's summary from the profile; the email (read from the local Mailpit inbox, then deleted) has each of the four under its heading | ✅ Pass |
-| | A visitor picks বাংলা on the sign-in page: the form and the landing page are in Bangla | ✅ Pass |
 | Instructor | Analytics page opens | ✅ Pass |
 | | Conflicts page opens | ✅ Pass |
 | | AI team matching page opens | ✅ Pass |
 | | Notifications page opens | ✅ Pass |
 | | The course dashboard lists the seeded course | ✅ Pass |
 
-**Database check.** The falling-behind rules run on days of history, which a browser test can't wait for, so they have their own SQL test with made-up people, run in one transaction that is rolled back. It covers the private nudge, no repeat the same day, instructor alert after 3 days (once), recovery, slipping back within a week, a new episode later, low peer scores, and archived courses. Latest run: 8 of 8 passed (2026-11-22). Deadline extensions have one too (`supabase/tests/deadline_extensions.sql`): outsiders can't ask, the date must be later, the team can't approve its own request or set its date, the instructor can't change the request and decides only once, asking again keeps the approved date, declining keeps it too, risk alerts use the team's date, and a done milestone takes no requests. Latest run: 9 of 9 passed (2026-11-22). The help board has one (`supabase/tests/help_board.sql`): asking and answering with notifications, outsiders see and post nothing, only the asker marks a solution and only from that question's answers (and can't edit anything else that way), the instructor moderates, and archived courses are read-only. Latest run: 5 of 5 passed (2026-11-24). The focus timer has one (`supabase/tests/focus_sessions.sql`): a member logs time that ends now whatever they send, no overlapping sessions, not on another team's task, under the wrong team or for someone else, the team and instructor see it but other teams don't, and archived courses take none. Latest run: 4 of 4 passed (2026-11-24). The rubric checklist has one (`supabase/tests/rubric_checks.sql`): the team ticks and unticks and the instructor sees it, only the team ticks (not another team, not the instructor), only this course's criteria and milestones and only as yourself, and archived courses are read-only. Latest run: 4 of 4 passed (2026-11-24). Task dependencies have one (`supabase/tests/task_dependencies.sql`): the team links tasks and the team and instructor see them, no loops (direct or two-step), no links across teams or by another team, the assignee is told only when the last blocker is done (and only once), and archived courses are read-only. Latest run: 4 of 4 passed (2026-11-24). Team retrospectives have one (`supabase/tests/team_retros.sql`): one shared retro per team and milestone with the writer and time from the session, no empty ones, no moved keys and only this course's milestones, only the team writes while the instructor reads, and archived courses are read-only. Latest run: 4 of 4 passed (2026-11-24). Teaching assistants have one (`supabase/tests/teaching_assistants.sql`): only the instructor adds TAs and only staff accounts (not students, not themself), the TA is told, sees the assisted course's teams, work, roster and names but no other course, grades (marks, factors, hand-in feedback without touching the hand-in), can't edit or delete the course, release grades, change the roster, teams, rubric or milestones, post announcements, add TAs or change extension requests, and loses access when removed. Latest run: 5 of 5 passed (2026-11-24).
+### Database check
+
+The access rules and the rules that need days of history are checked in SQL, in [`supabase/tests/`](supabase/tests): each file makes its own people, course and teams, acts as each of them (`role = authenticated` with their id, the way `withUser()` does), and runs in one transaction that is rolled back, so nothing is left behind.
+
+| Test | What it checks | Latest run |
+|---|---|---|
+| `falling_behind.sql` | The private nudge, no repeat the same day, instructor alert after 3 days (once), recovery, slipping back within a week, a new episode later, low peer scores, archived courses | 8 of 8 on 2026-11-22. On 2026-11-24 it stopped at the first step (3 nudges where 1 was expected): it counts what `check_falling_behind()` returns for the whole database, so other local data adds to it. It should count its own team only. |
+| `deadline_extensions.sql` | Outsiders can't ask, the date must be later, the team can't approve its own request or set its date, the instructor can't change the request and decides only once, asking again and declining keep the approved date, risk alerts use the team's date, a done milestone takes no requests | 9 of 9, 2026-11-24 |
+| `help_board.sql` | Asking and answering with notifications, outsiders see and post nothing, only the asker marks a solution (only from that question's answers, and can't edit anything else that way), the instructor moderates, archived courses are read-only | 5 of 5, 2026-11-24 |
+| `focus_sessions.sql` | Time ends now whatever is sent, no overlapping sessions, not on another team's task, under the wrong team or for someone else, the team and instructor see it but other teams don't, archived courses take none | 4 of 4, 2026-11-24 |
+| `rubric_checks.sql` | The team ticks and unticks and the instructor sees it, only the team ticks, only this course's criteria and milestones and only as yourself, archived courses are read-only | 4 of 4, 2026-11-24 |
+| `task_dependencies.sql` | Links seen by the team and instructor, no loops (direct or two-step), no links across teams or by another team, the assignee is told only when the last blocker is done (once), archived courses are read-only | 4 of 4, 2026-11-24 |
+| `team_retros.sql` | One shared retro per team and milestone with the writer and time from the session, no empty ones, no moved keys, only this course's milestones, only the team writes while the instructor reads, archived courses are read-only | 4 of 4, 2026-11-24 |
+| `teaching_assistants.sql` | Only the instructor adds TAs, only staff accounts; the TA sees the course's teams, work, roster and names but no other course, grades (marks, factors, hand-in feedback without touching the hand-in), can't edit or delete the course, release grades, change the roster, teams, rubric or milestones, post announcements, add TAs or change extension requests, and loses access when removed | 5 of 5, 2026-11-24 |
 
 ```bash
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/falling_behind.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/deadline_extensions.sql
+for f in supabase/tests/*.sql; do psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f "$f"; done
 ```
 
-Not covered yet: sending chat messages as the seed accounts (the chat tests use throwaway teams, so seeded teammates aren't notified), and most AI features (only meeting notes has a test, run with `E2E_AI=1`).
+Each passing step prints `NOTICE:  ok: …`; a failure stops with `ERROR` and the step's message.
+
+
+Not covered yet: sending chat messages as the seed accounts (the chat tests use throwaway teams, so seeded teammates aren't notified), and the AI jobs (task extraction, team health, recaps, stand-up summaries, matching), which are checked by hand with the data below. Three AI features have browser tests, run with `E2E_AI=1`: meeting notes, the study buddy and retrospective themes.
 
 ### Testing the AI features
 
@@ -318,12 +392,6 @@ Not covered yet: sending chat messages as the seed accounts (the chat tests use 
 
 ```bash
 psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f supabase/ai-test-data.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/help_board.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/focus_sessions.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/rubric_checks.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/task_dependencies.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/team_retros.sql
-psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/tests/teaching_assistants.sql
 npm run dev                        # terminal 1
 npm run dev:inngest               # terminal 2, then open http://localhost:8288
 ```
@@ -335,6 +403,9 @@ npm run dev:inngest               # terminal 2, then open http://localhost:8288
 | Team matching | `selim.reja@` → Matching → run it | Proposals that place the 20 new students in teams of about 3 (some of 4, none under 2) |
 | Weekly stand-up | As `masud@` and `nazmul@`, open Stand-up in Team Nova and answer (say one of you is blocked). Then as `selim.reja@` open Team Nova → Stand-up → **Summarise now**, or wait 10 minutes for the job | `selim.reja@` → the summary names who did what and lists the blocker; a "stand-up: 1 blocked" notification |
 | Tasks from meeting notes | `E2E_AI=1 npx playwright test tests/e2e/meeting-notes.spec.ts` (throwaway team; skipped in normal runs) | Notes naming two students with dates and one unowned job become 3 items with the right owners and dates, and the decision is skipped; the student unticks one and adds 2 tasks, and a teammate sees them live. Passed on 2026-11-22 |
+| Study buddy | `E2E_AI=1 npx playwright test tests/e2e/study-buddy.spec.ts`, or as `masud@` ask a question on the CSE-3200 course page | The answer cites the announcement it came from as [1], listed under it. Passed on 2026-11-24 |
+| Retrospective themes | `E2E_AI=1 npx playwright test tests/e2e/retros.spec.ts` | Two teams' retros about merge conflicts give a theme naming both teams. Passed on 2026-11-24 |
+| Weekly instructor digest (not AI) | As `selim.reja@` → Profile → **Send me this week's summary**, or invoke `weekly-instructor-digests` in the Inngest UI | The email in Mailpit (http://127.0.0.1:54324) lists what needs the instructor, by section |
 
 ## Implementation notes
 
@@ -378,7 +449,7 @@ Where the code differs from the diagram, and why:
 - **Language** (English and বাংলা; `src/lib/i18n/`, `0033_locale.sql`): every screen, dialog, toast, page title, notification, push alert and email. Text is keyed by its English, so code stays readable and anything missing falls back to English; `bn.ts` holds the Bangla. Components translate with `useT()` (the language comes from the root layout, so the server and the browser render the same words); toasts and the store use the global `t()`, which reads `<html lang>`. Plurals use `tn()`. Constant lists of labels mark their text with `msg()` and translate where it is shown. The choice is the `lang` cookie (first visit: the browser's language) plus `users.locale`: the account wins: every browser switches to the account's language, so an old cookie never undoes a change made on another device. A choice made while signed out (sign-in or sign-up page) also sets a `lang_pending` cookie, and the next sign-in saves it to the account. Emails and push alerts use the recipient's `users.locale`. Notifications are written in English by SQL triggers, so `notices.ts` matches each one back to its template when it is read and fills in names, numbers and dates in the reader's language. Dates use `bn-BD` (Bangla digits and month names), and numbers shown on their own go through `num()`, which writes them in Bangla digits (English output is unchanged). CSV exports stay in English, so LMS imports keep their column names. `src/lib/i18n.check.mjs` finds every text the code translates and fails if one has no Bangla or its `{placeholders}` differ. While server rendering, `t()`, `num()` and `intl()` outside components read the request's language from AsyncLocalStorage, so requests in different languages rendering at the same moment never mix (`src/lib/i18n-requests.check.mjs`).
 - **Gradebook export.** The grading card's *Export gradebook* button downloads a CSV with one row per enrolled student, keyed by email, for importing into Moodle or Canvas: each rubric criterion's points, the team grade, the saved contribution factor and the final grade (team grade × factor, capped at 100). Blank cells mean not graded. The course page's contribution report is the longer version with tasks, chat and reviews.
 - **Notifications are database triggers** (`0002_notifications.sql`), so every write path produces them and clients never need insert rights.
-- **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
+- **AI model:** `gemini-3.5-flash-lite` by default, with low thinking; set `GEMINI_MODEL` to change it. When it's overloaded (429/503) a call retries on `gemini-3.1-flash-lite` (`GEMINI_FALLBACK_MODEL`), twice, 2 s apart. There is no per-user limit on the on-request AI features yet. It answers in 1-2 seconds; when tested on 2026-11-16, `gemini-3.7-flash` and `gemini-3.8-flash` took 2-4 minutes per call because of queuing at Google. Every answer is checked against its zod schema before use.
 
 ## Roadmap
 
