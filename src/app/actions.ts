@@ -22,7 +22,7 @@ import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/g
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
-  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends,
+  ChatMessage, ChatSearchHit, SearchHit, HelpQuestion, ConflictAlert, Course, FileUpload, KanbanTask, ChecklistItem, Notification, Team, UserProfile, TaskComment, TaskSuggestion, MatchProposal, Milestone, MyReview, WeeklySummary, TeamStandup, CourseInvite, WeekItem, CourseGrading, MyGrade, CriterionScore, TeamReview, Announcement, TaskEvent, AtRiskStudent, Contribution, RepoFeed, TeamCharter, CharterText, OfficeHourSlot, CourseTrends, RubricCheck,
 } from "@/lib/types";
 import { REACTIONS } from "@/lib/types";
 
@@ -794,6 +794,31 @@ const SubmissionInput = z.object({
  * Hands in (or replaces) my team's work for a milestone and marks the milestone done. The file is already in
  * storage under the team's folder; returns the replaced file's path so the caller can remove it.
  */
+/** The course's grading criteria as a checklist for one team's hand-in. Team members and the instructor (RLS). */
+export async function getRubricChecks(teamId: string, milestoneId: string): Promise<RubricCheck[]> {
+  const L = await requestLocale();
+  Id.parse(teamId); Id.parse(milestoneId);
+  return withUser(async (tx) => {
+    const rows = await tx.select({ id: s.rubricCriteria.id, name: s.rubricCriteria.name, maxPoints: s.rubricCriteria.maxPoints, checkedBy: s.users.name, checked: s.rubricChecks.criterionId })
+      .from(s.rubricCriteria)
+      .innerJoin(s.teams, and(eq(s.teams.courseId, s.rubricCriteria.courseId), eq(s.teams.id, teamId)))
+      .leftJoin(s.rubricChecks, and(eq(s.rubricChecks.criterionId, s.rubricCriteria.id), eq(s.rubricChecks.teamId, teamId), eq(s.rubricChecks.milestoneId, milestoneId)))
+      .leftJoin(s.users, eq(s.users.id, s.rubricChecks.checkedBy))
+      .orderBy(asc(s.rubricCriteria.position), asc(s.rubricCriteria.createdAt));
+    return rows.map((r) => ({ id: r.id, name: r.name, maxPoints: r.maxPoints, checkedBy: r.checked ? (r.checkedBy ?? translate(L, "Former member")) : null }));
+  });
+}
+
+/** Ticks or unticks a criterion on the team's hand-in checklist. */
+export async function setRubricCheck(teamId: string, milestoneId: string, criterionId: string, checked: boolean) {
+  Id.parse(teamId); Id.parse(milestoneId); Id.parse(criterionId);
+  await withUser(async (tx, uid) => {
+    const key = and(eq(s.rubricChecks.teamId, teamId), eq(s.rubricChecks.milestoneId, milestoneId), eq(s.rubricChecks.criterionId, criterionId));
+    if (checked) await tx.insert(s.rubricChecks).values({ teamId, milestoneId, criterionId, checkedBy: uid }).onConflictDoNothing();
+    else await tx.delete(s.rubricChecks).where(key);
+  });
+}
+
 export async function submitWork(teamId: string, milestoneId: string, input: z.input<typeof SubmissionInput>): Promise<string | null> {
   Id.parse(teamId);
   Id.parse(milestoneId);

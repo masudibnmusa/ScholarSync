@@ -440,3 +440,11 @@ export interface CourseTrends {
   weeks: string[]; // Mondays, YYYY-MM-DD
   teams: { id: string; name: string; done: number[]; messages: number[]; health: (number | null)[]; progress: (number | null)[] }[];
 }
+
+/** A grading criterion as a hand-in checklist item: whether this team ticked it for the milestone, and who did. */
+export interface RubricCheck {
+  id: string;
+  name: string;
+  maxPoints: number;
+  checkedBy: string | null; // name; null = not ticked
+}

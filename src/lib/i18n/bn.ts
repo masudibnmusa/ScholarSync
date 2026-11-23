@@ -1718,4 +1718,10 @@ export const bn: Record<string, string> = {
   "{clock} left": "{clock} বাকি",
   "Stop": "থামান",
   "of focus": "ফোকাস",
+  // Rubric checklist
+  "Could not update the checklist": "চেকলিস্ট আপডেট করা যায়নি",
+  "Check against the rubric": "রুব্রিক মিলিয়ে দেখুন",
+  "{done} of {total}": "{total}টির মধ্যে {done}টি",
+  "How your instructor grades it. Tick each one your team has covered; your teammates see the ticks too.": "আপনার শিক্ষক এভাবে নম্বর দেবেন। আপনার দল যেগুলো সম্পন্ন করেছে সেগুলোতে টিক দিন; সহপাঠীরাও টিকগুলো দেখতে পাবে।",
+  "{n} pts": "{n} পয়েন্ট",
 };

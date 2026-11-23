@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { ChatCircleText, CheckCircle, Clock, DownloadSimple, LinkSimple, Paperclip, UploadSimple, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleText, CheckCircle, ClipboardText, Clock, DownloadSimple, LinkSimple, Paperclip, UploadSimple, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
-import { saveSubmissionFeedback, submitWork } from "@/app/actions";
-import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";
+import { getRubricChecks, saveSubmissionFeedback, setRubricCheck, submitWork } from "@/app/actions";
+import { MAX_FILE_BYTES, useAppStore, useLive } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { num } from "@/lib/i18n";
-import { dueFor, type Milestone, type Submission, type Team } from "@/lib/types";
+import { dueFor, type Milestone, type RubricCheck, type Submission, type Team } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -71,6 +71,55 @@ export function SubmissionSummary({ sub, dueDate, showFeedback = true }: { sub: 
         </div>
       )}
     </div>
+  );
+}
+
+/** The course's grading criteria as a checklist the team ticks before handing in. Shared and live; hidden without a rubric. */
+function RubricChecklist({ team, milestone }: { team: Team; milestone: Milestone }) {
+  const { t } = useT();
+  const [items, setItems] = React.useState<RubricCheck[] | null>(null);
+  const load = React.useCallback(() => getRubricChecks(team.id, milestone.id).then(setItems).catch((err) => {
+    console.error("Loading the rubric checklist failed:", err);
+    setItems((x) => x ?? []);
+  }), [team.id, milestone.id]);
+  const live = useLive("rubric_checks", "rubric_criteria");
+  React.useEffect(() => { load(); }, [load, live]);
+
+  async function toggle(item: RubricCheck) {
+    const checked = !item.checkedBy;
+    setItems((list) => list?.map((i) => (i.id === item.id ? { ...i, checkedBy: checked ? t("You") : null } : i)) ?? null);
+    try {
+      await setRubricCheck(team.id, milestone.id, item.id, checked);
+    } catch (err) {
+      console.error("Ticking the criterion failed:", err);
+      toast.error(t("Could not update the checklist"));
+    }
+    await load();
+  }
+
+  if (!items?.length) return null;
+  const done = items.filter((i) => i.checkedBy).length;
+  return (
+    <section aria-labelledby="rubric-check-title" className="rounded-2xl bg-muted/50 p-3">
+      <h3 id="rubric-check-title" className="flex items-center gap-1.5 text-sm font-bold">
+        <ClipboardText weight="duotone" className="size-4 text-primary" aria-hidden /> {t("Check against the rubric")}
+        <span className={cn("ml-auto text-xs font-semibold tabular-nums", done === items.length ? "text-success" : "text-muted-foreground")}>
+          {t("{done} of {total}", { done, total: items.length })}
+        </span>
+      </h3>
+      <p className="mt-0.5 text-xs text-muted-foreground">{t("How your instructor grades it. Tick each one your team has covered; your teammates see the ticks too.")}</p>
+      <ul className="mt-2 space-y-1">
+        {items.map((i) => (
+          <li key={i.id}>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-sm hover:bg-accent/50">
+              <input type="checkbox" checked={!!i.checkedBy} disabled={team.courseArchived} onChange={() => toggle(i)} className="size-4 shrink-0 accent-[var(--primary)]" />
+              <span className={cn("min-w-0 flex-1", i.checkedBy && "text-muted-foreground")}>{i.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{i.checkedBy ? i.checkedBy : t("{n} pts", { n: i.maxPoints })}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -146,6 +195,7 @@ export function HandInDialog({ team, milestone, current, open, onOpenChange, onD
             <WarningCircle weight="fill" className="mt-0.5 size-4 shrink-0" aria-hidden />{t("The due date has passed. You can still hand in, but it will be marked late.")}
           </p>
         )}
+        <RubricChecklist team={team} milestone={milestone} />
         <form onSubmit={submit} noValidate className="space-y-4">
           <Field label={t("File")} htmlFor="handin-file" optional hint={t("Any file up to 50 MB: a report, slides, a zip of your code…")}>
             <input ref={input} id="handin-file" type="file" className="sr-only" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />

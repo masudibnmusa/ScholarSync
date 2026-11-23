@@ -365,6 +365,14 @@ export const rubricCriteria = pgTable("rubric_criteria", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const rubricChecks = pgTable("rubric_checks", {
+  teamId: uuid("team_id").notNull(),
+  milestoneId: uuid("milestone_id").notNull(),
+  criterionId: uuid("criterion_id").notNull(),
+  checkedBy: uuid("checked_by"),
+  checkedAt: ts("checked_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.teamId, t.milestoneId, t.criterionId] })]);
+
 export const teamGrades = pgTable("team_grades", {
   teamId: uuid("team_id").notNull(),
   criterionId: uuid("criterion_id").notNull(),
