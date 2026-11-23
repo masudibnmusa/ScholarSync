@@ -3,7 +3,7 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Trash,
+  CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, ListChecks, PencilSimple, Plus, Spinner, Timer, Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MeetingNotesButton } from "@/components/student/meeting-notes";
+import { FocusButton, useMinutes } from "@/components/student/focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/locale";
 import {intl, msg, t, num } from "@/lib/i18n";
@@ -335,6 +336,7 @@ function TaskForm({ onClose, task, team }: { onClose: () => void; task: KanbanTa
             <Button type="submit" loading={saving}>{task ? t("Save changes") : t("Create task")}</Button>
           </DialogFooter>
         </form>
+        {task && <FocusButton task={task} teamId={team.id} disabled={team.courseArchived} />}
         {task && <TaskChecklist task={task} team={team} />}
         {task && <TaskComments task={task} team={team} />}
         {task && <TaskHistory task={task} />}
@@ -411,11 +413,12 @@ const COLS = "md:grid md:grid-cols-[minmax(0,1fr)_6rem_11rem_8rem_8.75rem_2rem] 
 function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?: () => void; onDelete?: () => void; onMove?: (s: Status) => void }) {
   const { t } = useT();
   const done = task.status === "done";
+  const minutes = useMinutes();
   const title = (
     <>
       <span className={cn("block text-[0.9375rem] font-bold leading-snug md:truncate", done && "text-muted-foreground line-through decoration-muted-foreground/60")}>{task.title}</span>
       {task.description && <span className="mt-0.5 block text-sm text-muted-foreground line-clamp-2 md:line-clamp-none md:truncate">{task.description}</span>}
-      {(task.commentCount > 0 || task.checklistTotal > 0) && (
+      {(task.commentCount > 0 || task.checklistTotal > 0 || task.focusMinutes > 0) && (
         <span className="mt-1 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
           {task.checklistTotal > 0 && (
             <span className={cn("inline-flex items-center gap-1", task.checklistDone === task.checklistTotal && "text-success")}>
@@ -425,6 +428,11 @@ function TaskRow({ task, onEdit, onDelete, onMove }: { task: KanbanTask; onEdit?
           {task.commentCount > 0 && (
             <span className="inline-flex items-center gap-1">
               <ChatCircle className="size-3.5" aria-hidden />{num(task.commentCount)}<span className="sr-only"> {task.commentCount === 1 ? t("comment") : t("comments")}</span>
+            </span>
+          )}
+          {task.focusMinutes > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Timer className="size-3.5" aria-hidden />{minutes(task.focusMinutes)}<span className="sr-only"> {t("of focus")}</span>
             </span>
           )}
         </span>

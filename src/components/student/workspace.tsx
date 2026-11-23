@@ -12,6 +12,7 @@ import { Page } from "@/components/app/page";
 import { useUser } from "@/components/app/user-context";
 import { ChatWidget } from "@/components/student/chat";
 import { TaskBoard, TaskDialog } from "@/components/student/kanban";
+import { FocusTimer } from "@/components/student/focus-timer";
 import { AiSuggestionsButton, MeetingButton, MembersButton, NoTeam, WeeklyRecapButton } from "@/components/student/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -192,6 +193,7 @@ export function StudentWorkspace() {
               <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Filter tasks…")} aria-label={t("Filter tasks")} className="h-9 pl-10 md:h-9" />
             </div>
             {(scope !== "all" || q) && <p className="text-sm text-muted-foreground" role="status">{t("{n} of {total}", { n: shown, total: tasks.length })}</p>}
+            <FocusTimer />
             <div className="ml-auto hidden min-w-0 md:block"><FocusStrip onOpen={openTask} /></div>
           </div>
           <div className="min-h-0 flex-1">

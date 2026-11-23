@@ -245,6 +245,8 @@ const baseStore = create<AppState>((set, get) => ({
         () => get().fetchChatMessages(team.id))
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `team_id=eq.${team.id}` },
         () => get().fetchTasks(team.id)) // team progress refreshes through the live tables
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "focus_sessions", filter: `team_id=eq.${team.id}` },
+        () => get().fetchTasks(team.id)) // the focus total on each task
       .subscribe();
   },
 

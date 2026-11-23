@@ -412,16 +412,28 @@ export async function getTasks(teamId: string): Promise<KanbanTask[]> {
         t: s.tasks, assigneeName: s.users.name,
         commentCount: sql<number>`(select count(*) from public.task_comments c where c.task_id = ${s.tasks.id})::int`,
         checklist: sql<[number, number]>`(select array[count(*) filter (where i.done), count(*)]::int[] from public.task_checklist_items i where i.task_id = ${s.tasks.id})`,
+        focusMinutes: sql<number>`(select coalesce(sum(f.minutes), 0) from public.focus_sessions f where f.task_id = ${s.tasks.id})::int`,
       })
       .from(s.tasks)
       .leftJoin(s.users, eq(s.users.id, s.tasks.assigneeId))
       .where(eq(s.tasks.teamId, teamId))
       .orderBy(asc(s.tasks.position));
-    return rows.map(({ t, assigneeName, commentCount, checklist }) => ({
+    return rows.map(({ t, assigneeName, commentCount, checklist, focusMinutes }) => ({
       id: t.id, title: t.title, description: t.description, status: toUiStatus(t.status), priority: t.priority,
       assigneeId: t.assigneeId, assigneeName: assigneeName ?? translate(L, "Unassigned"), dueDate: t.dueDate, commentCount,
-      checklistDone: checklist[0], checklistTotal: checklist[1],
+      checklistDone: checklist[0], checklistTotal: checklist[1], focusMinutes,
     }));
+  });
+}
+
+/** Saves a finished (or stopped) focus-timer session on a task. The database stamps the end time and refuses overlaps. */
+export async function logFocus(taskId: string, minutes: number) {
+  Id.parse(taskId);
+  const m = z.number().int().min(1).max(60).parse(minutes);
+  await withUser(async (tx, uid) => {
+    const [task] = await tx.select({ teamId: s.tasks.teamId }).from(s.tasks).where(eq(s.tasks.id, taskId));
+    if (!task) throw new Error("Task not found");
+    await tx.insert(s.focusSessions).values({ taskId, teamId: task.teamId, userId: uid, minutes: m });
   });
 }
 
@@ -1341,7 +1353,10 @@ export async function getContribution(courseId: string, userId: string): Promise
     const [helped] = await tx.select({ answers: count(), solved: sql<number>`count(*) filter (where ${s.helpQuestions.solvedBy} = ${s.helpAnswers.id})::int` })
       .from(s.helpAnswers).innerJoin(s.helpQuestions, eq(s.helpQuestions.id, s.helpAnswers.questionId))
       .where(and(eq(s.helpQuestions.courseId, courseId), eq(s.helpAnswers.authorId, userId)));
-    const base = { course: { id: course.id, code: course.code, title: course.title }, student, helped: { answers: helped?.answers ?? 0, solved: helped?.solved ?? 0 } };
+    const [focus] = await tx.select({ minutes: sql<number>`coalesce(sum(${s.focusSessions.minutes}), 0)::int` }).from(s.focusSessions)
+      .innerJoin(s.teams, eq(s.teams.id, s.focusSessions.teamId)).where(and(eq(s.teams.courseId, courseId), eq(s.focusSessions.userId, userId)));
+    const base = { course: { id: course.id, code: course.code, title: course.title }, student,
+      helped: { answers: helped?.answers ?? 0, solved: helped?.solved ?? 0 }, focusMinutes: focus?.minutes ?? 0 };
     if (!team) return { ...base, team: null };
 
     const since = sql`date_trunc('week', now()) - interval '7 weeks'`;

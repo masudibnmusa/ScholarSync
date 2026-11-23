@@ -184,6 +184,15 @@ export const taskChecklistItems = pgTable("task_checklist_items", {
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
+export const focusSessions = pgTable("focus_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull(),
+  teamId: uuid("team_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  minutes: integer("minutes").notNull(),
+  endedAt: ts("ended_at").notNull().defaultNow(),
+});
+
 export const courseAnnouncements = pgTable("course_announcements", {
   id: uuid("id").primaryKey().defaultRandom(),
   courseId: uuid("course_id").notNull(),

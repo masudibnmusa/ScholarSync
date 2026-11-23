@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ChatsCircle, CheckSquare, FilePdf, FileText, GitCommit, HandHeart, HandWaving, Lifebuoy, Quotes, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ChatsCircle, CheckSquare, FilePdf, FileText, GitCommit, HandHeart, HandWaving, Lifebuoy, Quotes, Star, Timer, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { getContribution } from "@/app/actions";
 import { useLive } from "@/lib/store";
 import { cn, timeAgo } from "@/lib/utils";
@@ -20,7 +20,7 @@ import { translateReason } from "@/lib/i18n/notices";
 import { intl, num } from "@/lib/i18n";
 
 type Team = NonNullable<Contribution["team"]>;
-const COLS: Record<number, string> = { 4: "lg:grid-cols-4 print:grid-cols-4", 5: "lg:grid-cols-5 print:grid-cols-5", 6: "lg:grid-cols-3 xl:grid-cols-6 print:grid-cols-6" };
+const COLS: Record<number, string> = { 4: "lg:grid-cols-4 print:grid-cols-4", 5: "lg:grid-cols-5 print:grid-cols-5", 6: "lg:grid-cols-3 xl:grid-cols-6 print:grid-cols-6", 7: "lg:grid-cols-4 2xl:grid-cols-7 print:grid-cols-4" };
 const share = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const shortDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(intl(), { month: "short", day: "numeric" });
@@ -198,7 +198,7 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
         <Card><EmptyState icon={UsersThree} title={t("Not on a team yet")} description={self ? t("Once you're placed in a team, your work shows up here.") : t("This student isn't on a team in this course yet.")} /></Card>
       ) : (
         <>
-          <div className={cn("grid gap-4 sm:grid-cols-2", COLS[4 + (team.repo ? 1 : 0) + (data.helped.answers ? 1 : 0)])}>
+          <div className={cn("grid gap-4 sm:grid-cols-2", COLS[4 + (team.repo ? 1 : 0) + (data.helped.answers ? 1 : 0) + (data.focusMinutes ? 1 : 0)])}>
             <StatCard compact icon={CheckSquare} tone="success" label={t("Tasks done")} value={mine.tasksDone}
               hint={t("{tasksDone}% of the team's · {tasksAssigned} assigned", { tasksDone: share(mine.tasksDone, totals.done), tasksAssigned: mine.tasksAssigned })} />
             <StatCard compact icon={ChatsCircle} tone="info" label={t("Messages")} value={mine.messages} hint={t("{messages}% of team chat", { messages: share(mine.messages, totals.messages) })} />
@@ -212,6 +212,9 @@ export function ContributionReport({ courseId, userId }: { courseId: string; use
             {data.helped.answers > 0 && (
               <StatCard compact icon={HandHeart} tone="info" label={t("Help board answers")} value={data.helped.answers}
                 hint={tn(data.helped.solved, "{n} solved a classmate's question", "{n} solved classmates' questions")} />
+            )}
+            {data.focusMinutes > 0 && (
+              <StatCard compact icon={Timer} tone="primary" label={t("Focus time")} value={data.focusMinutes} suffix={t(" min")} hint={t("on the focus timer, on team tasks")} />
             )}
           </div>
 

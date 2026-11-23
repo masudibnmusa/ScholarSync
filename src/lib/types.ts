@@ -51,6 +51,8 @@ export interface KanbanTask {
   commentCount: number;
   checklistDone: number;
   checklistTotal: number;
+  /** Minutes the team spent on it with the focus timer. */
+  focusMinutes: number;
 }
 
 export interface ChecklistItem {
@@ -369,6 +371,8 @@ export interface Contribution {
   student: { id: string; name: string };
   /** The course's help board: answers the student gave, and how many solved the question. */
   helped: { answers: number; solved: number };
+  /** Minutes on the focus timer, on this course's tasks. */
+  focusMinutes: number;
   team: null | {
     id: string;
     name: string;
