@@ -19,7 +19,7 @@ import { currentWeekStart, summarizeTeamWeek } from "@/lib/summaries";
 import { summarizeTeamStandup } from "@/lib/standups";
 import { checkRepo, parseRepo, RepoError, syncTeamRepo } from "@/lib/github";
 import { toCsv } from "@/lib/utils";
-import { sendDigestTo } from "@/lib/digest";
+import { sendDigestTo, sendInstructorDigestTo } from "@/lib/digest";
 import { finalPercent, reviewFlags, suggestedFactor, teamPercent } from "@/lib/grading";
 import { alias } from "drizzle-orm/pg-core";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -200,6 +200,12 @@ export async function removePushSubscription(endpoint: string) {
 export async function sendSampleDigest(): Promise<number> {
   const uid = await withUser(async (_tx, uid) => uid);
   return sendDigestTo(uid, { sample: true });
+}
+
+/** Instructors: emails me this week's summary now (what the Monday email would say). 0 = nothing to look at. */
+export async function sendSampleWeeklyDigest(): Promise<number> {
+  const uid = await withUser(async (_tx, uid) => uid);
+  return sendInstructorDigestTo(uid, { sample: true });
 }
 
 // ─── Teams ─────────────────────────────────────────────────────────────

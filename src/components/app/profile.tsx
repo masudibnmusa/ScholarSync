@@ -10,7 +10,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
-import { sendSampleDigest } from "@/app/actions";
+import { sendSampleDigest, sendSampleWeeklyDigest } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { Page } from "@/components/app/page";
 import { PhotoCropDialog } from "@/components/app/photo-crop";
@@ -118,6 +118,20 @@ function EmailCard() {
   const updateProfile = useAppStore((s) => s.updateProfile);
   const [on, setOn] = React.useState(user.emailDigest);
   const [sending, setSending] = React.useState(false);
+  const [sendingWeek, setSendingWeek] = React.useState(false);
+  const instructor = user.role === "instructor";
+
+  async function weekly() {
+    setSendingWeek(true);
+    try {
+      const n = await sendSampleWeeklyDigest();
+      if (n) toast.success(tn(n, "Sent this week's summary ({n} item) to {email}", "Sent this week's summary ({n} items) to {email}", { email: user.email }));
+      else toast(t("Nothing in your courses needs you this week, so there is nothing to send."));
+    } catch {
+      toast.error(t("Couldn't send the email. Try again."));
+    }
+    setSendingWeek(false);
+  }
 
   async function toggle() {
     setOn(!on);
@@ -141,6 +155,7 @@ function EmailCard() {
         <div className="min-w-0 flex-1">
           <p id="digest-label" className="flex items-center gap-2 text-sm font-bold"><EnvelopeSimple weight="duotone" className="size-4 text-primary" aria-hidden />{t("Daily email")}</p>
           <p className="text-xs text-muted-foreground">{t("Once a morning, anything you haven't read yet.")}</p>
+          {instructor && <p className="mt-1 text-xs text-muted-foreground">{t("On Mondays, also a summary of your courses: students falling behind, open conflicts, requests for more time and missing hand-ins.")}</p>}
         </div>
         <button type="button" role="switch" aria-checked={on} aria-labelledby="digest-label" onClick={toggle}
           className={cn("relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-primary" : "bg-muted-foreground/30")}>
@@ -150,6 +165,11 @@ function EmailCard() {
       <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={sample} disabled={sending}>
         {sending ? t("Sending…") : t("Send me a sample")}
       </Button>
+      {instructor && (
+        <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={weekly} disabled={sendingWeek}>
+          {sendingWeek ? t("Sending…") : t("Send me this week's summary")}
+        </Button>
+      )}
     </Card>
   );
 }

@@ -5,7 +5,7 @@ import { adminDb as db } from "@/db";
 import { conflictAlerts, messages, notifications, taskSuggestions, tasks, teamMembers, teams } from "@/db/schema";
 import { assessTeam, extractTasks } from "@/lib/ai";
 import { recentChat, summarizeTeamWeek } from "@/lib/summaries";
-import { digestRecipients, sendDigestTo } from "@/lib/digest";
+import { digestRecipients, instructorDigestRecipients, sendDigestTo, sendInstructorDigestTo } from "@/lib/digest";
 import { sendPendingPushes } from "@/lib/push";
 import { standupAskees, summarizeTeamStandup } from "@/lib/standups";
 import { linkedTeams, syncTeamRepo } from "@/lib/github";
@@ -197,6 +197,18 @@ export const dailyDigests = inngest.createFunction(
   },
 );
 
+// Mondays (UTC), after the morning checks: each instructor's week in one email: students falling behind, open
+// conflicts, requests for more time and missing hand-ins. Nothing is sent when there's nothing to look at.
+export const weeklyInstructorDigests = inngest.createFunction(
+  { id: "weekly-instructor-digests", triggers: [{ cron: "45 7 * * 1" }] },
+  async ({ step }) => {
+    const ids = await step.run("recipients", () => instructorDigestRecipients());
+    let emailed = 0;
+    for (const id of ids) emailed += (await step.run(`week-${id}`, () => sendInstructorDigestTo(id))) ? 1 : 0;
+    return { recipients: ids.length, emailed };
+  },
+);
+
 // Every minute: new notifications to the phones and desktops that turned alerts on.
 export const pushNotifications = inngest.createFunction(
   { id: "push-notifications", triggers: [{ cron: "* * * * *" }] },
@@ -237,4 +249,4 @@ export const reportJobFailures = inngest.createFunction(
   },
 );
 
-export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, pushNotifications, syncRepos, syncLinkedRepo, officeHourReminders, reportJobFailures];
+export const functions = [extractChatTasks, assessTeamHealth, remindDueTasks, riskAlerts, fallingBehind, weeklyRecaps, askForStandups, summarizeStandups, dailyDigests, weeklyInstructorDigests, pushNotifications, syncRepos, syncLinkedRepo, officeHourReminders, reportJobFailures];

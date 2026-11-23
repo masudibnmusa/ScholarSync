@@ -1811,4 +1811,21 @@ export const bn: Record<string, string> = {
   "{a} and {b}": "{a} ও {b}",
   "the same link": "একই লিংক",
   "{n}% of the text matches": "লেখার {n}% মিলে যায়",
+  // Weekly instructor digest
+  "Students falling behind": "পিছিয়ে পড়া শিক্ষার্থী",
+  "Open conflicts": "চলমান দ্বন্দ্ব",
+  "Requests for more time": "আরও সময়ের অনুরোধ",
+  "{milestone}, until {date}": "{milestone}, {date} পর্যন্ত",
+  "Missing hand-ins": "জমা না দেওয়া কাজ",
+  "{milestone}, due {date}": "{milestone}, শেষ তারিখ {date}",
+  "ScholarSync: your week, {n} things to look at": "ScholarSync: আপনার সপ্তাহ, দেখার মতো {n}টি বিষয়",
+  "Here is what needs you in your courses this week:": "এই সপ্তাহে আপনার কোর্সগুলোতে যা আপনার নজর চায়:",
+  "Here is what needs you in your courses this week.": "এই সপ্তাহে আপনার কোর্সগুলোতে যা আপনার নজর চায়।",
+  "You get this on Mondays when something in your courses needs you.": "আপনার কোর্সে কিছু নজর চাইলে সোমবার এটি পাবেন।",
+  // Weekly instructor digest
+  "Nothing in your courses needs you this week, so there is nothing to send.": "এই সপ্তাহে আপনার কোর্সে নজর দেওয়ার মতো কিছু নেই, তাই পাঠানোর কিছু নেই।",
+  "On Mondays, also a summary of your courses: students falling behind, open conflicts, requests for more time and missing hand-ins.": "সোমবারে আপনার কোর্সের একটি সারাংশও: পিছিয়ে পড়া শিক্ষার্থী, চলমান দ্বন্দ্ব, আরও সময়ের অনুরোধ ও জমা না দেওয়া কাজ।",
+  "Send me this week's summary": "এই সপ্তাহের সারাংশ আমাকে পাঠান",
+  "Sent this week's summary ({n} item) to {email}": "এই সপ্তাহের সারাংশ ({n}টি বিষয়) {email}-এ পাঠানো হয়েছে",
+  "Sent this week's summary ({n} items) to {email}": "এই সপ্তাহের সারাংশ ({n}টি বিষয়) {email}-এ পাঠানো হয়েছে",
 };
