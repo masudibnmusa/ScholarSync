@@ -1899,7 +1899,7 @@ export async function getCourses(): Promise<Course[]> {
         teamCount: teamTotal,
         unplaced: isMine ? roster.filter((e) => !placed.has(e.userId)).length : 0,
         myTeam: courseTeams.find((t) => t.id === myTeamId)?.name ?? null,
-        students: isMine ? roster.map((e) => ({ id: e.userId, name: e.name })) : [],
+        students: isMine || assisted.has(c.id) ? roster.map((e) => ({ id: e.userId, name: e.name })) : [],
         joinCode: isMine ? c.joinCode : null,
         joiningOpen: c.joiningOpen,
         archivedAt: c.archivedAt ? new Date(c.archivedAt).toISOString() : null,

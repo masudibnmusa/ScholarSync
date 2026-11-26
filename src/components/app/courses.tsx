@@ -295,7 +295,7 @@ export function CoursesDashboard({ initialCourses = null }: { initialCourses?: C
   const stats = instructor
     ? [
         { icon: Books, label: t("Courses"), value: mine.length, tone: "primary" as const },
-        { icon: Student, label: t("Students"), value: mine.reduce((n, c) => n + c.studentCount, 0), tone: "info" as const },
+        { icon: Student, label: t("Students"), value: new Set(mine.flatMap((c) => c.students.map((s) => s.id))).size, tone: "info" as const },
         { icon: UsersThree, label: t("Teams"), value: mine.reduce((n, c) => n + c.teamCount, 0), tone: "success" as const },
         { icon: UserPlus, label: t("Need a team"), value: unplaced, tone: "warm" as const },
       ]

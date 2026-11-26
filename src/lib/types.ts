@@ -316,7 +316,7 @@ export interface Course {
   teamCount: number; // every team in the course
   unplaced: number; // instructor only: enrolled students not on a team yet
   myTeam: string | null; // student only
-  students: { id: string; name: string }[]; // instructor only: for the roster preview
+  students: { id: string; name: string }[]; // course staff only (instructor or TA): for the roster preview and the dashboard's student total
   joinCode: string | null; // instructor only: the invite code (/join/<code>)
   joiningOpen: boolean; // students can join on their own
   archivedAt: string | null; // set: the term is over and the course is read-only
