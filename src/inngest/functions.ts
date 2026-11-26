@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, eq, exists, gt, isNull, or, sql } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
 import { inngest } from "./client";
 import { adminDb as db } from "@/db";
@@ -12,6 +12,9 @@ import { linkedTeams, syncTeamRepo } from "@/lib/github";
 import { sendOfficeHourReminders } from "@/lib/office-hours";
 
 // These jobs write with the database owner role (bypasses RLS): the "service role writes rows" arrow.
+
+// A run may take at most 1,000 steps, so per-person and per-team work goes in batches of one step each.
+const batches = <T,>(items: T[], size: number) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
 
 export const extractChatTasks = inngest.createFunction(
   {
@@ -107,10 +110,11 @@ export const weeklyRecaps = inngest.createFunction(
   async ({ step }) => {
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const active = await step.run("active-teams", () =>
-      db.selectDistinct({ id: teams.id, name: teams.name }).from(teams)
-        .leftJoin(messages, eq(messages.teamId, teams.id))
-        .leftJoin(tasks, eq(tasks.teamId, teams.id))
-        .where(or(gt(messages.createdAt, since), gt(tasks.updatedAt, since))),
+      // exists, not joins: joining both multiplied each team's messages by its tasks.
+      db.select({ id: teams.id, name: teams.name }).from(teams).where(or(
+        exists(db.select({ x: sql`1` }).from(messages).where(and(eq(messages.teamId, teams.id), gt(messages.createdAt, since)))),
+        exists(db.select({ x: sql`1` }).from(tasks).where(and(eq(tasks.teamId, teams.id), gt(tasks.updatedAt, since)))),
+      )),
     );
     let written = 0;
     for (const team of active) {
@@ -192,7 +196,14 @@ export const dailyDigests = inngest.createFunction(
   async ({ step }) => {
     const ids = await step.run("recipients", () => digestRecipients());
     let emailed = 0;
-    for (const id of ids) emailed += (await step.run(`digest-${id}`, () => sendDigestTo(id))) ? 1 : 0;
+    for (const [i, batch] of batches(ids, 50).entries()) {
+      // A retry re-runs the batch; people already emailed are skipped (their notifications are marked emailed).
+      emailed += await step.run(`digests-${i}`, async () => {
+        let n = 0;
+        for (const id of batch) n += (await sendDigestTo(id)) ? 1 : 0;
+        return n;
+      });
+    }
     return { recipients: ids.length, emailed };
   },
 );
@@ -204,6 +215,7 @@ export const weeklyInstructorDigests = inngest.createFunction(
   async ({ step }) => {
     const ids = await step.run("recipients", () => instructorDigestRecipients());
     let emailed = 0;
+    // One step each, so a retry never emails an instructor twice; there are far fewer than the 1,000-step limit.
     for (const id of ids) emailed += (await step.run(`week-${id}`, () => sendInstructorDigestTo(id))) ? 1 : 0;
     return { recipients: ids.length, emailed };
   },
@@ -220,7 +232,13 @@ export const syncRepos = inngest.createFunction(
   { id: "sync-github-repos", triggers: [{ cron: "*/30 * * * *" }] },
   async ({ step }) => {
     const ids = await step.run("teams", async () => (await linkedTeams()).map((t) => t.id));
-    for (const id of ids) await step.run(`sync-${id}`, () => syncTeamRepo(id));
+    for (const [i, batch] of batches(ids, 10).entries()) {
+      // One team's failure doesn't stop the rest of the batch; it's thrown after, so the step retries (syncs are idempotent).
+      await step.run(`sync-${i}`, async () => {
+        const failed = (await Promise.allSettled(batch.map((id) => syncTeamRepo(id)))).find((r) => r.status === "rejected");
+        if (failed) throw failed.reason;
+      });
+    }
     return { teams: ids.length };
   },
 );
