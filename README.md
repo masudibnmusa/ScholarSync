@@ -15,7 +15,7 @@
 
 A collaboration hub for university group projects. Students work in teams with chat, a shared task list (each task shows whether it is to do, in progress or done), shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
-> **Status:** every item on the [roadmap](#roadmap) (43) is built and runs locally on 41 migrations, in English and বাংলা. The browser suite (65 tests), 16 unit checks and 9 SQL tests cover it; see [End-to-end tests](#end-to-end-tests). Not deployed yet: the migrations go to the hosted Supabase project with `npx supabase db push`. See [Implementation notes](#implementation-notes) for how each feature works and where the code differs from the diagrams.
+> **Status:** every item on the [roadmap](#roadmap) (43) is built and runs locally on 41 migrations, in English and বাংলা. The browser suite (65 tests), 16 unit checks and 10 SQL tests cover it; see [End-to-end tests](#end-to-end-tests). Not deployed yet: the migrations go to the hosted Supabase project with `npx supabase db push`. See [Implementation notes](#implementation-notes) for how each feature works and where the code differs from the diagrams.
 
 ## Tech stack
 
