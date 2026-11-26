@@ -15,7 +15,7 @@
 
 A collaboration hub for university group projects. Students work in teams with chat, a shared task list (each task shows whether it is to do, in progress or done), shared files and peer reviews. Instructors oversee every team in their courses through analytics, conflict alerts and AI-assisted team matching.
 
-> **Status:** every item on the [roadmap](#roadmap) (43) is built and runs locally on 40 migrations, in English and বাংলা. The browser suite (65 tests), 16 unit checks and 8 SQL tests cover it; see [End-to-end tests](#end-to-end-tests). Not deployed yet: the migrations go to the hosted Supabase project with `npx supabase db push`. See [Implementation notes](#implementation-notes) for how each feature works and where the code differs from the diagrams.
+> **Status:** every item on the [roadmap](#roadmap) (43) is built and runs locally on 41 migrations, in English and বাংলা. The browser suite (65 tests), 16 unit checks and 9 SQL tests cover it; see [End-to-end tests](#end-to-end-tests). Not deployed yet: the migrations go to the hosted Supabase project with `npx supabase db push`. See [Implementation notes](#implementation-notes) for how each feature works and where the code differs from the diagrams.
 
 ## Tech stack
 
@@ -45,7 +45,7 @@ Colors are the app's design tokens from [`src/app/globals.css`](src/app/globals.
 2. Postgres **Row-Level Security** (RLS) returns only the rows that user may see. Access rules live in the database, not in API code.
 3. On sign-up, the `on_auth_user_created` trigger creates the matching `public.users` row (always as a student).
 4. Changes go through **Server Actions**, which validate input with zod and write with Drizzle. RLS checks every write too.
-5. **Realtime** pushes inserts and updates on `messages`, `tasks` and `notifications` to every open client.
+5. **Realtime** pushes new chat messages, reactions, task changes and notifications for the open team and user. Every other change is broadcast from a database trigger (migration 0041) as just the table name, to a private `live:<user id>` topic for each person who shares that team or course. The page then reloads what it shows, through RLS.
 6. **AI jobs** react to new data (new messages, nightly runs) and write their results back as rows: `task_suggestions`, `conflict_alerts`, `teams.health_score`. A person accepts or resolves each one.
 7. **On-request AI** (team matching, the study buddy, retrospective themes, tasks from meeting notes) runs inside the Server Action: the data is read as the user first, then Gemini is called outside the transaction, and its answer is checked against a zod schema before anything uses it.
 

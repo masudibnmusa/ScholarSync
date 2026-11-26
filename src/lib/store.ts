@@ -96,13 +96,14 @@ const pendingFor = (q: QueuedMessage[], teamId: string, user: UserProfile): Chat
 let onlineListener = false;
 
 /**
- * Tables every page hears about live. Realtime applies RLS, so each person only gets rows they can read (a delete
- * carries just the row's id). Chat, the board and notifications have their own filtered channels below.
+ * Tables every page hears about live. The database broadcasts each change's table name to the private topic
+ * "live:<user id>" of the people who share its team or course (migration 0041); pages reload through RLS.
+ * Chat, the board and notifications have their own filtered channels below.
  */
 const LIVE_TABLES = [
   "users", "courses", "course_enrollments", "teams", "team_members", "tasks", "files", "task_comments",
   "task_checklist_items", "course_announcements", "course_milestones", "team_milestones", "submissions",
-  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind", "repo_activity", "team_charters", "charter_agreements", "office_hours", "deadline_extensions", "help_questions", "help_answers", "rubric_checks", "team_retros", "course_tas",
+  "peer_reviews", "team_summaries", "standups", "standup_summaries", "rubric_criteria", "team_grades", "student_grade_factors", "conflict_alerts", "task_suggestions", "falling_behind", "repo_activity", "team_charters", "charter_agreements", "office_hours", "deadline_extensions", "help_questions", "help_answers", "rubric_checks", "team_retros", "course_tas", "task_dependencies",
 ] as const;
 export type LiveTable = (typeof LIVE_TABLES)[number];
 const TEAM_TABLES: LiveTable[] = ["courses", "course_enrollments", "teams", "team_members", "tasks"]; // team cards show task progress
@@ -112,6 +113,7 @@ const TEAM_TABLES: LiveTable[] = ["courses", "course_enrollments", "teams", "tea
 // name, and adding listeners to an already-subscribed channel throws.
 let teamChannel: RealtimeChannel | null = null;
 let userChannel: RealtimeChannel | null = null;
+let liveChannel: RealtimeChannel | null = null;
 const channelName = (base: string) => `${base}-${crypto.randomUUID()}`;
 let bootRun: Promise<void> | null = null; // StrictMode mounts twice; boot once
 let bootedFor: string | null = null; // the user whose channels are open
@@ -121,7 +123,8 @@ function closeChannels() {
   const sb = supabaseBrowser();
   if (teamChannel) sb.removeChannel(teamChannel);
   if (userChannel) sb.removeChannel(userChannel);
-  teamChannel = userChannel = null;
+  if (liveChannel) sb.removeChannel(liveChannel);
+  teamChannel = userChannel = liveChannel = null;
 }
 
 const empty = {
@@ -180,14 +183,20 @@ const baseStore = create<AppState>((set, get) => ({
       if (team && tables.includes("task_suggestions") && user.role === "student") get().fetchSuggestions(team.id);
       if (tables.includes("conflict_alerts") && user.role === "instructor") get().fetchConflicts();
       if (tables.includes("falling_behind") && user.role === "instructor") get().fetchAtRiskCount();
+      if (team && tables.includes("task_dependencies")) get().fetchTasks(team.id);
     };
-    for (const table of LIVE_TABLES) {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+    userChannel = channel.subscribe();
+    // The topic is fixed (the database sends to it), so drop a channel a previous boot may still be closing.
+    const topic = `live:${user.id}`;
+    await Promise.all(sb.getChannels().filter((c) => c.topic === `realtime:${topic}`).map((c) => sb.removeChannel(c)));
+    liveChannel = sb.channel(topic, { config: { private: true } })
+      .on("broadcast", { event: "change" }, ({ payload }) => {
+        const table = (payload as { table?: string }).table as LiveTable;
+        if (!LIVE_TABLES.includes(table)) return;
         pending.add(table);
         timer ??= setTimeout(flush, 250);
-      });
-    }
-    userChannel = channel.subscribe();
+      })
+      .subscribe();
     const selected = get().selectedTeam; // from the server data: open its channel and load its board
     if (selected && !teamChannel) get().setSelectedTeam(selected);
     await Promise.all([get().fetchTeams(), get().fetchNotifications(), user.role === "instructor" ? get().fetchConflicts() : null,
@@ -247,11 +256,7 @@ const baseStore = create<AppState>((set, get) => ({
         () => get().fetchTasks(team.id)) // team progress refreshes through the live tables
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "focus_sessions", filter: `team_id=eq.${team.id}` },
         () => get().fetchTasks(team.id)) // the focus total on each task
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "task_dependencies", filter: `team_id=eq.${team.id}` },
-        () => get().fetchTasks(team.id))
-      // Deletes can't be filtered (they carry only the key), so any team's unlink reloads the board: cheap and rare.
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "task_dependencies" }, () => get().fetchTasks(team.id))
-      .subscribe();
+      .subscribe(); // task links arrive on the live topic (task_dependencies)
   },
 
   fetchTeams: async () => {
