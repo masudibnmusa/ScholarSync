@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { getWeeklySummary, refreshWeeklySummary, suggestMeetingTimes } from "@/app/actions";
 import { proposalMessage, slotLabel, type MeetingSlot } from "@/lib/meeting";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowClockwise, CalendarPlus, CaretDown, ChatTeardropText, Check, CheckCircle, ClipboardText, Clock, Quotes, Sparkle, UsersThree, WarningCircle, X } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { useAppStore, useLive } from "@/lib/store";

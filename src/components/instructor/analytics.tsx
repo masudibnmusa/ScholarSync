@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   ArrowRight, CaretDown, CaretUp, ChartLineUp, ChatsCircle, CheckCircle, Heartbeat, ListChecks, Pulse, Scales, Sparkle, UsersThree, Warning,
 } from "@phosphor-icons/react/dist/ssr";

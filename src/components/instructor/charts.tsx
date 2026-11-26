@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { CheckCircle, Warning, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { cn, healthInfo } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";

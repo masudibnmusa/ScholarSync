@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowsClockwise, ArrowRight, Check, CheckCircle, Clock, Confetti, IdentificationCard, Minus, Plus, Sparkle, ThumbsUp, UsersThree, WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
@@ -59,7 +59,7 @@ function Stepper({ current }: { current: number }) {
             {/* connector between steps (desktop) */}
             {i < steps.length - 1 && (
               <span className="absolute left-12 right-0 top-5 hidden h-0.5 overflow-hidden rounded-full bg-glass sm:block" aria-hidden>
-                <motion.span className="block h-full bg-brand" initial={false} animate={{ width: done ? "100%" : "0%" }} transition={{ duration: 0.6, ease: EASE }} />
+                <motion.span className="block h-full origin-left bg-brand" initial={false} animate={{ scaleX: done ? 1 : 0 }} transition={{ duration: 0.6, ease: EASE }} />
               </span>
             )}
             <span className={cn("relative flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",

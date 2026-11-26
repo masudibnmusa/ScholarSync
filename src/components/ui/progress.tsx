@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const clamp = (v: number) => Math.min(100, Math.max(0, v));
@@ -10,10 +10,10 @@ export function Progress({ value, label, className, color = "var(--primary)" }: 
   return (
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)} className={cn("h-2 w-full overflow-hidden rounded-full bg-muted", className)}>
       <motion.div
-        className="h-full origin-left rounded-full"
+        className="h-full w-full rounded-full"
         style={{ backgroundColor: color }}
-        initial={{ width: 0 }}
-        animate={{ width: `${v}%` }}
+        initial={{ x: "-100%" }}
+        animate={{ x: `${v - 100}%` }}
         transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
       />
     </div>

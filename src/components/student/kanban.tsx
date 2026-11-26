@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   CalendarBlank, CaretDown, ChatCircle, ClockCounterClockwise, Check, CheckCircle, CircleDashed, DotsThree, Flag, LinkSimpleHorizontal, ListChecks, LockSimple, PencilSimple, Plus, Spinner, Timer, Trash, X,
 } from "@phosphor-icons/react/dist/ssr";

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   Archive, ArrowCounterClockwise, ArrowLeft, ArrowRight, BookOpen, ChalkboardTeacher, ChartBar, CheckCircle, DotsThree, DownloadSimple, Info, Lightbulb, ListChecks, Lock, PencilSimple, SignIn, Sparkle, Target, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowCounterClockwise, ArrowRight, Camera, Check, CircleNotch, Trash, UploadSimple, CheckCircle, Circle, Clock, Desktop, EnvelopeSimple, Eye, FloppyDisk, GithubLogo, Heartbeat, IdentificationBadge, Lightning, Moon, Palette, Plus, Student, Sun, TextAlignLeft, Translate, UsersThree, Warning, X,
 } from "@phosphor-icons/react/dist/ssr";
