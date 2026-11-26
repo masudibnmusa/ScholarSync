@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Archive, ArrowCounterClockwise, BookOpen, Books, ChalkboardTeacher, DotsThree, Lock, MagnifyingGlass, PencilSimple, Plus, SignIn, SignOut, Sparkle, Student, Trash, UserPlus, UsersThree,
 } from "@phosphor-icons/react/dist/ssr";

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { BellSlash, Check, Checks } from "@phosphor-icons/react/dist/ssr";
 import { useAppStore } from "@/lib/store";
 import { cn, dayLabel, timeAgo } from "@/lib/utils";

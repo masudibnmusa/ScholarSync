@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowBendUpLeft, ArrowDown, CaretDown, ChatsCircle, DownloadSimple, FileArrowUp, FileText, FolderOpen, Lock, MagnifyingGlass, PaperPlaneTilt, Paperclip, Smiley, X } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { MAX_FILE_BYTES, useAppStore } from "@/lib/store";

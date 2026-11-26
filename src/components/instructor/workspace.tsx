@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft, ArrowRight, Check, MagnifyingGlass, ShieldCheck, Sparkle, UsersThree, Warning, Lock,
 } from "@phosphor-icons/react/dist/ssr";

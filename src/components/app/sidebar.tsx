@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { MagnifyingGlass, SidebarSimple } from "@phosphor-icons/react/dist/ssr";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";

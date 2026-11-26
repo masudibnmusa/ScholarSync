@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
 import {
   ArrowRight, Bell, ChalkboardTeacher, ChartLineUp, ChatsCircle, Check, CheckCircle, FolderOpen, Kanban, LockKey, Moon, ShieldCheck,
   Sparkle, Star, Student, Sun, UsersThree, Warning,

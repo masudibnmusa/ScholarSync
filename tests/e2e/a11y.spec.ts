@@ -18,7 +18,7 @@ async function scan(page: Page, urls: string[]) {
     await page.goto(url);
     await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true }).first()).toBeVisible();
     await page.waitForLoadState("networkidle").catch(() => {}); // data that loads after the page (lists, charts)
-    // Page and card entrances fade in (framer-motion animates opacity even with reduced motion): measure when settled.
+    // Page and card entrances fade in (Motion animates opacity even with reduced motion): measure when settled.
     await page.waitForFunction(() => document.getAnimations().every((x) => x.playState !== "running"));
     await page.waitForTimeout(400);
     const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, LayoutGroup, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { ChartLineUp, ChatsCircle, Check, CheckCircle, Flag, Kanban, Sparkle, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -147,7 +147,7 @@ function InsightsDemo() {
         <div key={tt.name} className="group grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[6.5rem_minmax(0,1fr)_auto]">
           <p className="truncate text-xs font-bold sm:text-sm">{tt.name}</p>
           <div className="h-3 overflow-hidden rounded-full bg-muted">
-            <motion.div className="h-full rounded-full bg-chart-1 transition-[filter] group-hover:brightness-110" initial={{ width: reduce ? `${tt.progress}%` : 0 }} animate={{ width: `${tt.progress}%` }} transition={{ duration: 1, delay: i * 0.12, ease: [0.16, 1, 0.3, 1] }} />
+            <motion.div className="h-full w-full rounded-full bg-chart-1 transition-[filter] group-hover:brightness-110" initial={{ x: reduce ? `${tt.progress - 100}%` : "-100%" }} animate={{ x: `${tt.progress - 100}%` }} transition={{ duration: 1, delay: i * 0.12, ease: [0.16, 1, 0.3, 1] }} />
           </div>
           <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold sm:text-[0.6875rem]", tt.ok ? "bg-success/12 text-success" : "bg-warning/14 text-warning")}>
             {tt.ok ? <CheckCircle weight="fill" className="size-3" /> : <WarningCircle weight="fill" className="size-3" />}

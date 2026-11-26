@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   CloudArrowUp, DownloadSimple, File as FileIcon, FileCode, FileDoc, FileImage, FilePdf, FilePpt, FileXls, FileZip, FolderOpen, MagnifyingGlass, Trash,
 } from "@phosphor-icons/react/dist/ssr";

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ArrowRight, ChalkboardTeacher, EnvelopeSimpleOpen, Eye, EyeSlash, Student, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { getProfile } from "@/app/actions";

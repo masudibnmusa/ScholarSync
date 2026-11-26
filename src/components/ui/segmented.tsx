@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as TG from "@radix-ui/react-toggle-group";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /** Single-choice pill switch with a sliding indicator. Arrow keys move between options (Radix roving focus). */

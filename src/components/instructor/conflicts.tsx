@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowRight, ChatsCircle, Check, CheckCircle, Clock, Funnel, Lightbulb, Scroll, ShieldCheck, ShieldWarning, Smiley, SmileyMeh, SmileySad, Warning, WarningCircle, WarningOctagon, X,
 } from "@phosphor-icons/react/dist/ssr";
@@ -51,8 +51,10 @@ function Tone({ score }: { score: number }) {
       <div role="meter" aria-label={t("Chat tone")} aria-valuemin={-1} aria-valuemax={1} aria-valuenow={score} aria-valuetext={`${mood.label}, ${num(score, 2)}`}
         className="relative h-1.5 w-24 shrink-0 rounded-full bg-gradient-to-r from-destructive/70 via-muted to-success/70 sm:w-32">
         <span className="absolute left-1/2 top-1/2 h-2.5 w-px -translate-y-1/2 bg-muted-foreground/50" aria-hidden />
-        <motion.span className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground shadow-soft"
-          initial={{ left: "50%" }} animate={{ left: `${pct}%` }} transition={{ type: "spring", stiffness: 120, damping: 18 }} />
+        <motion.span className="pointer-events-none absolute inset-0" aria-hidden
+          initial={{ x: "0%" }} animate={{ x: `${pct - 50}%` }} transition={{ type: "spring", stiffness: 120, damping: 18 }}>
+          <span className="absolute left-1/2 top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground shadow-soft" />
+        </motion.span>
       </div>
       <span className="text-xs tabular-nums text-muted-foreground">{score > 0 ? "+" : ""}{num(score, 2)}</span>
     </div>

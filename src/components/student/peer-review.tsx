@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { CheckCircle, LockKey, PaperPlaneTilt, Star, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { getMyReviews } from "@/app/actions";
 import { useAppStore, useLive } from "@/lib/store";

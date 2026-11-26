@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { animate, motion, useReducedMotion, type Variants } from "framer-motion";
+import { animate, motion, useReducedMotion, type Variants } from "motion/react";
 import { cn } from "@/lib/utils";
 import { num } from "@/lib/i18n";
 

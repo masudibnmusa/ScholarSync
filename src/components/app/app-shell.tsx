@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import * as Sentry from "@sentry/nextjs";
 import { DotsThreeOutline, WifiSlash } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";

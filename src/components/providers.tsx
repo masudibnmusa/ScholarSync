@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider, useTheme } from "next-themes";
-import { MotionConfig } from "framer-motion";
+import { MotionConfig } from "motion/react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/overlays";
 
@@ -26,7 +26,7 @@ function Toasts() {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      {/* reducedMotion="user": framer-motion skips transforms for people who ask for less motion */}
+      {/* reducedMotion="user": Motion skips transforms for people who ask for less motion */}
       <MotionConfig reducedMotion="user">
         <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
       </MotionConfig>
