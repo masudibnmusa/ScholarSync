@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, eq, exists, gt, isNull, or, sql } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
 import { inngest } from "./client";
 import { adminDb as db } from "@/db";
@@ -110,10 +110,11 @@ export const weeklyRecaps = inngest.createFunction(
   async ({ step }) => {
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const active = await step.run("active-teams", () =>
-      db.selectDistinct({ id: teams.id, name: teams.name }).from(teams)
-        .leftJoin(messages, eq(messages.teamId, teams.id))
-        .leftJoin(tasks, eq(tasks.teamId, teams.id))
-        .where(or(gt(messages.createdAt, since), gt(tasks.updatedAt, since))),
+      // exists, not joins: joining both multiplied each team's messages by its tasks.
+      db.select({ id: teams.id, name: teams.name }).from(teams).where(or(
+        exists(db.select({ x: sql`1` }).from(messages).where(and(eq(messages.teamId, teams.id), gt(messages.createdAt, since)))),
+        exists(db.select({ x: sql`1` }).from(tasks).where(and(eq(tasks.teamId, teams.id), gt(tasks.updatedAt, since)))),
+      )),
     );
     let written = 0;
     for (const team of active) {
